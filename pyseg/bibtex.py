@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # **************************************************************************
 # *
 # * Authors:     you (you@yourinstitution.email)
@@ -24,12 +25,19 @@
 # *
 # **************************************************************************
 
-import pyworkflow.em
+"""
+@article{A.Martinez-Sanchez2020,
+title = "Template-free detection and classification of heterogeneous membrane-bound complexes in cryo-electron tomograms ",
+journal = "Nature Methods",
+volume = "17",
+number = "",
+pages = "",
+year = "2020",
+issn = "15487105",
+doi = "10.1038/s41592-019-0675-5",
+url = "http://www.url",
+author = "Antonio Martinez-Sanchez",
+keywords = "Single particle analysis Tomography",
+}
 
-_logo = "icon.png"
-_references = ['you2019']
-
-class Plugin(pyworkflow.em.Plugin):
-    pass
-
-pyworkflow.em.Domain.registerPlugin(__name__)
+"""

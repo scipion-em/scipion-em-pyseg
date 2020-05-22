@@ -28,7 +28,7 @@
 from pyworkflow.em import ListTreeProviderString, String
 import pyworkflow.gui.dialog as dialog
 
-from myplugin.protocols import MyPluginPrefixHelloWorld
+from pyseg.protocols.protocols import MyPluginPrefixHelloWorld
 from pyworkflow.wizard import Wizard
 
 
