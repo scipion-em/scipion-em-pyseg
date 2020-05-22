@@ -24,4 +24,4 @@
 # *
 # **************************************************************************
 
-from .protocols import MyPluginPrefixHelloWorld
+from .protocol_import_starfile import ProtPySegImportSubtomos
