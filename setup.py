@@ -34,6 +34,9 @@ setup(
     keywords='scipion cryoem imageprocessing scipion-2.0',  # Optional
     packages=find_packages(),
     install_requires=[requirements],
+    entry_points={
+        'pyworkflow.plugin': 'pyseg = pyseg'
+    },
     package_data={  # Optional
        'pyseg': ['icon.png', 'protocols.conf'],
     }
