@@ -23,44 +23,40 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
-import math
-import numpy as np
+
 from pwem import Domain
-from pwem.emlib.image.image_handler import ImageHandler
-from pwem.objects.data import Transform
+from pwem.objects.data import Transform, String
 import pwem.convert.transformations as tfs
 Coordinate3D = Domain.importFromPlugin("tomo.objects", "Coordinate3D")
 TomoAcquisition = Domain.importFromPlugin("tomo.objects", "TomoAcquisition")
 
+
 def readStarfileRow(self, item):
     nline = next(self.fhTable)
     nline = nline.rstrip()
-
+    item.setVolName(nline.split()[0])
     item.setFileName(nline.split()[2])
-
     coordinate3d = Coordinate3D()
-    volName = int(nline.split()[0])
-    ctf3d = nline.split()[1]
     x = nline.split()[3]
     y = nline.split()[4]
     z = nline.split()[5]
-    coordinate3d.setVolName(volName)
     coordinate3d.setX(float(x))
     coordinate3d.setY(float(y))
     coordinate3d.setZ(float(z))
-    # Extended attribute in prot import starfile
-    coordinate3d.setCtf3D(ctf3d)
+    coordinate3d._3dcftMrcFile = String(nline.split()[1])
     item.setCoordinate3D(coordinate3d)
-
-    shiftx = nline.split()[12]
-    shifty = nline.split()[13]
-    shiftz = nline.split()[14]
-    tilt = nline.split()[6]
-    psi = nline.split()[8]
-    rot = nline.split()[10]
-    # Check angles order in euler_matrix
-    A = tfs.euler_matrix(tilt, psi, rot, shiftx, shifty, shiftz)
+    shiftx = float(nline.split()[12])
+    shifty = float(nline.split()[13])
+    shiftz = float(nline.split()[14])
+    tilt = float(nline.split()[6])
+    psi = float(nline.split()[8])
+    rot = float(nline.split()[10])
+    A = tfs.euler_matrix(tilt, psi, rot)  # TODO: Check angles order in euler_matrix
+    A[0, 3] = shiftx
+    A[1, 3] = shifty
+    A[2, 3] = shiftz
     transform = Transform()
-
-
-
+    item.setTransform(transform)
+    item.setClassId(int(nline.split()[15]))
+    acq = TomoAcquisition()
+    item.setAcquisition(acq)
