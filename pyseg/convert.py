@@ -51,7 +51,7 @@ def readStarfileRow(self, item):
     tilt = float(nline.split()[6])
     psi = float(nline.split()[8])
     rot = float(nline.split()[10])
-    A = tfs.euler_matrix(tilt, psi, rot)  # TODO: Check angles order in euler_matrix
+    A = tfs.euler_matrix(rot, tilt, psi, 'szyz')
     A[0, 3] = shiftx
     A[1, 3] = shifty
     A[2, 3] = shiftz
