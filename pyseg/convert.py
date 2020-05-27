@@ -23,7 +23,8 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
-
+from os.path import join
+from numpy import deg2rad
 from pwem import Domain
 from pwem.objects.data import Transform, String
 import pwem.convert.transformations as tfs
@@ -31,11 +32,12 @@ Coordinate3D = Domain.importFromPlugin("tomo.objects", "Coordinate3D")
 TomoAcquisition = Domain.importFromPlugin("tomo.objects", "TomoAcquisition")
 
 
-def readStarfileRow(self, item):
-    nline = next(self.fhTable)
+def readStarfileRow(nline, item, path):
     nline = nline.rstrip()
-    item.setVolName(nline.split()[0])
-    item.setFileName(nline.split()[2])
+    volname = join(path, nline.split()[0])
+    item.setVolName(volname)
+    filename = join(path, nline.split()[2])
+    item.setFileName(filename)
     coordinate3d = Coordinate3D()
     x = nline.split()[3]
     y = nline.split()[4]
@@ -43,7 +45,8 @@ def readStarfileRow(self, item):
     coordinate3d.setX(float(x))
     coordinate3d.setY(float(y))
     coordinate3d.setZ(float(z))
-    coordinate3d._3dcftMrcFile = String(nline.split()[1])
+    ctf3d = nline.split()[1]
+    coordinate3d._3dcftMrcFile = String(join(path, ctf3d))
     item.setCoordinate3D(coordinate3d)
     shiftx = float(nline.split()[12])
     shifty = float(nline.split()[13])
@@ -51,7 +54,7 @@ def readStarfileRow(self, item):
     tilt = float(nline.split()[6])
     psi = float(nline.split()[8])
     rot = float(nline.split()[10])
-    A = tfs.euler_matrix(rot, tilt, psi, 'szyz')
+    A = tfs.euler_matrix(deg2rad(rot), deg2rad(tilt), deg2rad(psi), 'szyz')
     A[0, 3] = shiftx
     A[1, 3] = shifty
     A[2, 3] = shiftz

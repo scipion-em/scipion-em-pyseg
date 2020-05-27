@@ -24,8 +24,9 @@
 # *
 # **************************************************************************
 
-from pyworkflow.tests import BaseTest, setupTestProject, DataSet
+from pyworkflow.tests import BaseTest, setupTestProject
 from pyseg.protocols import *
+from tomo.tests import DataSet
 
 
 class TestTomoImportSubTomograms(BaseTest):
@@ -47,16 +48,16 @@ class TestTomoImportSubTomograms(BaseTest):
     def test_import_pyseg_subtomograms(self):
         protImport = self._runImportPySegSubTomograms()
         output = getattr(protImport, 'outputSubTomograms', None)
+        self.assertTrue(output.getSize() == 2)
         self.assertTrue(output.getSamplingRate() == 1.35)
+        self.assertTrue(output.getDim()[0] == 128)
+        self.assertTrue(output.getDim()[1] == 128)
+        self.assertTrue(output.getDim()[2] == 128)
         self.assertTrue(output.getFirstItem().getSamplingRate() == 1.35)
-        self.assertTrue(output.getDim()[0] == 32)
-        self.assertTrue(output.getDim()[1] == 32)
-        self.assertTrue(output.getDim()[2] == 32)
-        # Metada from star file:
-        self.assertTrue(output.getFirstItem().getObjId() == 4)
-        self.assertTrue(output.getFirstItem().getClassId() == 1)
-        self.assertTrue(output.getFirstItem().getAcquisition().getAngleMin() == -60)
-        self.assertTrue(output.getFirstItem().getAcquisition().getAngleMax() == 60)
-        self.assertTrue(output.getFirstItem().getCoordinate3D().getX() == 175)
-        self.assertTrue(output.getFirstItem().getCoordinate3D().getY() == 134)
-        self.assertTrue(output.getFirstItem().getCoordinate3D().getZ() == 115)
+        self.assertTrue(output.getFirstItem().getDim()[0] == 128)
+        self.assertTrue(output.getFirstItem().getDim()[1] == 128)
+        self.assertTrue(output.getFirstItem().getDim()[2] == 128)
+        self.assertTrue(output.getFirstItem().getClassId() == 30)
+        self.assertTrue(output.getFirstItem().getCoordinate3D().getX() == 951)
+        self.assertTrue(output.getFirstItem().getCoordinate3D().getY() == 800)
+        self.assertTrue(output.getFirstItem().getCoordinate3D().getZ() == 478)
