@@ -29,7 +29,7 @@ from pyseg.protocols import *
 from tomo.tests import DataSet
 
 
-class TestTomoImportSubTomograms(BaseTest):
+class TestPysegImportSubTomograms(BaseTest):
     """ This class check if the protocol to import sub tomograms works
      properly."""
     @classmethod
