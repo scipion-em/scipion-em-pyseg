@@ -46,6 +46,7 @@ def readStarfileRow(nline, item, path):
     coordinate3d.setY(float(y))
     coordinate3d.setZ(float(z))
     ctf3d = nline.split()[1]
+    # This extended attribute should match with ctf3d generation in Relion
     coordinate3d._3dcftMrcFile = String(join(path, ctf3d))
     item.setCoordinate3D(coordinate3d)
     shiftx = float(nline.split()[12])
