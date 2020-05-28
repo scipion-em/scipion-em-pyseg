@@ -39,9 +39,11 @@ class TestTomoImportSubTomograms(BaseTest):
          cls.star = cls.dataset.getFile('pyseg_after_2dcl.star')
 
     def _runImportPySegSubTomograms(self):
+
+        print(self.star)
         protImport = self.newProtocol(ProtPySegImportSubtomos,
                                       samplingRate=1.35,
-                                      starPath=self.star)
+                                      starFile=self.star)
         self.launchProtocol(protImport)
         return protImport
 
