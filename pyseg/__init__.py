@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # **************************************************************************
 # *
 # * Authors:     you (you@yourinstitution.email)
@@ -25,19 +24,12 @@
 # *
 # **************************************************************************
 
-"""
-@article{you2019,
-title = "Title of your paper ",
-journal = "...",
-volume = "...",
-number = ".",
-pages = "1 - 6",
-year = "2019",
-issn = "0000-1111",
-doi = "http://dx.doi.org/xxxxx/xxxxx",
-url = "http://www.url",
-author = "you and your team",
-keywords = "Single particle analysis Tomography",
-}
+import pwem
 
-"""
+_logo = "icon.png"
+_references = ['AMartinez-Sanchez2020']
+
+
+class Plugin(pwem.Plugin):
+    pass
+

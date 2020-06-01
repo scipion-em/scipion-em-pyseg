@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # **************************************************************************
 # *
 # * Authors:     you (you@yourinstitution.email)
@@ -20,16 +21,6 @@
 # * 02111-1307  USA
 # *
 # *  All comments concerning this program package may be sent to the
-# *  e-mail address 'scipion@cnb.csic.es'
+# *  e-mail address 'you@yourinstitution.email'
 # *
 # **************************************************************************
-
-import pyworkflow.em
-
-_logo = "icon.png"
-_references = ['you2019']
-
-class Plugin(pyworkflow.em.Plugin):
-    pass
-
-pyworkflow.em.Domain.registerPlugin(__name__)
