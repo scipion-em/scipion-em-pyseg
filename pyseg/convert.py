@@ -60,6 +60,7 @@ def readStarfileRow(nline, item, path):
     A[1, 3] = shifty
     A[2, 3] = shiftz
     transform = Transform()
+    transform.setMatrix(A)
     item.setTransform(transform)
     item.setClassId(int(nline.split()[15]))
     acq = TomoAcquisition()
