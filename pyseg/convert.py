@@ -32,29 +32,32 @@ Coordinate3D = Domain.importFromPlugin("tomo.objects", "Coordinate3D")
 TomoAcquisition = Domain.importFromPlugin("tomo.objects", "TomoAcquisition")
 
 
-def readStarfileRow(nline, item, path):
+def readStarfileRow(nline, item, path, headerDict):
     nline = nline.rstrip()
-    volname = join(path, nline.split()[0])
+    # volname = join(path, nline.split()[0])
+    # print('---------colid---------', headerDict.get('_rlnMicrographName'))
+    # print('---------VOLNAME---------', nline.split()[headerDict.get('_rlnMicrographName')])
+    volname = join(path, nline.split()[headerDict.get('_rlnMicrographName')])
     item.setVolName(volname)
-    filename = join(path, nline.split()[2])
+    filename = join(path, nline.split()[headerDict.get('_rlnImageName')])
     item.setFileName(filename)
     coordinate3d = Coordinate3D()
-    x = nline.split()[3]
-    y = nline.split()[4]
-    z = nline.split()[5]
+    x = nline.split()[headerDict.get('_rlnCoordinateX')]
+    y = nline.split()[headerDict.get('_rlnCoordinateY')]
+    z = nline.split()[headerDict.get('_rlnCoordinateZ')]
     coordinate3d.setX(float(x))
     coordinate3d.setY(float(y))
     coordinate3d.setZ(float(z))
-    ctf3d = nline.split()[1]
+    ctf3d = nline.split()[headerDict.get('_rlnCtfImage')]
     # This extended attribute should match with ctf3d generation in Relion
     coordinate3d._3dcftMrcFile = String(join(path, ctf3d))
     item.setCoordinate3D(coordinate3d)
-    shiftx = float(nline.split()[12])
-    shifty = float(nline.split()[13])
-    shiftz = float(nline.split()[14])
-    tilt = float(nline.split()[6])
-    psi = float(nline.split()[8])
-    rot = float(nline.split()[10])
+    shiftx = float(nline.split()[headerDict.get('_rlnOriginX')])
+    shifty = float(nline.split()[headerDict.get('_rlnOriginY')])
+    shiftz = float(nline.split()[headerDict.get('_rlnOriginZ')])
+    tilt = float(nline.split()[headerDict.get('_rlnAngleTilt')])
+    psi = float(nline.split()[headerDict.get('_rlnAnglePsi')])
+    rot = float(nline.split()[headerDict.get('_rlnAngleRot')])
     A = tfs.euler_matrix(deg2rad(rot), deg2rad(tilt), deg2rad(psi), 'szyz')
     A[0, 3] = shiftx
     A[1, 3] = shifty
@@ -62,6 +65,33 @@ def readStarfileRow(nline, item, path):
     transform = Transform()
     transform.setMatrix(A)
     item.setTransform(transform)
-    item.setClassId(int(nline.split()[15]))
+    item.setClassId(int(nline.split()[headerDict.get('_rlnClassNumber')]))
     acq = TomoAcquisition()
     item.setAcquisition(acq)
+
+
+def readStarfileHeader(fhStar):
+    w1 = True
+    while(w1):  # Read lines until they contain first column name
+        line = next(fhStar)
+        # print('---------LINE---------', line)
+        if line.startswith('loop_'):
+            w1 = False
+            break
+
+    w2 = True
+    headerList = []
+    while(w2):  # Read all lines with column names and store the names in a list
+        line = next(fhStar)
+        if line.startswith('_rln'):
+            headerList.append(line)
+        else:
+            w2 = False
+            break
+
+    headerDict = {}
+    for i, colName in enumerate(headerList):
+        headerDict[colName.split()[0]] = i
+    # print('--------------HEADER DICT------------', headerDict)
+
+    return headerDict

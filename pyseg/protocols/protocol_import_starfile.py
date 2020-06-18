@@ -35,7 +35,7 @@ from pwem.protocols import EMProtocol
 from tomo.protocols import ProtTomoBase
 from tomo.objects import SubTomogram
 
-from ..convert import readStarfileRow
+from ..convert import readStarfileRow, readStarfileHeader
 
 
 class ProtPySegImportSubtomos(EMProtocol, ProtTomoBase):
@@ -69,12 +69,13 @@ class ProtPySegImportSubtomos(EMProtocol, ProtTomoBase):
         starf_extra = self._getExtraPath('pyseg.star')
         copyFile(starf, starf_extra)
         self.fhTable = open(starf_extra, 'r')
-        for i in range(26):  # Read lines until the first line with data
-            next(self.fhTable)
+        headerDict = readStarfileHeader(self.fhTable)  # Read column names order from the header
+        # I'M LOOSING FIRST ROW OF DATA
         for line in self.fhTable:
+            print('------------next line-----------', line)
             if line == ' \n':
                 break
-            readStarfileRow(line, subtomo, path)
+            readStarfileRow(line, subtomo, path, headerDict)
             fileName = subtomo.getFileName()
             x, y, z, n = imgh.getDimensions(fileName)
             if fileName.endswith('.mrc') or fileName.endswith('.map'):
