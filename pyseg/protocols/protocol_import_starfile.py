@@ -69,10 +69,8 @@ class ProtPySegImportSubtomos(EMProtocol, ProtTomoBase):
         starf_extra = self._getExtraPath('pyseg.star')
         copyFile(starf, starf_extra)
         self.fhTable = open(starf_extra, 'r')
-        headerDict = readStarfileHeader(self.fhTable)  # Read column names order from the header
-        # I'M LOOSING FIRST ROW OF DATA
+        headerDict = readStarfileHeader(self.fhTable)
         for line in self.fhTable:
-            print('------------next line-----------', line)
             if line == ' \n':
                 break
             readStarfileRow(line, subtomo, path, headerDict)

@@ -34,9 +34,6 @@ TomoAcquisition = Domain.importFromPlugin("tomo.objects", "TomoAcquisition")
 
 def readStarfileRow(nline, item, path, headerDict):
     nline = nline.rstrip()
-    # volname = join(path, nline.split()[0])
-    # print('---------colid---------', headerDict.get('_rlnMicrographName'))
-    # print('---------VOLNAME---------', nline.split()[headerDict.get('_rlnMicrographName')])
     volname = join(path, nline.split()[headerDict.get('_rlnMicrographName')])
     item.setVolName(volname)
     filename = join(path, nline.split()[headerDict.get('_rlnImageName')])
@@ -74,7 +71,6 @@ def readStarfileHeader(fhStar):
     w1 = True
     while(w1):  # Read lines until they contain first column name
         line = next(fhStar)
-        # print('---------LINE---------', line)
         if line.startswith('loop_'):
             w1 = False
             break
@@ -92,6 +88,5 @@ def readStarfileHeader(fhStar):
     headerDict = {}
     for i, colName in enumerate(headerList):
         headerDict[colName.split()[0]] = i
-    # print('--------------HEADER DICT------------', headerDict)
 
     return headerDict
