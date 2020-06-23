@@ -89,4 +89,4 @@ def readStarfileHeader(fhStar):
     for i, colName in enumerate(headerList):
         headerDict[colName.split()[0]] = i
 
-    return headerDict
+    return headerDict, line
