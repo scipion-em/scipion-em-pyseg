@@ -35,7 +35,7 @@ from pwem.protocols import EMProtocol
 from tomo.protocols import ProtTomoBase
 from tomo.objects import SubTomogram
 
-from ..convert import readStarfileRow
+from ..convert import readStarfileRow, readStarfileHeader
 
 
 class ProtPySegImportSubtomos(EMProtocol, ProtTomoBase):
@@ -69,38 +69,19 @@ class ProtPySegImportSubtomos(EMProtocol, ProtTomoBase):
         starf_extra = self._getExtraPath('pyseg.star')
         copyFile(starf, starf_extra)
         self.fhTable = open(starf_extra, 'r')
-        for i in range(26):  # Read lines until the first line with data
-            next(self.fhTable)
+        headerDict, line = readStarfileHeader(self.fhTable)
+        if line == ' \n' or line == '\n':  # if there is an empty line between column names and real data
+            pass
+        else:
+            readStarfileRow(line, subtomo, path, headerDict)
+            self._writeSubtomogram(subtomo, imgh, samplingRate)
+
         for line in self.fhTable:
-            if line == ' \n':
+            if line == ' \n' or line == '\n':  # if there is an empty line at the end of the file
                 break
-            readStarfileRow(line, subtomo, path)
-            fileName = subtomo.getFileName()
-            x, y, z, n = imgh.getDimensions(fileName)
-            if fileName.endswith('.mrc') or fileName.endswith('.map'):
-                fileName += ':mrc'
-                if z == 1 and n != 1:
-                    zDim = n
-                    n = 1
-                else:
-                    zDim = z
             else:
-                zDim = z
-            origin = Transform()
-            origin.setShifts(x/-2. * samplingRate, y/-2. * samplingRate, zDim/-2. * samplingRate)
-            subtomo.setOrigin(origin)
-
-            newFileName = abspath(self._getVolumeFileName(fileName))
-            if fileName.endswith(':mrc'):
-                fileName = fileName[:-4]
-            createAbsLink(fileName, newFileName)
-
-            if n == 1:
-                self._addSubtomogram(subtomo, newFileName)
-            else:
-                for index in range(1, n + 1):
-                    self._addSubtomogram(subtomo, newFileName, index=index)
-
+                readStarfileRow(line, subtomo, path, headerDict)
+                self._writeSubtomogram(subtomo, imgh, samplingRate)
         self.fhTable.close()
 
     def createOutputStep(self):
@@ -126,6 +107,33 @@ class ProtPySegImportSubtomos(EMProtocol, ProtTomoBase):
         return methods
 
     # --------------------------- UTILS functions -----------------------------------
+    def _writeSubtomogram(self, subtomo, imgh, samplingRate):
+        fileName = subtomo.getFileName()
+        x, y, z, n = imgh.getDimensions(fileName)
+        if fileName.endswith('.mrc') or fileName.endswith('.map'):
+            fileName += ':mrc'
+            if z == 1 and n != 1:
+                zDim = n
+                n = 1
+            else:
+                zDim = z
+        else:
+            zDim = z
+        origin = Transform()
+        origin.setShifts(x / -2. * samplingRate, y / -2. * samplingRate, zDim / -2. * samplingRate)
+        subtomo.setOrigin(origin)
+
+        newFileName = abspath(self._getVolumeFileName(fileName))
+        if fileName.endswith(':mrc'):
+            fileName = fileName[:-4]
+        createAbsLink(fileName, newFileName)
+
+        if n == 1:
+            self._addSubtomogram(subtomo, newFileName)
+        else:
+            for index in range(1, n + 1):
+                self._addSubtomogram(subtomo, newFileName, index=index)
+
     def _getVolumeFileName(self, fileName, extension=None):
         if extension is not None:
             baseFileName = "import_" + str(basename(fileName)).split(".")[0] + ".%s" % extension
