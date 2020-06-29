@@ -24,7 +24,7 @@
 # *
 # **************************************************************************
 from os.path import join
-from numpy import deg2rad
+import numpy as np
 from pwem import Domain
 from pwem.objects.data import Transform, String
 import pwem.convert.transformations as tfs
@@ -55,10 +55,11 @@ def readStarfileRow(nline, item, path, headerDict):
     tilt = float(nline.split()[headerDict.get('_rlnAngleTilt')])
     psi = float(nline.split()[headerDict.get('_rlnAnglePsi')])
     rot = float(nline.split()[headerDict.get('_rlnAngleRot')])
-    A = tfs.euler_matrix(deg2rad(rot), deg2rad(tilt), deg2rad(psi), 'szyz')
-    A[0, 3] = shiftx
-    A[1, 3] = shifty
-    A[2, 3] = shiftz
+    # Atfs = tfs.euler_matrix(np.deg2rad(rot), np.deg2rad(tilt), np.deg2rad(psi), 'szyz')
+    A = eulerAngles2matrix(rot, tilt, psi, shiftx, shifty, shiftz)
+    # A[0, 3] = shiftx
+    # A[1, 3] = shifty
+    # A[2, 3] = shiftz
     transform = Transform()
     transform.setMatrix(A)
     item.setTransform(transform)
@@ -90,3 +91,37 @@ def readStarfileHeader(fhStar):
         headerDict[colName.split()[0]] = i
 
     return headerDict, line
+
+
+def eulerAngles2matrix(alpha, beta, gamma, shiftx, shifty, shiftz):
+    A = np.empty([4, 4])
+    A.fill(2)
+    A[3, 3] = 1
+    A[3, 0:3] = 0
+    A[0, 3] = float(shiftx)
+    A[1, 3] = float(shifty)
+    A[2, 3] = float(shiftz)
+    alpha = np.deg2rad(float(alpha))
+    beta = np.deg2rad(float(beta))
+    gamma = np.deg2rad(float(gamma))
+    sa = np.sin(alpha)
+    ca = np.cos(alpha)
+    sb = np.sin(beta)
+    cb = np.cos(beta)
+    sg = np.sin(gamma)
+    cg = np.cos(gamma)
+    cc = cb * ca
+    cs = cb * sa
+    sc = sb * ca
+    ss = sb * sa
+    A[0, 0] = cg * cc - sg * sa
+    A[0, 1] = cg * cs + sg * ca
+    A[0, 2] = -cg * sb
+    A[1, 0] = -sg * cc - cg * sa
+    A[1, 1] = -sg * cs + cg * ca
+    A[1, 2] = sg * sb
+    A[2, 0] = sc
+    A[2, 1] = ss
+    A[2, 2] = cb
+
+    return A
