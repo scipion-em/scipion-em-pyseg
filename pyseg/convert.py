@@ -57,11 +57,12 @@ def readStarfileRow(nline, item, path, headerDict):
     rot = float(nline.split()[headerDict.get('_rlnAngleRot')])
     # Atfs = tfs.euler_matrix(np.deg2rad(rot), np.deg2rad(tilt), np.deg2rad(psi), 'szyz')
     A = eulerAngles2matrix(rot, tilt, psi, shiftx, shifty, shiftz)
+    Ainv = np.linalg.inv(A)
     # A[0, 3] = shiftx
     # A[1, 3] = shifty
     # A[2, 3] = shiftz
     transform = Transform()
-    transform.setMatrix(A)
+    transform.setMatrix(Ainv)
     item.setTransform(transform)
     item.setClassId(int(nline.split()[headerDict.get('_rlnClassNumber')]))
     acq = TomoAcquisition()
