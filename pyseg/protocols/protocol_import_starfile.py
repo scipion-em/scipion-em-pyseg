@@ -122,7 +122,6 @@ class ProtPySegImportSubtomos(EMProtocol, ProtTomoBase):
         origin = Transform()
         origin.setShifts(x / -2. * samplingRate, y / -2. * samplingRate, zDim / -2. * samplingRate)
         subtomo.setOrigin(origin)
-
         newFileName = abspath(self._getVolumeFileName(fileName))
         if fileName.endswith(':mrc'):
             fileName = fileName[:-4]

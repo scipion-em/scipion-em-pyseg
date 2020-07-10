@@ -24,10 +24,11 @@
 # *
 # **************************************************************************
 from os.path import join
-from numpy import deg2rad
+import numpy as np
 from pwem import Domain
 from pwem.objects.data import Transform, String
 import pwem.convert.transformations as tfs
+
 Coordinate3D = Domain.importFromPlugin("tomo.objects", "Coordinate3D")
 TomoAcquisition = Domain.importFromPlugin("tomo.objects", "TomoAcquisition")
 
@@ -55,12 +56,22 @@ def readStarfileRow(nline, item, path, headerDict):
     tilt = float(nline.split()[headerDict.get('_rlnAngleTilt')])
     psi = float(nline.split()[headerDict.get('_rlnAnglePsi')])
     rot = float(nline.split()[headerDict.get('_rlnAngleRot')])
-    A = tfs.euler_matrix(deg2rad(rot), deg2rad(tilt), deg2rad(psi), 'szyz')
-    A[0, 3] = shiftx
-    A[1, 3] = shifty
-    A[2, 3] = shiftz
+    shifts = (shiftx, shifty, shiftz)
+    angles = (rot, tilt, psi)
+    invert = True
+    radAngles = -np.deg2rad(angles)
+    M = tfs.euler_matrix(radAngles[0], radAngles[1], radAngles[2], 'szyz')
+    if invert:
+        M[0, 3] = -shifts[0]
+        M[1, 3] = -shifts[1]
+        M[2, 3] = -shifts[2]
+        M = np.linalg.inv(M)
+    else:
+        M[0, 3] = shifts[0]
+        M[1, 3] = shifts[1]
+        M[2, 3] = shifts[2]
     transform = Transform()
-    transform.setMatrix(A)
+    transform.setMatrix(M)
     item.setTransform(transform)
     item.setClassId(int(nline.split()[headerDict.get('_rlnClassNumber')]))
     acq = TomoAcquisition()
