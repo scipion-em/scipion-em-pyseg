@@ -56,8 +56,6 @@ def readStarfileRow(nline, item, path, headerDict):
     tilt = float(nline.split()[headerDict.get('_rlnAngleTilt')])
     psi = float(nline.split()[headerDict.get('_rlnAnglePsi')])
     rot = float(nline.split()[headerDict.get('_rlnAngleRot')])
-
-    # JORGE
     shifts = (shiftx, shifty, shiftz)
     angles = (rot, tilt, psi)
     invert = True
@@ -74,15 +72,6 @@ def readStarfileRow(nline, item, path, headerDict):
         M[2, 3] = shifts[2]
     transform = Transform()
     transform.setMatrix(M)
-    # JORGE_END
-
-    # A = eulerAngles2matrix(rot, tilt, psi)
-    # As = [float(shiftx), float(shifty), float(shiftz)]
-    # A = np.column_stack((A, As))
-    # A0 = [0, 0, 0, 1]
-    # A = np.vstack((A, A0))
-    # transform = Transform()
-    # transform.setMatrix(A)
     item.setTransform(transform)
     item.setClassId(int(nline.split()[headerDict.get('_rlnClassNumber')]))
     acq = TomoAcquisition()
@@ -112,69 +101,3 @@ def readStarfileHeader(fhStar):
         headerDict[colName.split()[0]] = i
 
     return headerDict, line
-
-
-def eulerAngles2matrix(alpha, beta, gamma):
-    A = np.empty([3, 3])
-    A.fill(0)
-
-    alpha = float(alpha)
-    beta = float(beta)
-    gamma = float(gamma)
-
-    alpha = np.deg2rad(alpha)
-    beta = np.deg2rad(beta)
-    gamma = np.deg2rad(gamma)
-
-    ca = np.cos(alpha)
-    cb = np.cos(beta)
-    cg = np.cos(gamma)
-    sa = np.sin(alpha)
-    sb = np.sin(beta)
-    sg = np.sin(gamma)
-    cc = cb * ca
-    cs = cb * sa
-    sc = sb * ca
-    ss = sb * sa
-
-    A[0, 0] = cg * cc - sg * sa
-    A[0, 1] = cg * cs + sg * ca
-    A[0, 2] = -cg * sb
-    A[1, 0] = -sg * cc - cg * sa
-    A[1, 1] = -sg * cs + cg * ca
-    A[1, 2] = sg * sb
-    A[2, 0] = sc
-    A[2, 1] = ss
-    A[2, 2] = cb
-
-    return A
-
-
-def matrix2eulerAngles(A):
-    epsilon = 16*np.exp(-5)
-
-    if np.abs(A[1, 1]) > epsilon:
-        abs_sb = np.sqrt((-A[2, 2] * A[1, 2] * A[2, 1] - A[0, 2] * A[2, 0]) / A[1, 1])
-
-    elif np.abs(A[0, 1]) > epsilon:
-        abs_sb = np.sqrt((-A[2, 1] * A[2, 2] * A[0, 2] + A[2, 0] * A[1, 2]) / A[0, 1])
-    elif np.abs(A[0, 0]) > epsilon:
-        abs_sb = np.sqrt((-A[2, 0] * A[2, 2] * A[0, 2] - A[2, 1] * A[1, 2]) / A[0, 0])
-    else:
-        exit(1)
-
-    if abs_sb > epsilon:
-        beta = np.arctan2(abs_sb, A[2, 2])
-        alpha = np.arctan2(A[2, 1] / abs_sb, A[2, 0] / abs_sb)
-        gamma = np.arctan2(A[1, 2] / abs_sb, -A[0, 2] / abs_sb)
-
-    else:
-        alpha = 0
-        beta = 0
-        gamma = np.arctan2(A[1, 0], A[0, 0])
-
-    gamma = np.rad2deg(gamma)
-    beta = np.rad2deg(beta)
-    alpha = np.rad2deg(alpha)
-
-    return gamma, beta, alpha
