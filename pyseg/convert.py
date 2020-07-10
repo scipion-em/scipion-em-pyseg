@@ -28,6 +28,7 @@ import numpy as np
 from pwem import Domain
 from pwem.objects.data import Transform, String
 import pwem.convert.transformations as tfs
+
 Coordinate3D = Domain.importFromPlugin("tomo.objects", "Coordinate3D")
 TomoAcquisition = Domain.importFromPlugin("tomo.objects", "TomoAcquisition")
 
@@ -55,13 +56,33 @@ def readStarfileRow(nline, item, path, headerDict):
     tilt = float(nline.split()[headerDict.get('_rlnAngleTilt')])
     psi = float(nline.split()[headerDict.get('_rlnAnglePsi')])
     rot = float(nline.split()[headerDict.get('_rlnAngleRot')])
-    A = eulerAngles2matrix(rot, tilt, psi)
-    As = [float(shiftx), float(shifty), float(shiftz)]
-    A = np.column_stack((A, As))
-    A0 = [0, 0, 0, 1]
-    A = np.vstack((A, A0))
+
+    # JORGE
+    shifts = (shiftx, shifty, shiftz)
+    angles = (rot, tilt, psi)
+    invert = True
+    radAngles = -np.deg2rad(angles)
+    M = tfs.euler_matrix(radAngles[0], radAngles[1], radAngles[2], 'szyz')
+    if invert:
+        M[0, 3] = -shifts[0]
+        M[1, 3] = -shifts[1]
+        M[2, 3] = -shifts[2]
+        M = np.linalg.inv(M)
+    else:
+        M[0, 3] = shifts[0]
+        M[1, 3] = shifts[1]
+        M[2, 3] = shifts[2]
     transform = Transform()
-    transform.setMatrix(A)
+    transform.setMatrix(M)
+    # JORGE_END
+
+    # A = eulerAngles2matrix(rot, tilt, psi)
+    # As = [float(shiftx), float(shifty), float(shiftz)]
+    # A = np.column_stack((A, As))
+    # A0 = [0, 0, 0, 1]
+    # A = np.vstack((A, A0))
+    # transform = Transform()
+    # transform.setMatrix(A)
     item.setTransform(transform)
     item.setClassId(int(nline.split()[headerDict.get('_rlnClassNumber')]))
     acq = TomoAcquisition()
