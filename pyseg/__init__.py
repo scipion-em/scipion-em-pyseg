@@ -26,6 +26,7 @@
 
 import pwem
 
+__version__ = '0.2'
 _logo = "icon.png"
 _references = ['AMartinez-Sanchez2020']
 
