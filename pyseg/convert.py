@@ -24,6 +24,7 @@
 # *
 # **************************************************************************
 import numpy as np
+from pwem.emlib.image import ImageHandler
 from pwem.objects.data import Transform, String
 import pwem.convert.transformations as tfs
 from relion.convert import Table
@@ -49,6 +50,8 @@ FILE_NOT_FOUND = 'file_not_found'
 
 def readStarFile(starFile, outputSubTomogramsSet, invert=True):
     warningMsg = ''
+    samplingRate = outputSubTomogramsSet.getSamplingRate()
+    ih = ImageHandler()
     tomoTable = Table()
     tomoTable.read(starFile)
     if not tomoTable.hasAllColumns(RELION_TOMO_LABELS):
@@ -61,9 +64,10 @@ def readStarFile(starFile, outputSubTomogramsSet, invert=True):
         subtomo = SubTomogram()
         coordinate3d = Coordinate3D()
         transform = Transform()
+        origin = Transform()
 
         volname = row.get('rlnMicrographName', FILE_NOT_FOUND)
-        filename = row.rlnImageName
+        subtomoFilename = row.get('rlnImageName', FILE_NOT_FOUND)
         x = row.get('rlnCoordinateX', 0)
         y = row.get('rlnCoordinateY', 0)
         z = row.get('rlnCoordinateZ', 0)
@@ -94,12 +98,34 @@ def readStarFile(starFile, outputSubTomogramsSet, invert=True):
         transform.setMatrix(M)
 
         subtomo.setVolName(volname)
-        subtomo.setFileName(filename)
+        subtomo.setFileName(subtomoFilename)
         subtomo.setCoordinate3D(coordinate3d)
         subtomo.setTransform(transform)
         subtomo.setAcquisition(TomoAcquisition())
         subtomo.setClassId(row.get('rlnClassNumber', 0))
+        subtomo.setSamplingRate(samplingRate)
+
+        # Set the dimensions of the current subtomogram
+        x, y, z, n = ih.getDimensions(subtomoFilename)
+        zDim = manageIhDims(subtomoFilename, z, n)
+        origin.setShifts(x / -2. * samplingRate, y / -2. * samplingRate, zDim / -2. * samplingRate)
+        subtomo.setOrigin(origin)
+
+        # Add current subtomogram to the output set
         outputSubTomogramsSet.append(subtomo)
 
     return warningMsg
+
+
+def manageIhDims(fileName, z, n):
+    if fileName.endswith('.mrc') or fileName.endswith('.map'):
+        fileName += ':mrc'
+        if z == 1 and n != 1:
+            zDim = n
+        else:
+            zDim = z
+    else:
+        zDim = z
+
+    return zDim
 
