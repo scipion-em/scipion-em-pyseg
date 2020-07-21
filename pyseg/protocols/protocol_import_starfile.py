@@ -24,7 +24,7 @@
 # *
 # **************************************************************************
 
-from pwem import UNIT_ANGSTROM_SYMBOL
+from pwem import UNIT_ANGSTROM_SYMBOL, dirname
 from pyworkflow.protocol.params import PathParam, FloatParam, String
 from pyworkflow.utils.path import copyFile
 from pwem.protocols import EMProtocol
@@ -54,15 +54,15 @@ class ProtPySegImportSubtomos(EMProtocol, ProtTomoBase):
     # --------------------------- STEPS functions -----------------------------
     def importSubtomogramsStep(self):
         starFile = self.starFile.get()
+        starPath = dirname(starFile) + '/'
         copyFile(starFile, self._getExtraPath('pyseg.star'))
 
         self.subtomoSet = self._createSetOfSubTomograms()
         self.subtomoSet.setSamplingRate(self.samplingRate.get())
-        warningMsg = readStarFile(starFile, self.subtomoSet)
+        warningMsg = readStarFile(starFile, self.subtomoSet, starPath)
         if warningMsg:
             self.warningMsg = String(warningMsg)
             self._store()
-            # self.warning(warningMsg)
 
     def createOutputStep(self):
         self._defineOutputs(outputSubTomograms=self.subtomoSet)

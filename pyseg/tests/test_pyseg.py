@@ -88,10 +88,9 @@ class TestPysegImportSubTomograms(BaseTest):
 
     @classmethod
     def _loadTestData(cls):
-        path = getParentFolder(cls.star)
         return [['tomo1.mrc', 'tomo2.mrc'],
                   ['wedge1.mrc', 'wedge2.mrc'],
-                  [join(path, 'import_particle_000003.mrc'), join(path, 'import_particle_000016.mrc')],
+                  ['import_particle_000003.mrc', 'import_particle_000016.mrc'],
                   [951.053406, 1088.109376],
                   [800.000000, 1082.000000],
                   [478.000000, 432.000000],
@@ -143,7 +142,7 @@ class TestPysegImportSubTomograms(BaseTest):
         classId = [30, 30]
 
     def test_import_pyseg_subtomograms_14_columns(self):
-        usedKeys = self._writeTestStarFile(RELION_TOMO_LABELS)  # Write the corresponding star file
+        self._writeTestStarFile(RELION_TOMO_LABELS)  # Write the corresponding star file
         protImport = self._runImportPySegSubTomograms()
         subtomoSet = getattr(protImport, 'outputSubTomograms', None)
         # Check set attribute
@@ -154,8 +153,8 @@ class TestPysegImportSubTomograms(BaseTest):
         y = [800, 1082]
         z = [478, 432]
         filenames = [join(path, 'import_particle_000003.mrc'), join(path, 'import_particle_000016.mrc')]
-        volNames = ['tomo1.mrc', 'tomo2.mrc']
-        wedges = ['wedge1.mrc', 'wedge2.mrc']
+        volNames = [join(path, 'tomo1.mrc'), join(path, 'tomo2.mrc')]
+        wedges = [join(path, 'wedge1.mrc'), join(path, 'wedge2.mrc')]
         for i, subtomo in enumerate(subtomoSet):
             self.assertEqual(subtomo.getSamplingRate(), 1.35)
             self.assertEqual(subtomo.getDim()[0], 128)

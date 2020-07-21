@@ -27,6 +27,7 @@ import numpy as np
 from pwem.emlib.image import ImageHandler
 from pwem.objects.data import Transform, String
 import pwem.convert.transformations as tfs
+from pyworkflow import join
 from relion.convert import Table
 from tomo.objects import SubTomogram, Coordinate3D, TomoAcquisition
 
@@ -48,7 +49,7 @@ RELION_TOMO_LABELS = ['rlnMicrographName',
 FILE_NOT_FOUND = 'file_not_found'
 
 
-def readStarFile(starFile, outputSubTomogramsSet, invert=True):
+def readStarFile(starFile, outputSubTomogramsSet, starPath, invert=True):
     warningMsg = ''
     samplingRate = outputSubTomogramsSet.getSamplingRate()
     ih = ImageHandler()
@@ -66,8 +67,8 @@ def readStarFile(starFile, outputSubTomogramsSet, invert=True):
         transform = Transform()
         origin = Transform()
 
-        volname = row.get('rlnMicrographName', FILE_NOT_FOUND)
-        subtomoFilename = row.get('rlnImageName', FILE_NOT_FOUND)
+        volname = join(starPath, row.get('rlnMicrographName', FILE_NOT_FOUND))
+        subtomoFilename = join(starPath, row.get('rlnImageName', FILE_NOT_FOUND))
         x = row.get('rlnCoordinateX', 0)
         y = row.get('rlnCoordinateY', 0)
         z = row.get('rlnCoordinateZ', 0)
@@ -75,7 +76,7 @@ def readStarFile(starFile, outputSubTomogramsSet, invert=True):
         coordinate3d.setX(float(x))
         coordinate3d.setY(float(y))
         coordinate3d.setZ(float(z))
-        coordinate3d._3dcftMrcFile = String(ctf3d) # This extended attribute is used for the ctf3d generation in Relion
+        coordinate3d._3dcftMrcFile = String(join(starPath, ctf3d))  # Used for the ctf3d generation in Relion
         shiftx = row.get('rlnOriginX', 0)
         shifty = row.get('rlnOriginY', 0)
         shiftz = row.get('rlnOriginZ', 0)
