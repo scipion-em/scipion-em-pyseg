@@ -106,7 +106,7 @@ def readStarFile(starFile, outputSubTomogramsSet, invert=True):
         subtomo.setSamplingRate(samplingRate)
 
         # Set the dimensions of the current subtomogram
-        x, y, z, n = ih.getDimensions(subtomoFilename)
+        x, y, z, n = ih.getDimensions(subtomo.getFileName())
         zDim = manageIhDims(subtomoFilename, z, n)
         origin.setShifts(x / -2. * samplingRate, y / -2. * samplingRate, zDim / -2. * samplingRate)
         subtomo.setOrigin(origin)
