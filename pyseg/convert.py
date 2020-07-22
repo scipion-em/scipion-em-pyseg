@@ -99,17 +99,17 @@ def readStarFile(starFile, outputSubTomogramsSet, starPath, invert=True):
         transform.setMatrix(M)
 
         subtomo.setVolName(volname)
-        subtomo.setFileName(subtomoFilename)
         subtomo.setCoordinate3D(coordinate3d)
         subtomo.setTransform(transform)
         subtomo.setAcquisition(TomoAcquisition())
         subtomo.setClassId(row.get('rlnClassNumber', 0))
         subtomo.setSamplingRate(samplingRate)
 
-        # Set the dimensions of the current subtomogram
-        x, y, z, n = ih.getDimensions(subtomo.getFileName())
-        zDim = manageIhDims(subtomoFilename, z, n)
+        # Set the origin and the dimensions of the current subtomogram
+        x, y, z, n = ih.getDimensions(subtomoFilename)
+        zDim, fileName = manageIhDims(subtomoFilename, z, n)
         origin.setShifts(x / -2. * samplingRate, y / -2. * samplingRate, zDim / -2. * samplingRate)
+        subtomo.setFileName(fileName)
         subtomo.setOrigin(origin)
 
         # Add current subtomogram to the output set
@@ -128,5 +128,5 @@ def manageIhDims(fileName, z, n):
     else:
         zDim = z
 
-    return zDim
+    return zDim, fileName
 

@@ -23,9 +23,11 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
+import numpy as np
 from os import remove
 from os.path import exists
 
+from pwem.convert.transformations import translation_from_matrix, euler_from_matrix
 from pyworkflow.tests import BaseTest, setupTestProject
 from pyworkflow.config import Config, join
 from pyworkflow.utils import getParentFolder
@@ -42,6 +44,8 @@ class TestPysegImportSubTomograms(BaseTest):
     def setUpClass(cls):
         setupTestProject(cls)
         cls.star = join(Config.SCIPION_TESTS, 'tomo-em', 'starTest.star')
+        cls.deltaAng = 1e-4
+        cls.deltaShift = 1e-4
         cls._genDataDicts()
 
     @classmethod
@@ -136,53 +140,68 @@ class TestPysegImportSubTomograms(BaseTest):
         self._writeTestStarFile(self._getKeysStar23())  # Write the corresponding star file
         protImport = self._runImportPySegSubTomograms()
         output = getattr(protImport, 'outputSubTomograms', None)
-        # Check set attribute
         self._checkSet(output)
-        # Check subtomo attributes
-        classId = [30, 30]
 
     def test_import_pyseg_subtomograms_14_columns(self):
         self._writeTestStarFile(RELION_TOMO_LABELS)  # Write the corresponding star file
         protImport = self._runImportPySegSubTomograms()
         subtomoSet = getattr(protImport, 'outputSubTomograms', None)
-        # Check set attribute
         self._checkSet(subtomoSet)
+
+    def _checkSet(self, subtomoSet):
+        # Check set attribute
+        self.assertEqual(subtomoSet.getSize(), 2)
+        self.assertEqual(subtomoSet.getSamplingRate(), 1.35)
+        self.assertEqual(subtomoSet.getDim()[0], 128)
+        self.assertEqual(subtomoSet.getDim()[1], 128)
+        self.assertEqual(subtomoSet.getDim()[2], 128)
         # Check subtomo attributes
-        path = getParentFolder(self.star)
-        x = [951, 1088]
-        y = [800, 1082]
-        z = [478, 432]
-        filenames = [join(path, 'import_particle_000003.mrc'), join(path, 'import_particle_000016.mrc')]
-        volNames = [join(path, 'tomo1.mrc'), join(path, 'tomo2.mrc')]
-        wedges = [join(path, 'wedge1.mrc'), join(path, 'wedge2.mrc')]
+        d = self._loadAssertData(self.star)
         for i, subtomo in enumerate(subtomoSet):
             self.assertEqual(subtomo.getSamplingRate(), 1.35)
             self.assertEqual(subtomo.getDim()[0], 128)
             self.assertEqual(subtomo.getDim()[1], 128)
             self.assertEqual(subtomo.getDim()[2], 128)
-            # self.assertEqual(subtomo.getClassId() == 30)
-            self.assertEqual(subtomo.getCoordinate3D().getX(), x[i])
-            self.assertEqual(subtomo.getCoordinate3D().getY(), y[i])
-            self.assertEqual(subtomo.getCoordinate3D().getZ(), z[i])
-            self.assertEqual(subtomo.getFileName(), filenames[i])
-            self.assertEqual(subtomo.getVolName(), volNames[i])
-            self.assertEqual(subtomo.getCoordinate3D()._3dcftMrcFile, wedges[i])
+            self.assertEqual(subtomo.getCoordinate3D().getX(), d['x'][i])
+            self.assertEqual(subtomo.getCoordinate3D().getY(), d['y'][i])
+            self.assertEqual(subtomo.getCoordinate3D().getZ(), d['z'][i])
+            self.assertEqual(subtomo.getFileName(), d['filenames'][i])
+            self.assertEqual(subtomo.getVolName(), d['volNames'][i])
+            self.assertEqual(subtomo.getCoordinate3D()._3dcftMrcFile, d['wedges'][i])
+            angles, shifts = self._checkTransform(subtomo)
+            self.assertAlmostEqual(angles[0], d['rot'][i], delta=self.deltaAng)
+            self.assertAlmostEqual(angles[1], d['tilt'][i], delta=self.deltaAng)
+            self.assertAlmostEqual(angles[2], d['psi'][i], delta=self.deltaAng)
+            self.assertAlmostEqual(shifts[0], d['sx'][i], delta=self.deltaShift)
+            self.assertAlmostEqual(shifts[1], d['sy'][i], delta=self.deltaShift)
+            self.assertAlmostEqual(shifts[2], d['sz'][i], delta=self.deltaShift)
 
-            # print(subtomo.getCoordinate3D()._3dcftMrcFile)
+    @staticmethod
+    def _checkTransform(subtomo, inverseTransform=True):
+        matrix = subtomo.getTransform().getMatrix()
+        if inverseTransform:
+            matrix = np.linalg.inv(matrix)
+            shifts = -translation_from_matrix(matrix)
+        else:
+            shifts = translation_from_matrix(matrix)
+        angles = -np.rad2deg(euler_from_matrix(matrix, axes='szyz'))
+        return angles, shifts
 
-    def _checkSet(self, output):
-        self.assertEqual(output.getSize(), 2)
-        self.assertEqual(output.getSamplingRate(), 1.35)
-        self.assertEqual(output.getDim()[0], 128)
-        self.assertEqual(output.getDim()[1], 128)
-        self.assertEqual(output.getDim()[2], 128)
-        # self.assertEqual(output.getSamplingRate() == 1.35)
-        # self.assertEqual(output.getDim()[0] == 128)
-        # self.assertEqual(output.getDim()[1] == 128)
-        # self.assertEqual(output.getDim()[2] == 128)
-        # self.assertEqual(output.getClassId() == 30)
-        # self.assertEqual(output.getCoordinate3D().getX() == 951)
-        # self.assertEqual(output.getCoordinate3D().getY() == 800)
-        # self.assertEqual(output.getCoordinate3D().getZ() == 478)
-
-        # TODO --> comprobación de los valores de los 2 subtomogramas con los dictioanrios de datos
+    @staticmethod
+    def _loadAssertData(starFile):
+        # Check subtomo attributes
+        path = getParentFolder(starFile)
+        return {
+            'x': [951, 1088],
+            'y': [800, 1082],
+            'z': [478, 432],
+            'rot': [17.818407, 5.136058],
+            'tilt': [86.870899, 48.663964],
+            'psi': [136.079624, -57.135630],
+            'sx': [9.097985, 10.975485],
+            'sy': [0.097985, -3.242020],
+            'sz': [1.390485, -0.072020],
+            'filenames': [join(path, 'import_particle_000003.mrc:mrc'), join(path, 'import_particle_000016.mrc:mrc')],
+            'volNames': [join(path, 'tomo1.mrc'), join(path, 'tomo2.mrc')],
+            'wedges': [join(path, 'wedge1.mrc'), join(path, 'wedge2.mrc')]
+        }
