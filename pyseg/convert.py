@@ -23,81 +23,110 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
-from os.path import join
 import numpy as np
-from pwem import Domain
+from pwem.emlib.image import ImageHandler
 from pwem.objects.data import Transform, String
 import pwem.convert.transformations as tfs
+from pyworkflow import join
+from relion.convert import Table
+from tomo.objects import SubTomogram, Coordinate3D, TomoAcquisition
 
-Coordinate3D = Domain.importFromPlugin("tomo.objects", "Coordinate3D")
-TomoAcquisition = Domain.importFromPlugin("tomo.objects", "TomoAcquisition")
-
-
-def readStarfileRow(nline, item, path, headerDict):
-    nline = nline.rstrip()
-    volname = join(path, nline.split()[headerDict.get('_rlnMicrographName')])
-    item.setVolName(volname)
-    filename = join(path, nline.split()[headerDict.get('_rlnImageName')])
-    item.setFileName(filename)
-    coordinate3d = Coordinate3D()
-    x = nline.split()[headerDict.get('_rlnCoordinateX')]
-    y = nline.split()[headerDict.get('_rlnCoordinateY')]
-    z = nline.split()[headerDict.get('_rlnCoordinateZ')]
-    coordinate3d.setX(float(x))
-    coordinate3d.setY(float(y))
-    coordinate3d.setZ(float(z))
-    ctf3d = nline.split()[headerDict.get('_rlnCtfImage')]
-    # This extended attribute should match with ctf3d generation in Relion
-    coordinate3d._3dcftMrcFile = String(join(path, ctf3d))
-    item.setCoordinate3D(coordinate3d)
-    shiftx = float(nline.split()[headerDict.get('_rlnOriginX')])
-    shifty = float(nline.split()[headerDict.get('_rlnOriginY')])
-    shiftz = float(nline.split()[headerDict.get('_rlnOriginZ')])
-    tilt = float(nline.split()[headerDict.get('_rlnAngleTilt')])
-    psi = float(nline.split()[headerDict.get('_rlnAnglePsi')])
-    rot = float(nline.split()[headerDict.get('_rlnAngleRot')])
-    shifts = (shiftx, shifty, shiftz)
-    angles = (rot, tilt, psi)
-    invert = True
-    radAngles = -np.deg2rad(angles)
-    M = tfs.euler_matrix(radAngles[0], radAngles[1], radAngles[2], 'szyz')
-    if invert:
-        M[0, 3] = -shifts[0]
-        M[1, 3] = -shifts[1]
-        M[2, 3] = -shifts[2]
-        M = np.linalg.inv(M)
-    else:
-        M[0, 3] = shifts[0]
-        M[1, 3] = shifts[1]
-        M[2, 3] = shifts[2]
-    transform = Transform()
-    transform.setMatrix(M)
-    item.setTransform(transform)
-    item.setClassId(int(nline.split()[headerDict.get('_rlnClassNumber')]))
-    acq = TomoAcquisition()
-    item.setAcquisition(acq)
+RELION_TOMO_LABELS = ['rlnMicrographName',
+                          'rlnCoordinateX',
+                          'rlnCoordinateY',
+                          'rlnCoordinateZ',
+                          'rlnImageName',
+                          'rlnCtfImage',
+                          'rlnMagnification',
+                          'rlnDetectorPixelSize',
+                          'rlnAngleRot',
+                          'rlnAngleTilt',
+                          'rlnAnglePsi',
+                          'rlnOriginX',
+                          'rlnOriginY',
+                          'rlnOriginZ',
+                          ]
+FILE_NOT_FOUND = 'file_not_found'
 
 
-def readStarfileHeader(fhStar):
-    w1 = True
-    while(w1):  # Read lines until they contain first column name
-        line = next(fhStar)
-        if line.startswith('loop_'):
-            w1 = False
-            break
+def readStarFile(starFile, outputSubTomogramsSet, starPath, invert=True):
+    warningMsg = ''
+    samplingRate = outputSubTomogramsSet.getSamplingRate()
+    ih = ImageHandler()
+    tomoTable = Table()
+    tomoTable.read(starFile)
+    if not tomoTable.hasAllColumns(RELION_TOMO_LABELS):
+        missingCols = [name for name in RELION_TOMO_LABELS if name not in tomoTable.getColumnNames()]
+        warningMsg = 'Columns %s\nwere not found in the star file provided.\nThe corresponding numerical ' \
+                     'values will be considered as 0.' \
+                     % '  '.join(['*' + colName + '*' for colName in missingCols])
 
-    w2 = True
-    headerList = []
-    while(w2):  # Read all lines with column names and store the names in a list
-        line = next(fhStar)
-        if line.startswith('_rln'):
-            headerList.append(line)
+    for counter, row in enumerate(tomoTable):
+        subtomo = SubTomogram()
+        coordinate3d = Coordinate3D()
+        transform = Transform()
+        origin = Transform()
+
+        volname = join(starPath, row.get('rlnMicrographName', FILE_NOT_FOUND))
+        subtomoFilename = join(starPath, row.get('rlnImageName', FILE_NOT_FOUND))
+        x = row.get('rlnCoordinateX', 0)
+        y = row.get('rlnCoordinateY', 0)
+        z = row.get('rlnCoordinateZ', 0)
+        ctf3d = row.get('rlnCtfImage', FILE_NOT_FOUND)
+        coordinate3d.setX(float(x))
+        coordinate3d.setY(float(y))
+        coordinate3d.setZ(float(z))
+        coordinate3d._3dcftMrcFile = String(join(starPath, ctf3d))  # Used for the ctf3d generation in Relion
+        shiftx = row.get('rlnOriginX', 0)
+        shifty = row.get('rlnOriginY', 0)
+        shiftz = row.get('rlnOriginZ', 0)
+        tilt = row.get('rlnAngleTilt', 0)
+        psi = row.get('rlnAnglePsi', 0)
+        rot = row.get('rlnAngleRot', 0)
+        shifts = (float(shiftx), float(shifty), float(shiftz))
+        angles = (float(rot), float(tilt), float(psi))
+        radAngles = -np.deg2rad(angles)
+        M = tfs.euler_matrix(radAngles[0], radAngles[1], radAngles[2], 'szyz')
+        if invert:
+            M[0, 3] = -shifts[0]
+            M[1, 3] = -shifts[1]
+            M[2, 3] = -shifts[2]
+            M = np.linalg.inv(M)
         else:
-            w2 = False
-            break
+            M[0, 3] = shifts[0]
+            M[1, 3] = shifts[1]
+            M[2, 3] = shifts[2]
+        transform.setMatrix(M)
 
-    headerDict = {}
-    for i, colName in enumerate(headerList):
-        headerDict[colName.split()[0]] = i
+        subtomo.setVolName(volname)
+        subtomo.setCoordinate3D(coordinate3d)
+        subtomo.setTransform(transform)
+        subtomo.setAcquisition(TomoAcquisition())
+        subtomo.setClassId(row.get('rlnClassNumber', 0))
+        subtomo.setSamplingRate(samplingRate)
 
-    return headerDict, line
+        # Set the origin and the dimensions of the current subtomogram
+        x, y, z, n = ih.getDimensions(subtomoFilename)
+        zDim, fileName = manageIhDims(subtomoFilename, z, n)
+        origin.setShifts(x / -2. * samplingRate, y / -2. * samplingRate, zDim / -2. * samplingRate)
+        subtomo.setFileName(fileName)
+        subtomo.setOrigin(origin)
+
+        # Add current subtomogram to the output set
+        outputSubTomogramsSet.append(subtomo)
+
+    return warningMsg
+
+
+def manageIhDims(fileName, z, n):
+    if fileName.endswith('.mrc') or fileName.endswith('.map'):
+        fileName += ':mrc'
+        if z == 1 and n != 1:
+            zDim = n
+        else:
+            zDim = z
+    else:
+        zDim = z
+
+    return zDim, fileName
+
