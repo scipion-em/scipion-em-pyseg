@@ -23,11 +23,14 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
+from os.path import dirname, abspath
+
 import numpy as np
 from pwem.emlib.image import ImageHandler
 from pwem.objects.data import Transform, String
 import pwem.convert.transformations as tfs
 from pyworkflow import join
+from pyworkflow.utils import createAbsLink
 from relion.convert import Table
 from tomo.objects import SubTomogram, Coordinate3D, TomoAcquisition
 
@@ -49,8 +52,10 @@ RELION_TOMO_LABELS = ['rlnMicrographName',
 FILE_NOT_FOUND = 'file_not_found'
 
 
-def readStarFile(starFile, outputSubTomogramsSet, starPath, invert=True):
+def readStarFile(prot, outputSubTomogramsSet, invert=True):
+    starFile = prot.starFile.get()
     warningMsg = ''
+    starPath = dirname(starFile) + '/'
     samplingRate = outputSubTomogramsSet.getSamplingRate()
     ih = ImageHandler()
     tomoTable = Table()
@@ -109,8 +114,11 @@ def readStarFile(starFile, outputSubTomogramsSet, starPath, invert=True):
         x, y, z, n = ih.getDimensions(subtomoFilename)
         zDim, fileName = manageIhDims(subtomoFilename, z, n)
         origin.setShifts(x / -2. * samplingRate, y / -2. * samplingRate, zDim / -2. * samplingRate)
-        subtomo.setFileName(fileName)
         subtomo.setOrigin(origin)
+
+        # Make link
+        subtomo.setFileName(fileName)
+        genAbsLink(prot, fileName)
 
         # Add current subtomogram to the output set
         outputSubTomogramsSet.append(subtomo)
@@ -129,4 +137,11 @@ def manageIhDims(fileName, z, n):
         zDim = z
 
     return zDim, fileName
+
+
+def genAbsLink(prot, fileName):
+    newFileName = abspath(prot.getVolumeFileName(fileName))
+    if fileName.endswith(':mrc'):
+        fileName = fileName[:-4]
+    createAbsLink(fileName, newFileName)
 

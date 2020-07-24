@@ -26,8 +26,8 @@
 
 from pwem import UNIT_ANGSTROM_SYMBOL, dirname
 from pyworkflow.protocol.params import PathParam, FloatParam, String
-from pyworkflow.utils.path import copyFile
-from pwem.protocols import EMProtocol
+from pyworkflow.utils.path import copyFile, createAbsLink
+from pwem.protocols import EMProtocol, basename
 from tomo.protocols import ProtTomoBase
 from ..convert import readStarFile
 
@@ -54,12 +54,11 @@ class ProtPySegImportSubtomos(EMProtocol, ProtTomoBase):
     # --------------------------- STEPS functions -----------------------------
     def importSubtomogramsStep(self):
         starFile = self.starFile.get()
-        starPath = dirname(starFile) + '/'
         copyFile(starFile, self._getExtraPath('pyseg.star'))
 
         self.subtomoSet = self._createSetOfSubTomograms()
         self.subtomoSet.setSamplingRate(self.samplingRate.get())
-        warningMsg = readStarFile(starFile, self.subtomoSet, starPath)
+        warningMsg = readStarFile(self, self.subtomoSet)
         if warningMsg:
             self.warningMsg = String(warningMsg)
             self._store()
@@ -88,3 +87,12 @@ class ProtPySegImportSubtomos(EMProtocol, ProtTomoBase):
                            (self.subtomoSet.getSize(), self.starFile.get(),
                             self.samplingRate.get(), UNIT_ANGSTROM_SYMBOL))
         return methods
+
+    # --------------------------- UTILS functions -----------------------------------
+    def getVolumeFileName(self, fileName, extension=None):
+        if extension is not None:
+            baseFileName = "import_" + str(basename(fileName)).split(".")[0] + ".%s" % extension
+        else:
+            baseFileName = "import_" + str(basename(fileName)).split(":")[0]
+
+        return self._getExtraPath(baseFileName)
