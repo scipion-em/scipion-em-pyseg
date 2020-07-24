@@ -53,8 +53,8 @@ FILE_NOT_FOUND = 'file_not_found'
 
 
 def readStarFile(prot, outputSubTomogramsSet, invert=True):
-    starFile = prot.starFile.get()
     warningMsg = ''
+    starFile = prot.starFile.get()
     starPath = dirname(starFile) + '/'
     samplingRate = outputSubTomogramsSet.getSamplingRate()
     ih = ImageHandler()
@@ -73,7 +73,8 @@ def readStarFile(prot, outputSubTomogramsSet, invert=True):
         origin = Transform()
 
         volname = join(starPath, row.get('rlnMicrographName', FILE_NOT_FOUND))
-        subtomoFilename = join(starPath, row.get('rlnImageName', FILE_NOT_FOUND))
+        subtomoFn = row.get('rlnImageName', FILE_NOT_FOUND)
+        subtomoAbsFn = join(starPath, subtomoFn)
         x = row.get('rlnCoordinateX', 0)
         y = row.get('rlnCoordinateY', 0)
         z = row.get('rlnCoordinateZ', 0)
@@ -110,15 +111,17 @@ def readStarFile(prot, outputSubTomogramsSet, invert=True):
         subtomo.setClassId(row.get('rlnClassNumber', 0))
         subtomo.setSamplingRate(samplingRate)
 
+        # Make link
+        uniqueSubtomoFn = prot._getExtraPath(subtomoFn.replace("/", "_"))
+        genAbsLink(subtomoAbsFn, abspath(uniqueSubtomoFn))
+
         # Set the origin and the dimensions of the current subtomogram
-        x, y, z, n = ih.getDimensions(subtomoFilename)
-        zDim, fileName = manageIhDims(subtomoFilename, z, n)
+        x, y, z, n = ih.getDimensions(subtomoAbsFn)
+        zDim, filename = manageIhDims(uniqueSubtomoFn, z, n)
         origin.setShifts(x / -2. * samplingRate, y / -2. * samplingRate, zDim / -2. * samplingRate)
         subtomo.setOrigin(origin)
 
-        # Make link
-        subtomo.setFileName(fileName)
-        genAbsLink(prot, fileName)
+        subtomo.setFileName(filename)
 
         # Add current subtomogram to the output set
         outputSubTomogramsSet.append(subtomo)
@@ -139,9 +142,7 @@ def manageIhDims(fileName, z, n):
     return zDim, fileName
 
 
-def genAbsLink(prot, fileName):
-    newFileName = abspath(prot.getVolumeFileName(fileName))
+def genAbsLink(fileName, newFileName):
     if fileName.endswith(':mrc'):
         fileName = fileName[:-4]
     createAbsLink(fileName, newFileName)
-
