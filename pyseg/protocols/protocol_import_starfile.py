@@ -87,12 +87,3 @@ class ProtPySegImportSubtomos(EMProtocol, ProtTomoBase):
                            (self.subtomoSet.getSize(), self.starFile.get(),
                             self.samplingRate.get(), UNIT_ANGSTROM_SYMBOL))
         return methods
-
-    # --------------------------- UTILS functions -----------------------------------
-    def getVolumeFileName(self, fileName, extension=None):
-        if extension is not None:
-            baseFileName = "import_" + str(basename(fileName)).split(".")[0] + ".%s" % extension
-        else:
-            baseFileName = "import_" + str(basename(fileName)).split(":")[0]
-
-        return self._getExtraPath(baseFileName)
