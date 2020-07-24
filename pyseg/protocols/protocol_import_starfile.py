@@ -74,7 +74,7 @@ class ProtPySegImportSubtomos(EMProtocol, ProtTomoBase):
                            % (self.starFile.get(), self.samplingRate.get(), UNIT_ANGSTROM_SYMBOL))
         else:
             summary.append("Output subtomograms not ready yet.")
-        if hasattr(self, 'warningMsg'):
+        if self.warningMsg:
             summary.append(self.warningMsg.get())
         return summary
 
