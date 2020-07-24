@@ -112,7 +112,7 @@ def readStarFile(prot, outputSubTomogramsSet, invert=True):
         subtomo.setSamplingRate(samplingRate)
 
         # Make link
-        uniqueSubtomoFn = prot._getExtraPath(subtomoFn.replace("/", "_"))
+        uniqueSubtomoFn = prot._getExtraPath(subtomoFn.replace("/", "_").replace("..", ""))
         genAbsLink(subtomoAbsFn, uniqueSubtomoFn)
 
         # Set the origin and the dimensions of the current subtomogram
