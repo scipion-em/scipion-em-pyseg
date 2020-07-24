@@ -29,7 +29,7 @@ import numpy as np
 from pwem.emlib.image import ImageHandler
 from pwem.objects.data import Transform, String
 import pwem.convert.transformations as tfs
-from pyworkflow import join
+from os.path import join
 from pyworkflow.utils import createAbsLink
 from relion.convert import Table
 from tomo.objects import SubTomogram, Coordinate3D, TomoAcquisition
@@ -113,7 +113,7 @@ def readStarFile(prot, outputSubTomogramsSet, invert=True):
 
         # Make link
         uniqueSubtomoFn = prot._getExtraPath(subtomoFn.replace("/", "_"))
-        genAbsLink(subtomoAbsFn, abspath(uniqueSubtomoFn))
+        genAbsLink(subtomoAbsFn, uniqueSubtomoFn)
 
         # Set the origin and the dimensions of the current subtomogram
         x, y, z, n = ih.getDimensions(subtomoAbsFn)
