@@ -83,7 +83,7 @@ class ProtPySegImportSubtomos(EMProtocol, ProtTomoBase):
         if not hasattr(self, 'outputSubTomograms'):
             methods.append("Output subtomograms not ready yet.")
         else:
-            methods.append(" %s subtomograms imported from %s with a sampling rate *%0.2f %s/pix*" %
-                           (self.subtomoSet.getSize(), self.starFile.get(),
+            methods.append("*%s* subtomograms imported from file *%s* with a sampling rate *%0.2f %s/pix*" %
+                           (self.outputSubTomograms.getSize(), self.starFile.get(),
                             self.samplingRate.get(), UNIT_ANGSTROM_SYMBOL))
         return methods
