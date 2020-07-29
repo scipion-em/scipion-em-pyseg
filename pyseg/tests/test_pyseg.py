@@ -25,11 +25,11 @@
 # **************************************************************************
 import numpy as np
 from os import remove
-from os.path import exists
+from os.path import exists, join
 
 from pwem.convert.transformations import translation_from_matrix, euler_from_matrix
 from pyworkflow.tests import BaseTest, setupTestProject
-from pyworkflow.config import Config, join
+from pyworkflow.config import Config
 from pyworkflow.utils import getParentFolder
 from relion.convert import Table
 
@@ -140,15 +140,15 @@ class TestPysegImportSubTomograms(BaseTest):
         self._writeTestStarFile(self._getKeysStar23())  # Write the corresponding star file
         protImport = self._runImportPySegSubTomograms()
         output = getattr(protImport, 'outputSubTomograms', None)
-        self._checkSet(output)
+        self._checkSet(output, protImport._getExtraPath())
 
     def test_import_pyseg_subtomograms_14_columns(self):
         self._writeTestStarFile(RELION_TOMO_LABELS)  # Write the corresponding star file
         protImport = self._runImportPySegSubTomograms()
         subtomoSet = getattr(protImport, 'outputSubTomograms', None)
-        self._checkSet(subtomoSet)
+        self._checkSet(subtomoSet, protImport._getExtraPath())
 
-    def _checkSet(self, subtomoSet):
+    def _checkSet(self, subtomoSet, extraPath):
         # Check set attribute
         self.assertEqual(subtomoSet.getSize(), 2)
         self.assertEqual(subtomoSet.getSamplingRate(), 1.35)
@@ -156,7 +156,7 @@ class TestPysegImportSubTomograms(BaseTest):
         self.assertEqual(subtomoSet.getDim()[1], 128)
         self.assertEqual(subtomoSet.getDim()[2], 128)
         # Check subtomo attributes
-        d = self._loadAssertData(self.star)
+        d = self._loadAssertData(extraPath, self.star)
         for i, subtomo in enumerate(subtomoSet):
             self.assertEqual(subtomo.getSamplingRate(), 1.35)
             self.assertEqual(subtomo.getDim()[0], 128)
@@ -188,7 +188,7 @@ class TestPysegImportSubTomograms(BaseTest):
         return angles, shifts
 
     @staticmethod
-    def _loadAssertData(starFile):
+    def _loadAssertData(extraPath, starFile):
         # Check subtomo attributes
         path = getParentFolder(starFile)
         return {
@@ -201,7 +201,8 @@ class TestPysegImportSubTomograms(BaseTest):
             'sx': [9.097985, 10.975485],
             'sy': [0.097985, -3.242020],
             'sz': [1.390485, -0.072020],
-            'filenames': [join(path, 'import_particle_000003.mrc:mrc'), join(path, 'import_particle_000016.mrc:mrc')],
+            'filenames': [join(extraPath, 'import_particle_000003.mrc:mrc'),
+                          join(extraPath, 'import_particle_000016.mrc:mrc')],
             'volNames': [join(path, 'tomo1.mrc'), join(path, 'tomo2.mrc')],
             'wedges': [join(path, 'wedge1.mrc'), join(path, 'wedge2.mrc')]
         }

@@ -23,11 +23,14 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
+from os.path import dirname, abspath
+
 import numpy as np
 from pwem.emlib.image import ImageHandler
 from pwem.objects.data import Transform, String
 import pwem.convert.transformations as tfs
-from pyworkflow import join
+from os.path import join
+from pyworkflow.utils import createAbsLink
 from relion.convert import Table
 from tomo.objects import SubTomogram, Coordinate3D, TomoAcquisition
 
@@ -49,8 +52,10 @@ RELION_TOMO_LABELS = ['rlnMicrographName',
 FILE_NOT_FOUND = 'file_not_found'
 
 
-def readStarFile(starFile, outputSubTomogramsSet, starPath, invert=True):
+def readStarFile(prot, outputSubTomogramsSet, invert=True):
     warningMsg = ''
+    starFile = prot.starFile.get()
+    starPath = dirname(starFile) + '/'
     samplingRate = outputSubTomogramsSet.getSamplingRate()
     ih = ImageHandler()
     tomoTable = Table()
@@ -68,7 +73,8 @@ def readStarFile(starFile, outputSubTomogramsSet, starPath, invert=True):
         origin = Transform()
 
         volname = join(starPath, row.get('rlnMicrographName', FILE_NOT_FOUND))
-        subtomoFilename = join(starPath, row.get('rlnImageName', FILE_NOT_FOUND))
+        subtomoFn = row.get('rlnImageName', FILE_NOT_FOUND)
+        subtomoAbsFn = join(starPath, subtomoFn)
         x = row.get('rlnCoordinateX', 0)
         y = row.get('rlnCoordinateY', 0)
         z = row.get('rlnCoordinateZ', 0)
@@ -105,12 +111,17 @@ def readStarFile(starFile, outputSubTomogramsSet, starPath, invert=True):
         subtomo.setClassId(row.get('rlnClassNumber', 0))
         subtomo.setSamplingRate(samplingRate)
 
+        # Make link
+        uniqueSubtomoFn = prot._getExtraPath(subtomoFn.replace("/", "_").replace("..", ""))
+        genAbsLink(subtomoAbsFn, uniqueSubtomoFn)
+
         # Set the origin and the dimensions of the current subtomogram
-        x, y, z, n = ih.getDimensions(subtomoFilename)
-        zDim, fileName = manageIhDims(subtomoFilename, z, n)
+        x, y, z, n = ih.getDimensions(subtomoAbsFn)
+        zDim, filename = manageIhDims(uniqueSubtomoFn, z, n)
         origin.setShifts(x / -2. * samplingRate, y / -2. * samplingRate, zDim / -2. * samplingRate)
-        subtomo.setFileName(fileName)
         subtomo.setOrigin(origin)
+
+        subtomo.setFileName(filename)
 
         # Add current subtomogram to the output set
         outputSubTomogramsSet.append(subtomo)
@@ -130,3 +141,8 @@ def manageIhDims(fileName, z, n):
 
     return zDim, fileName
 
+
+def genAbsLink(fileName, newFileName):
+    if fileName.endswith(':mrc'):
+        fileName = fileName[:-4]
+    createAbsLink(fileName, newFileName)

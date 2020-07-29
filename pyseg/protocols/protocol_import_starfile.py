@@ -26,8 +26,8 @@
 
 from pwem import UNIT_ANGSTROM_SYMBOL, dirname
 from pyworkflow.protocol.params import PathParam, FloatParam, String
-from pyworkflow.utils.path import copyFile
-from pwem.protocols import EMProtocol
+from pyworkflow.utils.path import copyFile, createAbsLink
+from pwem.protocols import EMProtocol, basename
 from tomo.protocols import ProtTomoBase
 from ..convert import readStarFile
 
@@ -54,12 +54,11 @@ class ProtPySegImportSubtomos(EMProtocol, ProtTomoBase):
     # --------------------------- STEPS functions -----------------------------
     def importSubtomogramsStep(self):
         starFile = self.starFile.get()
-        starPath = dirname(starFile) + '/'
         copyFile(starFile, self._getExtraPath('pyseg.star'))
 
         self.subtomoSet = self._createSetOfSubTomograms()
         self.subtomoSet.setSamplingRate(self.samplingRate.get())
-        warningMsg = readStarFile(starFile, self.subtomoSet, starPath)
+        warningMsg = readStarFile(self, self.subtomoSet)
         if warningMsg:
             self.warningMsg = String(warningMsg)
             self._store()
@@ -75,7 +74,7 @@ class ProtPySegImportSubtomos(EMProtocol, ProtTomoBase):
                            % (self.starFile.get(), self.samplingRate.get(), UNIT_ANGSTROM_SYMBOL))
         else:
             summary.append("Output subtomograms not ready yet.")
-        if hasattr(self, 'warningMsg'):
+        if self.warningMsg:
             summary.append(self.warningMsg.get())
         return summary
 
@@ -84,7 +83,7 @@ class ProtPySegImportSubtomos(EMProtocol, ProtTomoBase):
         if not hasattr(self, 'outputSubTomograms'):
             methods.append("Output subtomograms not ready yet.")
         else:
-            methods.append(" %s subtomograms imported from %s with a sampling rate *%0.2f %s/pix*" %
-                           (self.subtomoSet.getSize(), self.starFile.get(),
+            methods.append("*%s* subtomograms imported from file *%s* with a sampling rate *%0.2f %s/pix*" %
+                           (self.outputSubTomograms.getSize(), self.starFile.get(),
                             self.samplingRate.get(), UNIT_ANGSTROM_SYMBOL))
         return methods
