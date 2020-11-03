@@ -27,7 +27,7 @@ from os.path import dirname, abspath
 
 import numpy as np
 from pwem.emlib.image import ImageHandler
-from pwem.objects.data import Transform, String
+from pwem.objects.data import Transform, String, Integer
 import pwem.convert.transformations as tfs
 from os.path import join
 from pyworkflow.utils import createAbsLink
@@ -122,6 +122,13 @@ def readStarFile(prot, outputSubTomogramsSet, invert=True):
         subtomo.setOrigin(origin)
 
         subtomo.setFileName(filename)
+        # if subtomo is in a vesicle
+        if 'tid_' in filename:
+            vesicleId = filename.split('tid_')[1]
+            vesicleId = vesicleId.split('.')[0]
+            scoor = subtomo.getCoordinate3D()
+            scoor._vesicleId = Integer(vesicleId)
+            subtomo.setCoordinate3D(scoor)
 
         # Add current subtomogram to the output set
         outputSubTomogramsSet.append(subtomo)
