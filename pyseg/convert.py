@@ -127,7 +127,7 @@ def readStarFile(prot, outputSubTomogramsSet, invert=True):
             vesicleId = filename.split('tid_')[1]
             vesicleId = vesicleId.split('.')[0]
             scoor = subtomo.getCoordinate3D()
-            scoor._vesicleId = Integer(vesicleId)
+            scoor.setGroupId(vesicleId)
             subtomo.setCoordinate3D(scoor)
 
         # Add current subtomogram to the output set
