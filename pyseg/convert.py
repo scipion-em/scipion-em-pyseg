@@ -123,8 +123,8 @@ def readStarFile(prot, outputSubTomogramsSet, invert=True):
 
         subtomo.setFileName(filename)
         # if subtomo is in a vesicle
-        if 'tid_' in filename:
-            vesicleId = filename.split('tid_')[1]
+        if 'tid_' in subtomoFn:
+            vesicleId = subtomoFn.split('tid_')[1]
             vesicleId = vesicleId.split('.')[0]
             scoor = subtomo.getCoordinate3D()
             scoor.setGroupId(vesicleId)
