@@ -30,7 +30,7 @@ import os
 from pyworkflow.utils import Environ
 from pyworkflow import Config
 from pyseg.constants import PYSEG_HOME, PYSEG, PYSEG_SOURCE_URL, PYSEG_ENV_ACTIVATION, DEFAULT_ACTIVATION_CMD, \
-    PYSEG_ENV_NAME
+    PYSEG_ENV_NAME, CFITSIO, DISPERSE
 
 _logo = "icon.png"
 _references = ['AMartinez-Sanchez2020']
@@ -64,11 +64,57 @@ class Plugin(pwem.Plugin):
 
     @classmethod
     def defineBinaries(cls, env):
-        PYSEG_INSTALLED = '%s_installed' % PYSEG
         scipion_home = os.environ.get("SCIPION_HOME", None)
         em_root = os.environ.get("EM_ROOT", None)
-        zipFile = join(scipion_home, em_root, PYSEG, basename(PYSEG_SOURCE_URL))
+        pySegDir = join(scipion_home, em_root, PYSEG)
+        PYSEG_DOWNLOADED = join(pySegDir, '%s_downloaded' % PYSEG + '_source')
+        PYSEG_INSTALLED = '%s_installed' % PYSEG
 
+        # PySeg source code
+        installationCmd = 'wget ' + PYSEG_SOURCE_URL
+        installationCmd += ' && unzip -q %s' % join(pySegDir, basename(PYSEG_SOURCE_URL))
+        installationCmd += ' && touch %s' % PYSEG_DOWNLOADED  # Flag download finished
+        env.addPackage(PYSEG,
+                       tar='void.tgz',
+                       commands=[(installationCmd, PYSEG_DOWNLOADED)],
+                       neededProgs=["wget", "unzip"],
+                       default=True)
+
+        # Third party software - CFitsIO
+        CFITSIO_BUILD_PATH = join(pySegDir, '%s_build' % CFITSIO)
+        CFITSIO_INSTALLED = join(CFITSIO_BUILD_PATH, '%s_installed' % CFITSIO)
+        thirdPartyPath = join(pySegDir, 'pyseg_system-master', 'sys', 'install',
+                              DISPERSE, '0.9.24_pyseg_gcc7', 'sources')
+        installationCmd = 'tar zxf %s -C %s && ' % (join(thirdPartyPath, 'cfitsio_3.380.tar.gz'), pySegDir)
+        installationCmd += 'cd %s && ' % join(pySegDir, CFITSIO)
+        installationCmd += 'mkdir %s && ' % CFITSIO_BUILD_PATH
+        installationCmd += './configure --prefix=%s && ' % CFITSIO_BUILD_PATH
+        installationCmd += 'make && make install'
+        installationCmd += ' && touch %s' % CFITSIO_INSTALLED  # Flag installation finished
+        env.addPackage(CFITSIO,
+                       tar='void.tgz',
+                       commands=[(installationCmd, CFITSIO_INSTALLED)],
+                       neededProgs=["make", "tar"],
+                       default=True)
+
+        # Third party software - disperse
+        DISPERSE_BUILD_PATH = join(pySegDir, '%s_build' % DISPERSE)
+        DISPERSE_INSTALLED = join(DISPERSE_BUILD_PATH, '%s_installed' % DISPERSE)
+        installationCmd = 'tar zxf %s -C %s && ' % \
+                          (join(thirdPartyPath, 'disperse_v0.9.24_pyseg_gcc7.tar.gz'), pySegDir)
+        installationCmd += 'cd %s && ' % join(pySegDir, DISPERSE)
+        installationCmd += 'mkdir %s && ' % DISPERSE_BUILD_PATH
+        installationCmd += 'cmake . -DCMAKE_INSTALL_PREFIX=%s -DCFITSIO_DIR=%s && ' \
+                           % (DISPERSE_BUILD_PATH, CFITSIO_BUILD_PATH)
+        installationCmd += 'make && make install'
+        installationCmd += ' && touch %s' % DISPERSE_INSTALLED  # Flag installation finished
+        env.addPackage(DISPERSE,
+                       tar='void.tgz',
+                       commands=[(installationCmd, DISPERSE_INSTALLED)],
+                       neededProgs=["make", "tar"],
+                       default=True)
+
+        # PySeg Conda environment
         # Try to get CONDA activation command
         installationCmd = cls.getCondaActivationCmd()
 
@@ -89,18 +135,14 @@ class Plugin(pwem.Plugin):
         installationCmd += 'pip install scikit-fmm && '
         installationCmd += 'pip install scipy && '
         installationCmd += 'pip install vtk'
-
-        # Download and extract PySeg Source code
-        installationCmd += ' && wget ' + PYSEG_SOURCE_URL
-        installationCmd += ' && unzip -q %s' % zipFile
         installationCmd += ' && touch %s' % PYSEG_INSTALLED  # Flag installation finished
 
         pyseg_commands = [(installationCmd, PYSEG_INSTALLED)]
 
-        env.addPackage(PYSEG,
+        env.addPackage(PYSEG + '_execution_env',
                        tar='void.tgz',
                        commands=pyseg_commands,
-                       neededProgs=["wget"],
+                       neededProgs=["wget", "unzip"],
                        default=True)
 
     @classmethod

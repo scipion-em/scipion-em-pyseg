@@ -32,3 +32,7 @@ PYSEG_SOURCE_URL = 'https://github.com/anmartinezs/pyseg_system/archive/master.z
 PYSEG_ENV_NAME = 'pySeg_env'
 PYSEG_ENV_ACTIVATION = 'PYSEG_ENV_ACTIVATION'
 DEFAULT_ACTIVATION_CMD = 'conda activate %s' % PYSEG_ENV_NAME
+
+# Third parties software
+CFITSIO = 'cfitsio'
+DISPERSE = 'disperse'
