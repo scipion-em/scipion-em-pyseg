@@ -27,7 +27,8 @@
 
 PYSEG = 'pySeg'
 PYSEG_HOME = 'PYSEG_HOME'
-PYSEG_SOURCE_URL = 'https://github.com/anmartinezs/pyseg_system/archive/master.zip'
+BRANCH = 'nightly'
+PYSEG_SOURCE_URL = 'https://github.com/anmartinezs/pyseg_system/archive/%s.zip' % BRANCH
 
 PYSEG_ENV_NAME = 'pySeg_env'
 PYSEG_ENV_ACTIVATION = 'PYSEG_ENV_ACTIVATION'

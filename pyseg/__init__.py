@@ -30,7 +30,7 @@ import os
 from pyworkflow.utils import Environ
 from pyworkflow import Config
 from pyseg.constants import PYSEG_HOME, PYSEG, PYSEG_SOURCE_URL, PYSEG_ENV_ACTIVATION, DEFAULT_ACTIVATION_CMD, \
-    PYSEG_ENV_NAME, CFITSIO, DISPERSE
+    PYSEG_ENV_NAME, CFITSIO, DISPERSE, BRANCH
 
 _logo = "icon.png"
 _references = ['AMartinez-Sanchez2020']
@@ -43,8 +43,9 @@ class Plugin(pwem.Plugin):
 
     @classmethod
     def _defineVariables(cls):
-        # cryoCARE does NOT need EmVar because it uses a conda environment.
+        # PySeg does NOT need EmVar because it uses a conda environment.
         cls._defineVar(PYSEG_ENV_ACTIVATION, DEFAULT_ACTIVATION_CMD)
+        cls._defineVar(PYSEG_HOME, PYSEG)
 
     @classmethod
     def getPysegEnvActivation(cls):
@@ -56,17 +57,18 @@ class Plugin(pwem.Plugin):
     def getEnviron(cls):
         """ Setup the environment variables needed to launch pyseg. """
         environ = Environ(os.environ)
-        if 'PYTHONPATH' in environ:
-            # this is required for python virtual env to work
-            del environ['PYTHONPATH']
+        pySegDir = cls._getPySegDir()
+
+        # Add required disperse path to PATH and pyto path to PYTHONPATH
+        environ.update({'PATH': join(pySegDir, '%s_build' % DISPERSE, 'bin'),
+                        'PYTHONPATH': join(pySegDir, 'pyseg_system-%s' % BRANCH, 'code')
+                        })
 
         return environ
 
     @classmethod
     def defineBinaries(cls, env):
-        scipion_home = os.environ.get("SCIPION_HOME", None)
-        em_root = os.environ.get("EM_ROOT", None)
-        pySegDir = join(scipion_home, em_root, PYSEG)
+        pySegDir = cls._getPySegDir()
         PYSEG_DOWNLOADED = join(pySegDir, '%s_downloaded' % PYSEG + '_source')
         PYSEG_INSTALLED = '%s_installed' % PYSEG
 
@@ -83,7 +85,7 @@ class Plugin(pwem.Plugin):
         # Third party software - CFitsIO
         CFITSIO_BUILD_PATH = join(pySegDir, '%s_build' % CFITSIO)
         CFITSIO_INSTALLED = join(CFITSIO_BUILD_PATH, '%s_installed' % CFITSIO)
-        thirdPartyPath = join(pySegDir, 'pyseg_system-master', 'sys', 'install',
+        thirdPartyPath = join(pySegDir, 'pyseg_system-%s' % BRANCH, 'sys', 'install',
                               DISPERSE, '0.9.24_pyseg_gcc7', 'sources')
         installationCmd = 'tar zxf %s -C %s && ' % (join(thirdPartyPath, 'cfitsio_3.380.tar.gz'), pySegDir)
         installationCmd += 'cd %s && ' % join(pySegDir, CFITSIO)
@@ -152,6 +154,13 @@ class Plugin(pwem.Plugin):
                                        cls.getPysegEnvActivation(),
                                        program)
         protocol.runJob(fullProgram, args, env=cls.getEnviron(), cwd=cwd)
+
+    @staticmethod
+    def _getPySegDir():
+        scipion_home = os.environ.get("SCIPION_HOME", None)
+        em_root = os.environ.get("EM_ROOT", None)
+        return join(scipion_home, em_root, PYSEG)
+
 
 
 

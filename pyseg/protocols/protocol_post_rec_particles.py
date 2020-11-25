@@ -1,8 +1,13 @@
 import json
+from os import environ
 from os.path import join
 
 from pwem.protocols import EMProtocol, FileParam, PointerParam
-from pyworkflow.utils import Message
+from pyworkflow.protocol import IntParam, GT
+from pyworkflow.utils import Message, makePath
+from scipion.constants import PYTHON
+
+from pyseg import Plugin, BRANCH
 
 
 class ProtPySegPostRecParticles(EMProtocol):
@@ -24,20 +29,39 @@ class ProtPySegPostRecParticles(EMProtocol):
                       allowsNull=False,
                       help='Star file obtained in PySeg reconstruction.')
         form.addParam('inMask', PointerParam,
+                      pointerClass='VolumeMask',
                       label='Mask',
                       important=True,
                       allowsNull=False,
                       help='Mask used for the post processing')
-        form.addParallelSection(threads=1, mpi=3)
+        form.addParam('nMPI', IntParam,
+                      pointerClass='VolumeMask',
+                      label='Number of processors',
+                      default=6,
+                      validators=[GT(0)],
+                      help='Multiprocessing settings, number of processors dedicated '
+                           'to this protocol execution.')
 
     def _insertAllSteps(self):
         self._insertFunctionStep('pysegPostRec')
         self._insertFunctionStep('createOutputStep')
 
     def pysegPostRec(self):
-        # / home / jjimenez / Jorge / Sync / scipion3conda / software / em / pySeg / pyseg_system - master / data / tutorials / synth_sumb / rln / post_rec_particles.py
-        pass
-        # pyseg_post_rec =
+        outputName = 'subtomos_post_rec'
+        makePath(outputName)
+        # Inputs
+        inStar = self.inStar.get()
+        inMask = self.inMask.get().getFileName()
+        outSubtomoDir = self._getExtraPath(outputName)
+        outStar = self._getExtraPath(outputName + '.star')
+        nMpi = self.nMPI.get()
+
+        # Script called
+        pyseg_post_rec = join(environ.get("SCIPION_HOME", None),
+                              Plugin.getHome(join('pyseg_system-%s' % BRANCH, 'data', 'tutorials',
+                                                  'synth_sumb', 'rln', 'post_rec_particles.py')))
+        Plugin.runPySeg(self, PYTHON, '%s %s %s %s %s %s' % (pyseg_post_rec, inStar, inMask,
+                                                             outSubtomoDir, outStar, nMpi))
 
     def createOutputStep(self):
         pass
