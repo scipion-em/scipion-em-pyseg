@@ -23,7 +23,7 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
-from os.path import dirname, abspath
+from os.path import dirname, abspath, isabs
 
 import numpy as np
 from pwem.emlib.image import ImageHandler
@@ -52,10 +52,19 @@ RELION_TOMO_LABELS = ['rlnMicrographName',
 FILE_NOT_FOUND = 'file_not_found'
 
 
-def readStarFile(prot, outputSubTomogramsSet, invert=True):
-    warningMsg = ''
-    starFile = prot.starFile.get()
-    starPath = dirname(starFile) + '/'
+def readStarFile(prot, outputSubTomogramsSet, starFile=None, invert=True):
+    # Star file can be provided by the user or not, depending on the protocol invoking this method
+    if not starFile:
+        starFile = prot.starFile.get()
+
+    # If the star file is currently in the extra folder of another protocol execution, the paths
+    # generated with method _getExtraPath() will become wrong, but it doesn't have to be located there
+    isExtra = 'extra' in starFile
+    if isExtra:
+        starPath = ''
+    else:
+        starPath = dirname(starFile) + '/'
+
     samplingRate = outputSubTomogramsSet.getSamplingRate()
     ih = ImageHandler()
     tomoTable = Table()
@@ -75,6 +84,10 @@ def readStarFile(prot, outputSubTomogramsSet, invert=True):
         volname = join(starPath, row.get('rlnMicrographName', FILE_NOT_FOUND))
         subtomoFn = row.get('rlnImageName', FILE_NOT_FOUND)
         subtomoAbsFn = join(starPath, subtomoFn)
+        if not isExtra:
+            subtomoAbsFn = prot._getExtraPath(subtomoAbsFn)
+        if not isabs(subtomoAbsFn):
+            subtomoAbsFn = abspath(subtomoAbsFn)
         x = row.get('rlnCoordinateX', 0)
         y = row.get('rlnCoordinateY', 0)
         z = row.get('rlnCoordinateZ', 0)
@@ -111,9 +124,11 @@ def readStarFile(prot, outputSubTomogramsSet, invert=True):
         subtomo.setClassId(row.get('rlnClassNumber', 0))
         subtomo.setSamplingRate(samplingRate)
 
-        # Make link
-        uniqueSubtomoFn = prot._getExtraPath(subtomoFn.replace("/", "_").replace("..", ""))
-        genAbsLink(subtomoAbsFn, uniqueSubtomoFn)
+        # Make link if necessary (only when the star file is out of a Scipion results dir)
+        uniqueSubtomoFn = subtomoAbsFn
+        if not isExtra:
+            uniqueSubtomoFn = subtomoFn.replace("/", "_").replace("..", "")
+            genAbsLink(subtomoAbsFn, uniqueSubtomoFn)
 
         # Set the origin and the dimensions of the current subtomogram
         x, y, z, n = ih.getDimensions(subtomoAbsFn)

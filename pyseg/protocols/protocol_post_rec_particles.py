@@ -3,17 +3,22 @@ from os import environ
 from os.path import join
 
 from pwem.protocols import EMProtocol, FileParam, PointerParam
-from pyworkflow.protocol import IntParam, GT
+from pyworkflow.protocol import IntParam, GT, String
 from pyworkflow.utils import Message, makePath
 from scipion.constants import PYTHON
+from tomo.protocols import ProtTomoBase
 
 from pyseg import Plugin, BRANCH
+from pyseg.constants import POST_REC_OUT
+from pyseg.convert import readStarFile
 
 
-class ProtPySegPostRecParticles(EMProtocol):
+class ProtPySegPostRecParticles(EMProtocol, ProtTomoBase):
     """"""
 
-    _label = 'PySeg post-process reconstructed particles'
+    _label = 'Post-process reconstructed particles'
+    warningMsg = None
+    subtomoSet = None
 
     # -------------------------- DEFINE param functions ----------------------
     def _defineParams(self, form):
@@ -43,17 +48,28 @@ class ProtPySegPostRecParticles(EMProtocol):
                            'to this protocol execution.')
 
     def _insertAllSteps(self):
+        # JORGE
+        import os
+        fname = "/home/jjimenez/Desktop/test_JJ.txt"
+        if os.path.exists(fname):
+            os.remove(fname)
+        fjj = open(fname, "a+")
+        fjj.write('JORGE--------->onDebugMode PID {}'.format(os.getpid()))
+        fjj.close()
+        print('JORGE--------->onDebugMode PID {}'.format(os.getpid()))
+        import time
+        time.sleep(10)
+        # JORGE_END
         self._insertFunctionStep('pysegPostRec')
         self._insertFunctionStep('createOutputStep')
 
     def pysegPostRec(self):
-        outputName = 'subtomos_post_rec'
-        makePath(outputName)
+        makePath(POST_REC_OUT)
         # Inputs
         inStar = self.inStar.get()
         inMask = self.inMask.get().getFileName()
-        outSubtomoDir = self._getExtraPath(outputName)
-        outStar = self._getExtraPath(outputName + '.star')
+        outSubtomoDir = self._getExtraPath(POST_REC_OUT)
+        outStar = self._getExtraPath(POST_REC_OUT + '.star')
         nMpi = self.nMPI.get()
 
         # Script called
@@ -63,12 +79,16 @@ class ProtPySegPostRecParticles(EMProtocol):
         Plugin.runPySeg(self, PYTHON, '%s %s %s %s %s %s' % (pyseg_post_rec, inStar, inMask,
                                                              outSubtomoDir, outStar, nMpi))
 
+        # Read generated star file and create the output objects
+        self.subtomoSet = self._createSetOfSubTomograms()
+        self.subtomoSet.setSamplingRate(self.inMask.get().getSamplingRate())
+        warningMsg = readStarFile(self, self.subtomoSet, starFile=outStar)
+        if warningMsg:
+            self.warningMsg = String(warningMsg)
+            self._store()
+
     def createOutputStep(self):
-        pass
-        # train_data = CryocareTrainData(train_data=join(self.trainDataDir.get(), TRAIN_DATA_FN),
-        #                                mean_std=join(self.trainDataDir.get(), MEAN_STD_FN),
-        #                                patch_size=self._getPatchSize())
-        # self._defineOutputs(train_data=train_data)
+        self._defineOutputs(outputSubTomograms=self.subtomoSet)
 
     # --------------------------- INFO functions -----------------------------------
     def _summary(self):
@@ -85,7 +105,4 @@ class ProtPySegPostRecParticles(EMProtocol):
         return summary
 
     # --------------------------- UTIL functions -----------------------------------
-    def _getPatchSize(self):
-        with open(self.trainConfigFile.get()) as json_file:
-            data = json.load(json_file)
-            return data['patch_shape'][0]
+

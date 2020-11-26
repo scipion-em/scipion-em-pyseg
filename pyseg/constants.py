@@ -34,6 +34,9 @@ PYSEG_ENV_NAME = 'pySeg_env'
 PYSEG_ENV_ACTIVATION = 'PYSEG_ENV_ACTIVATION'
 DEFAULT_ACTIVATION_CMD = 'conda activate %s' % PYSEG_ENV_NAME
 
+# Generated data
+POST_REC_OUT = 'subtomos_post_rec'
+
 # Third parties software
 CFITSIO = 'cfitsio'
 DISPERSE = 'disperse'
