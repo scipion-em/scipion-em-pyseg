@@ -48,18 +48,6 @@ class ProtPySegPostRecParticles(EMProtocol, ProtTomoBase):
                            'to this protocol execution.')
 
     def _insertAllSteps(self):
-        # JORGE
-        import os
-        fname = "/home/jjimenez/Desktop/test_JJ.txt"
-        if os.path.exists(fname):
-            os.remove(fname)
-        fjj = open(fname, "a+")
-        fjj.write('JORGE--------->onDebugMode PID {}'.format(os.getpid()))
-        fjj.close()
-        print('JORGE--------->onDebugMode PID {}'.format(os.getpid()))
-        import time
-        time.sleep(10)
-        # JORGE_END
         self._insertFunctionStep('pysegPostRec')
         self._insertFunctionStep('createOutputStep')
 
@@ -93,15 +81,12 @@ class ProtPySegPostRecParticles(EMProtocol, ProtTomoBase):
     # --------------------------- INFO functions -----------------------------------
     def _summary(self):
         summary = []
-
-        # if self.isFinished():
-        #     summary.append("Loaded training data info:\n"
-        #                    "train_data_file = *{}*\n"
-        #                    "normalization_file = *{}*\n"
-        #                    "patch_size = *{}*".format(
-        #                     join(self.trainDataDir.get(), TRAIN_DATA_FN),
-        #                     join(self.trainDataDir.get(), MEAN_STD_FN),
-        #                     self._getPatchSize()))
+        if self.isFinished():
+            summary.append('Generated files location:\n'
+                           'Subtomograms files: *%s*\n'
+                           'Star file: *%s*' %
+                           (self._getExtraPath(POST_REC_OUT),
+                            self._getExtraPath(POST_REC_OUT + '.star')))
         return summary
 
     # --------------------------- UTIL functions -----------------------------------
