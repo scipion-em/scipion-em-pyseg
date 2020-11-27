@@ -53,6 +53,7 @@ FILE_NOT_FOUND = 'file_not_found'
 
 
 def readStarFile(prot, outputSubTomogramsSet, starFile=None, invert=True):
+    warningMsg = None
     # Star file can be provided by the user or not, depending on the protocol invoking this method
     if not starFile:
         starFile = prot.starFile.get()

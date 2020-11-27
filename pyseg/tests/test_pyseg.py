@@ -140,15 +140,15 @@ class TestPysegImportSubTomograms(BaseTest):
         self._writeTestStarFile(self._getKeysStar23())  # Write the corresponding star file
         protImport = self._runImportPySegSubTomograms()
         output = getattr(protImport, 'outputSubTomograms', None)
-        self._checkSet(output, protImport._getExtraPath())
+        self._checkSet(output)
 
     def test_import_pyseg_subtomograms_14_columns(self):
         self._writeTestStarFile(RELION_TOMO_LABELS)  # Write the corresponding star file
         protImport = self._runImportPySegSubTomograms()
         subtomoSet = getattr(protImport, 'outputSubTomograms', None)
-        self._checkSet(subtomoSet, protImport._getExtraPath())
+        self._checkSet(subtomoSet)
 
-    def _checkSet(self, subtomoSet, extraPath):
+    def _checkSet(self, subtomoSet):
         # Check set attribute
         self.assertEqual(subtomoSet.getSize(), 2)
         self.assertEqual(subtomoSet.getSamplingRate(), 1.35)
@@ -156,7 +156,7 @@ class TestPysegImportSubTomograms(BaseTest):
         self.assertEqual(subtomoSet.getDim()[1], 128)
         self.assertEqual(subtomoSet.getDim()[2], 128)
         # Check subtomo attributes
-        d = self._loadAssertData(extraPath, self.star)
+        d = self._loadAssertData()
         for i, subtomo in enumerate(subtomoSet):
             self.assertEqual(subtomo.getSamplingRate(), 1.35)
             self.assertEqual(subtomo.getDim()[0], 128)
@@ -187,10 +187,9 @@ class TestPysegImportSubTomograms(BaseTest):
         angles = -np.rad2deg(euler_from_matrix(matrix, axes='szyz'))
         return angles, shifts
 
-    @staticmethod
-    def _loadAssertData(extraPath, starFile):
+    def _loadAssertData(self):
         # Check subtomo attributes
-        path = getParentFolder(starFile)
+        path = getParentFolder(self.star)
         return {
             'x': [951, 1088],
             'y': [800, 1082],
@@ -201,8 +200,8 @@ class TestPysegImportSubTomograms(BaseTest):
             'sx': [9.097985, 10.975485],
             'sy': [0.097985, -3.242020],
             'sz': [1.390485, -0.072020],
-            'filenames': [join(extraPath, 'import_particle_000003.mrc:mrc'),
-                          join(extraPath, 'import_particle_000016.mrc:mrc')],
+            'filenames': ['import_particle_000003.mrc:mrc',
+                          'import_particle_000016.mrc:mrc'],
             'volNames': [join(path, 'tomo1.mrc'), join(path, 'tomo2.mrc')],
             'wedges': [join(path, 'wedge1.mrc'), join(path, 'wedge2.mrc')]
         }
