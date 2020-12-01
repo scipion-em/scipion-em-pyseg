@@ -26,3 +26,4 @@
 
 from .protocol_import_starfile import ProtPySegImportSubtomos
 from .protocol_post_rec_particles import ProtPySegPostRecParticles
+from .protocol_GFPR_particles import ProtPySegGFPRParticles
