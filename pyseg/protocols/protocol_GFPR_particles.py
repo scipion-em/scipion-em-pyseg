@@ -3,13 +3,14 @@ from os import environ
 from os.path import join
 
 from pwem.protocols import EMProtocol, FileParam, PointerParam, StringParam
-from pyworkflow.protocol import IntParam, GT, String, FloatParam, NumericListParam, PathParam
-from pyworkflow.utils import Message, makePath
+from pyworkflow.protocol import IntParam, GT, FloatParam, NumericListParam, PathParam, EnumParam
+from pyworkflow.utils import Message, makePath, removeBaseExt
 from scipion.constants import PYTHON
 from tomo.protocols import ProtTomoBase
 
-from pyseg import Plugin, BRANCH
-from pyseg.constants import POST_REC_OUT
+from pyseg import Plugin
+from pyseg.constants import GRAPHS_OUT, GRAPHS_SCRIPT, FILS_OUT, FILS_SCRIPT, FILS_SOURCES, FILS_TARGETS, \
+    PICKING_OUT, PICKING_SCRIPT, PICKING_SLICES
 from pyseg.convert import readStarFile
 
 
@@ -48,30 +49,37 @@ class ProtPySegGFPRParticles(EMProtocol, ProtTomoBase):
                            'to this protocol execution.')
 
         form.addSection(label='Graphs')
-        form.addParam('sSig', FloatParam,
-                      label='Sigma for gaussian filtering',
-                      default=1,
-                      allowsNull=False,
-                      help='Sigma for Gaussian fltering input tomograms. It allows to smooth '
-                           'small and irrelevant features and increases SNR.')
-        form.addParam('vDen', FloatParam,
-                      label='Vertex density within membranes (nm³)',
-                      default=0.0035,
-                      allowsNull=False,
-                      help='Vertex density within membranes. It allows to adjust simplifcation '
-                           'adaptively for every tomogram.')
-        form.addParam('vRatio', FloatParam,
-                      label='Avg ratio vertex/edge of graph within membrane',
-                      default=4,
-                      allowsNull=False,
-                      help='Averaged ratio vertex/edge in the graph within membrane.')
-        form.addParam('maxLen', FloatParam,
-                      label='Shortest distance to membrane (nm)',
-                      default=10,
-                      allowsNull=False,
-                      help='Maximum euclidean shortest distance to membrane in nm.')
+        group = form.addGroup('GraphMCF')
+        group.addParam('sSig', FloatParam,
+                       label='Sigma for gaussian filtering',
+                       default=1,
+                       allowsNull=False,
+                       help='Sigma for Gaussian fltering input tomograms. It allows to smooth '
+                            'small and irrelevant features and increases SNR.')
+        group.addParam('vDen', FloatParam,
+                       label='Vertex density within membranes (nm³)',
+                       default=0.0035,
+                       allowsNull=False,
+                       help='Vertex density within membranes. It allows to adjust simplifcation '
+                            'adaptively for every tomogram.')
+        group.addParam('vRatio', FloatParam,
+                       label='Avg ratio vertex/edge of graph within membrane',
+                       default=4,
+                       allowsNull=False,
+                       help='Averaged ratio vertex/edge in the graph within membrane.')
+        group.addParam('maxLen', FloatParam,
+                       label='Shortest distance to membrane (nm)',
+                       default=10,
+                       allowsNull=False,
+                       help='Maximum euclidean shortest distance to membrane in nm.')
 
         form.addSection(label='Fils')
+        group = form.addGroup('Graph thresholding')
+        group.addParam('thMode', EnumParam,
+                       default=0,
+                       choices=['in', 'out'],
+                       label='Orientation with respect to the membrane/filament',
+                       display=EnumParam.DISPLAY_HLIST)
         group = form.addGroup('Filament geometry')
         group.addParam('gRgEud', NumericListParam,
                        label='Euclidean distance of vertices source-target (nm)',
@@ -124,20 +132,65 @@ class ProtPySegGFPRParticles(EMProtocol, ProtTomoBase):
                            'the star file generated in the picking step.')
 
     def _insertAllSteps(self):
-        self._insertFunctionStep('pysegGraphs')
-        self._insertFunctionStep('pysegFils')
-        self._insertFunctionStep('pysegPicking')
+        graphsStarFile = self._insertFunctionStep('pysegGraphs')
+        filsStarFile = self._insertFunctionStep('pysegFils', graphsStarFile)
+        self._insertFunctionStep('pysegPicking', filsStarFile)
         self._insertFunctionStep('pysegRec')
         self._insertFunctionStep('createOutputStep')
 
     def pysegGraphs(self):
-        pass
+        # Generate output dir
+        outDir = self._getExtraPath(GRAPHS_OUT)
+        makePath(outDir)
 
-    def pysegFilss(self):
-        pass
+        # Script called
+        Plugin.runPySeg(self, PYTHON, '%s %s %s %s %s %s %s %s %s' % (
+            self._getPysegScript(GRAPHS_SCRIPT),
+            self.inStar.get(),
+            outDir,
+            self.pixelSize.get(),
+            self.nMPI.get(),
+            self.sSig.get(),  # Sigma for gaussian filtering
+            self.vDen.get(),  # Vertex density within membranes (nm³)
+            self.vRatio.get(),  # Avg ratio vertex/edge of graph within membrane
+            self.maxLen.get()))  # Shortest distance to membrane (nm)
 
-    def pysegPicking(self):
-        pass
+        # Generated star file
+        return join(outDir, removeBaseExt(self.inStar.get()) + '_mb_graph.star')
+
+    def pysegFils(self, graphsStarFile):
+        # Generate output dir
+        outDir = self._getExtraPath(FILS_OUT)
+        makePath(outDir)
+
+        # Script called
+        Plugin.runPySeg(self, PYTHON, '%s %s %s %s %s %s %s %s %s' % (
+            self._getPysegScript(FILS_SCRIPT),
+            graphsStarFile,
+            outDir,
+            FILS_SOURCES,
+            FILS_TARGETS,
+            self.thMode.get(),
+            self.gRgEud.get(),
+            self.gRgLen.get(),
+            self.gRgSin.get()))
+
+        # Generated star file
+        return join(outDir, 'fil_' + removeBaseExt(FILS_SOURCES) + '_to_' + removeBaseExt(FILS_TARGETS) + '_net.star')
+
+    def pysegPicking(self, filsStarFile):
+        # Generate output dir
+        outDir = self._getExtraPath(PICKING_OUT)
+        makePath(outDir)
+
+        # Script called
+        Plugin.runPySeg(self, PYTHON, '%s %s %s %s %s %s' % (
+            self._getPysegScript(PICKING_SCRIPT),
+            filsStarFile,
+            outDir,
+            PICKING_SLICES,
+            self.peakTh.get(),
+            self.peakNs.get()))
 
     def pysegRec(self):
         pass
@@ -159,4 +212,6 @@ class ProtPySegGFPRParticles(EMProtocol, ProtTomoBase):
         # return summary
 
     # --------------------------- UTIL functions -----------------------------------
-
+    @staticmethod
+    def _getPysegScript(scriptName):
+        return join(environ.get("SCIPION_HOME", None), Plugin.getHome(scriptName))

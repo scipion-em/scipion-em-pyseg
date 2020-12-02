@@ -8,8 +8,8 @@ from pyworkflow.utils import Message, makePath
 from scipion.constants import PYTHON
 from tomo.protocols import ProtTomoBase
 
-from pyseg import Plugin, BRANCH
-from pyseg.constants import POST_REC_OUT
+from pyseg import Plugin
+from pyseg.constants import POST_REC_OUT, POST_REC_SCRIPT
 from pyseg.convert import readStarFile
 
 
@@ -48,25 +48,25 @@ class ProtPySegPostRecParticles(EMProtocol, ProtTomoBase):
                            'to this protocol execution.')
 
     def _insertAllSteps(self):
-        self._insertFunctionStep('pysegPostRec')
-        self._insertFunctionStep('createOutputStep')
-
-    def pysegPostRec(self):
-        makePath(POST_REC_OUT)
-        # Inputs
-        inStar = self.inStar.get()
-        inMask = self.inMask.get().getFileName()
-        outSubtomoDir = self._getExtraPath(POST_REC_OUT)
         outStar = self._getExtraPath(POST_REC_OUT + '.star')
-        nMpi = self.nMPI.get()
+        self._insertFunctionStep('pysegPostRec', outStar)
+        self._insertFunctionStep('createOutputStep', outStar)
 
+    def pysegPostRec(self, outStar):
+        # Generate output subtomo dir
+        outDir = self._getExtraPath(POST_REC_OUT)
+        makePath(outDir)
         # Script called
-        pyseg_post_rec = join(environ.get("SCIPION_HOME", None),
-                              Plugin.getHome(join('pyseg_system-%s' % BRANCH, 'data', 'tutorials',
-                                                  'synth_sumb', 'rln', 'post_rec_particles.py')))
-        Plugin.runPySeg(self, PYTHON, '%s %s %s %s %s %s' % (pyseg_post_rec, inStar, inMask,
-                                                             outSubtomoDir, outStar, nMpi))
+        pyseg_post_rec = join(environ.get("SCIPION_HOME", None), Plugin.getHome(POST_REC_SCRIPT))
+        Plugin.runPySeg(self, PYTHON, '%s %s %s %s %s %s' % (
+            pyseg_post_rec,
+            self.inStar.get(),  # In star file
+            self.inMask.get().getFileName(),  # In mask
+            outDir,  # Out subtomo dir
+            outStar,  # Out star file
+            self.nMPI.get()))  # Number of MPI
 
+    def createOutputStep(self, outStar):
         # Read generated star file and create the output objects
         self.subtomoSet = self._createSetOfSubTomograms()
         self.subtomoSet.setSamplingRate(self.inMask.get().getSamplingRate())
@@ -75,7 +75,6 @@ class ProtPySegPostRecParticles(EMProtocol, ProtTomoBase):
             self.warningMsg = String(warningMsg)
             self._store()
 
-    def createOutputStep(self):
         self._defineOutputs(outputSubTomograms=self.subtomoSet)
 
     # --------------------------- INFO functions -----------------------------------

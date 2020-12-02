@@ -24,6 +24,7 @@
 # *  e-mail address 'you@yourinstitution.email'
 # *
 # **************************************************************************
+from os.path import join
 
 PYSEG = 'pySeg'
 PYSEG_HOME = 'PYSEG_HOME'
@@ -34,7 +35,21 @@ PYSEG_ENV_NAME = 'pySeg_env'
 PYSEG_ENV_ACTIVATION = 'PYSEG_ENV_ACTIVATION'
 DEFAULT_ACTIVATION_CMD = 'conda activate %s' % PYSEG_ENV_NAME
 
+# Required files location in pyseg-system
+PYSEG_SYSTEM_MAIN = 'pyseg_system-%s' % BRANCH
+SYNTH_SUMB = join(PYSEG_SYSTEM_MAIN, 'data', 'tutorials', 'synth_sumb')
+GRAPHS_SCRIPT = join(SYNTH_SUMB, 'tracing', 'mb_graph_mp.py')
+FILS_SCRIPT = join(SYNTH_SUMB, 'tracing', 'mb_fils_network.py')
+FILS_SOURCES = join(SYNTH_SUMB, 'fils', 'in', 'mb_sources.xml')
+FILS_TARGETS = join(SYNTH_SUMB, 'fils', 'in', 'no_mb_targets.xml')
+PICKING_SCRIPT = join(PYSEG_SYSTEM_MAIN, 'code', 'tutorials', 'exp_somb', 'mbo_picking.py')
+PICKING_SLICES = join(SYNTH_SUMB, 'data', 'tutorials', 'exp_somb', 'mb_ext.xml')
+POST_REC_SCRIPT = join(SYNTH_SUMB, 'rln', 'post_rec_particles.py')
+
 # Generated data
+GRAPHS_OUT = 'graphs'
+FILS_OUT = 'fils'
+PICKING_OUT = 'picking'
 POST_REC_OUT = 'subtomos_post_rec'
 
 # Third parties software
