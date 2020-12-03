@@ -1,9 +1,8 @@
-import json
 from os import environ
 from os.path import join
 
 from pwem.protocols import EMProtocol, FileParam, PointerParam, StringParam
-from pyworkflow.protocol import IntParam, GT, FloatParam, NumericListParam, PathParam, EnumParam
+from pyworkflow.protocol import FloatParam, NumericListParam, PathParam, EnumParam
 from pyworkflow.utils import Message, makePath, removeBaseExt
 from scipion.constants import PYTHON
 from tomo.protocols import ProtTomoBase
@@ -40,13 +39,6 @@ class ProtPySegGFPRParticles(EMProtocol, ProtTomoBase):
                       important=True,
                       allowsNull=False,
                       help='Input tomograms voxel size (nm/voxel)')
-        form.addParam('nMPI', IntParam,
-                      pointerClass='VolumeMask',
-                      label='Number of processors',
-                      default=6,
-                      validators=[GT(0)],
-                      help='Multiprocessing settings, number of processors dedicated '
-                           'to this protocol execution.')
 
         form.addSection(label='Graphs')
         group = form.addGroup('GraphMCF')
@@ -130,12 +122,13 @@ class ProtPySegGFPRParticles(EMProtocol, ProtTomoBase):
                       help='Mask used for the post processing. '
                            'Is is Required if field _psSegImage is not contained in'
                            'the star file generated in the picking step.')
+        form.addParallelSection(threads=4, mpi=0)
 
     def _insertAllSteps(self):
         graphsStarFile = self._insertFunctionStep('pysegGraphs')
         filsStarFile = self._insertFunctionStep('pysegFils', graphsStarFile)
-        self._insertFunctionStep('pysegPicking', filsStarFile)
-        self._insertFunctionStep('pysegRec')
+        pickingStarFile = self._insertFunctionStep('pysegPicking', filsStarFile)
+        self._insertFunctionStep('pysegRec', pickingStarFile)
         self._insertFunctionStep('createOutputStep')
 
     def pysegGraphs(self):
@@ -149,7 +142,7 @@ class ProtPySegGFPRParticles(EMProtocol, ProtTomoBase):
             self.inStar.get(),
             outDir,
             self.pixelSize.get(),
-            self.nMPI.get(),
+            self.numberOfThreads.get(),
             self.sSig.get(),  # Sigma for gaussian filtering
             self.vDen.get(),  # Vertex density within membranes (nm³)
             self.vRatio.get(),  # Avg ratio vertex/edge of graph within membrane
@@ -192,8 +185,15 @@ class ProtPySegGFPRParticles(EMProtocol, ProtTomoBase):
             self.peakTh.get(),
             self.peakNs.get()))
 
-    def pysegRec(self):
-        pass
+        return join(outDir, removeBaseExt(self.inStar.get()) + '_parts.star')
+
+    def pysegRec(self, pickingStarFile):
+        # Generate output dir
+        outDir = self._getExtraPath(PICKING_OUT)
+        makePath(outDir)
+
+        # Script called
+        Plugin.runPySeg(self, PYTHON, '%s %s %s %s %s %s' % ())
 
     def createOutputStep(self):
         pass

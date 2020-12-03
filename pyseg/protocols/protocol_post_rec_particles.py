@@ -39,13 +39,7 @@ class ProtPySegPostRecParticles(EMProtocol, ProtTomoBase):
                       important=True,
                       allowsNull=False,
                       help='Mask used for the post processing')
-        form.addParam('nMPI', IntParam,
-                      pointerClass='VolumeMask',
-                      label='Number of processors',
-                      default=6,
-                      validators=[GT(0)],
-                      help='Multiprocessing settings, number of processors dedicated '
-                           'to this protocol execution.')
+        form.addParallelSection(threads=4, mpi=0)
 
     def _insertAllSteps(self):
         outStar = self._getExtraPath(POST_REC_OUT + '.star')
@@ -57,14 +51,14 @@ class ProtPySegPostRecParticles(EMProtocol, ProtTomoBase):
         outDir = self._getExtraPath(POST_REC_OUT)
         makePath(outDir)
         # Script called
-        pyseg_post_rec = join(environ.get("SCIPION_HOME", None), Plugin.getHome(POST_REC_SCRIPT))
+        pyseg_post_rec = Plugin.getHome(POST_REC_SCRIPT)
         Plugin.runPySeg(self, PYTHON, '%s %s %s %s %s %s' % (
             pyseg_post_rec,
             self.inStar.get(),  # In star file
             self.inMask.get().getFileName(),  # In mask
             outDir,  # Out subtomo dir
             outStar,  # Out star file
-            self.nMPI.get()))  # Number of MPI
+            self.numberOfThreads.get()))  # Number of MPI
 
     def createOutputStep(self, outStar):
         # Read generated star file and create the output objects

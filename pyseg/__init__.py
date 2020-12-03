@@ -30,7 +30,7 @@ import os
 from pyworkflow.utils import Environ
 from pyworkflow import Config
 from pyseg.constants import PYSEG_HOME, PYSEG, PYSEG_SOURCE_URL, PYSEG_ENV_ACTIVATION, DEFAULT_ACTIVATION_CMD, \
-    PYSEG_ENV_NAME, CFITSIO, DISPERSE, BRANCH
+    PYSEG_ENV_NAME, CFITSIO, DISPERSE, BRANCH, DEFAULT_VERSION
 
 _logo = "icon.png"
 _references = ['AMartinez-Sanchez2020']
@@ -43,9 +43,8 @@ class Plugin(pwem.Plugin):
 
     @classmethod
     def _defineVariables(cls):
-        # PySeg does NOT need EmVar because it uses a conda environment.
         cls._defineVar(PYSEG_ENV_ACTIVATION, DEFAULT_ACTIVATION_CMD)
-        cls._defineVar(PYSEG_HOME, PYSEG)
+        cls._defineEmVar(PYSEG_HOME, PYSEG + '-' + DEFAULT_VERSION)
 
     @classmethod
     def getPysegEnvActivation(cls):
@@ -57,7 +56,7 @@ class Plugin(pwem.Plugin):
     def getEnviron(cls):
         """ Setup the environment variables needed to launch pyseg. """
         environ = Environ(os.environ)
-        pySegDir = cls._getPySegDir()
+        pySegDir = cls.getHome()
 
         # Add required disperse path to PATH and pyto path to PYTHONPATH
         environ.update({'PATH': join(pySegDir, '%s_build' % DISPERSE, 'bin'),
@@ -68,71 +67,66 @@ class Plugin(pwem.Plugin):
 
     @classmethod
     def defineBinaries(cls, env):
-        pySegDir = cls._getPySegDir()
-        thirdPartyPath = join(pySegDir, 'pyseg_system-%s' % BRANCH, 'sys', 'install',
+        PYSEG_INSTALLED = '%s_installed' % PYSEG
+        thirdPartyPath = join(cls.getHome(), 'pyseg_system-%s' % BRANCH, 'sys', 'install',
                               DISPERSE, '0.9.24_pyseg_gcc7', 'sources')
 
         # PySeg source code
-        cls._getPySegSourceCode(env, pySegDir)
+        getPySegCmd = cls._genCmdToGetPySegSrcCode()
         # Third party software - CFitsIO
-        CFITSIO_BUILD_PATH = cls._compileCFitsIO(env, pySegDir, thirdPartyPath)
+        installCFitsIOCmd, CFITSIO_BUILD_PATH = cls._genCmdToInstallCFitsIO(thirdPartyPath)
         # Third party software - disperse
-        cls._compileDisperse(env, pySegDir, thirdPartyPath, CFITSIO_BUILD_PATH)
+        installDisperseCmd = cls._genCmdToInstallDisperse(thirdPartyPath, CFITSIO_BUILD_PATH)
         # PySeg Conda environment
-        cls._creadtePySegCondaEnv(env)
+        genPySegCOndaEnvCmd = cls._genCmdToDefineSegCondaEnv()
 
-    @staticmethod
-    def _getPySegSourceCode(env, pySegDir):
-        PYSEG_DOWNLOADED = join(pySegDir, '%s_downloaded' % PYSEG + '_source')
-        installationCmd = 'wget ' + PYSEG_SOURCE_URL
-        installationCmd += ' && unzip -q %s' % join(pySegDir, basename(PYSEG_SOURCE_URL))
-        installationCmd += ' && rm -rf %s' % join(pySegDir, BRANCH + '.zip')  # Remove the downloaded zip file (>600 MB)
-        installationCmd += ' && touch %s' % PYSEG_DOWNLOADED  # Flag download finished
+        installationCmd = ' && '.join([getPySegCmd, installCFitsIOCmd, installDisperseCmd, genPySegCOndaEnvCmd])
+        installationCmd += ' && touch %s' % PYSEG_INSTALLED  # Flag installation finished
         env.addPackage(PYSEG,
+                       version=DEFAULT_VERSION,
                        tar='void.tgz',
-                       commands=[(installationCmd, PYSEG_DOWNLOADED)],
-                       neededProgs=["wget", "unzip"],
+                       commands=[(installationCmd, PYSEG_INSTALLED)],
+                       neededProgs=["wget", "unzip", "make", "tar"],
                        default=True)
 
-    @staticmethod
-    def _compileCFitsIO(env, pySegDir, thirdPartyPath):
+    @classmethod
+    def _genCmdToGetPySegSrcCode(cls):
+        pySegDir = cls.getHome()
+        installationCmd = 'wget ' + PYSEG_SOURCE_URL
+        installationCmd += ' && unzip -q %s' % join(pySegDir, basename(PYSEG_SOURCE_URL))
+        installationCmd += ' && rm -rf %s' % join(pySegDir, BRANCH + '.zip')  # Rm the downloaded zip file (>600 MB)
+
+        return installationCmd
+
+    @classmethod
+    def _genCmdToInstallCFitsIO(cls, thirdPartyPath):
+        pySegDir = cls.getHome()
         CFITSIO_BUILD_PATH = join(pySegDir, '%s_build' % CFITSIO)
-        CFITSIO_INSTALLED = join(CFITSIO_BUILD_PATH, '%s_installed' % CFITSIO)
         installationCmd = 'tar zxf %s -C %s && ' % (join(thirdPartyPath, 'cfitsio_3.380.tar.gz'), pySegDir)
         installationCmd += 'cd %s && ' % join(pySegDir, CFITSIO)
         installationCmd += 'mkdir %s && ' % CFITSIO_BUILD_PATH
         installationCmd += './configure --prefix=%s && ' % CFITSIO_BUILD_PATH
         installationCmd += 'make && make install'
-        installationCmd += ' && touch %s' % CFITSIO_INSTALLED  # Flag installation finished
-        env.addPackage(CFITSIO,
-                       tar='void.tgz',
-                       commands=[(installationCmd, CFITSIO_INSTALLED)],
-                       neededProgs=["make", "tar"],
-                       default=True)
 
-        return CFITSIO_BUILD_PATH
+        return installationCmd, CFITSIO_BUILD_PATH
 
-    @staticmethod
-    def _compileDisperse(env, pySegDir, thirdPartyPath, CFITSIO_BUILD_PATH):
+    @classmethod
+    def _genCmdToInstallDisperse(cls, thirdPartyPath, CFITSIO_BUILD_PATH):
+        pySegDir = cls.getHome()
         DISPERSE_BUILD_PATH = join(pySegDir, '%s_build' % DISPERSE)
-        DISPERSE_INSTALLED = join(DISPERSE_BUILD_PATH, '%s_installed' % DISPERSE)
         installationCmd = 'tar zxf %s -C %s && ' % \
                           (join(thirdPartyPath, 'disperse_v0.9.24_pyseg_gcc7.tar.gz'), pySegDir)
         installationCmd += 'cd %s && ' % join(pySegDir, DISPERSE)
         installationCmd += 'mkdir %s && ' % DISPERSE_BUILD_PATH
         installationCmd += 'cmake . -DCMAKE_INSTALL_PREFIX=%s -DCFITSIO_DIR=%s && ' \
                            % (DISPERSE_BUILD_PATH, CFITSIO_BUILD_PATH)
-        installationCmd += 'make && make install'
-        installationCmd += ' && touch %s' % DISPERSE_INSTALLED  # Flag installation finished
-        env.addPackage(DISPERSE,
-                       tar='void.tgz',
-                       commands=[(installationCmd, DISPERSE_INSTALLED)],
-                       neededProgs=["make", "tar"],
-                       default=True)
+        installationCmd += 'make && make install && '
+        installationCmd += 'cd ..'
+
+        return installationCmd
 
     @classmethod
-    def _creadtePySegCondaEnv(cls, env):
-        PYSEG_INSTALLED = '%s_installed' % PYSEG
+    def _genCmdToDefineSegCondaEnv(cls):
         installationCmd = cls.getCondaActivationCmd()
 
         # Create the environment
@@ -152,15 +146,8 @@ class Plugin(pwem.Plugin):
         installationCmd += 'pip install scikit-fmm && '
         installationCmd += 'pip install scipy && '
         installationCmd += 'pip install vtk'
-        installationCmd += ' && touch %s' % PYSEG_INSTALLED  # Flag installation finished
 
-        pyseg_commands = [(installationCmd, PYSEG_INSTALLED)]
-
-        env.addPackage(PYSEG + '_execution_env',
-                       tar='void.tgz',
-                       commands=pyseg_commands,
-                       neededProgs=["wget", "unzip"],
-                       default=True)
+        return installationCmd
 
     @classmethod
     def runPySeg(cls, protocol, program, args, cwd=None):
@@ -169,12 +156,6 @@ class Plugin(pwem.Plugin):
                                        cls.getPysegEnvActivation(),
                                        program)
         protocol.runJob(fullProgram, args, env=cls.getEnviron(), cwd=cwd)
-
-    @staticmethod
-    def _getPySegDir():
-        scipion_home = os.environ.get("SCIPION_HOME", None)
-        em_root = os.environ.get("EM_ROOT", None)
-        return join(scipion_home, em_root, PYSEG)
 
 
 
