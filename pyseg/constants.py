@@ -45,12 +45,14 @@ FILS_SOURCES = join(SYNTH_SUMB, 'fils', 'in', 'mb_sources.xml')
 FILS_TARGETS = join(SYNTH_SUMB, 'fils', 'in', 'no_mb_targets.xml')
 PICKING_SCRIPT = join(PYSEG_SYSTEM_MAIN, 'code', 'tutorials', 'exp_somb', 'mbo_picking.py')
 PICKING_SLICES = join(SYNTH_SUMB, 'data', 'tutorials', 'exp_somb', 'mb_ext.xml')
+REC_SCRIPT = join(SYNTH_SUMB, 'tracing', 'rec_particles.py')
 POST_REC_SCRIPT = join(SYNTH_SUMB, 'rln', 'post_rec_particles.py')
 
 # Generated data
 GRAPHS_OUT = 'graphs'
 FILS_OUT = 'fils'
 PICKING_OUT = 'picking'
+REC_OUT = 'subtomos_rec'
 POST_REC_OUT = 'subtomos_post_rec'
 
 # Third parties software

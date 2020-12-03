@@ -2,14 +2,14 @@ from os import environ
 from os.path import join
 
 from pwem.protocols import EMProtocol, FileParam, PointerParam, StringParam
-from pyworkflow.protocol import FloatParam, NumericListParam, PathParam, EnumParam
+from pyworkflow.protocol import FloatParam, NumericListParam, PathParam, EnumParam, IntParam, GT, BooleanParam
 from pyworkflow.utils import Message, makePath, removeBaseExt
 from scipion.constants import PYTHON
 from tomo.protocols import ProtTomoBase
 
 from pyseg import Plugin
 from pyseg.constants import GRAPHS_OUT, GRAPHS_SCRIPT, FILS_OUT, FILS_SCRIPT, FILS_SOURCES, FILS_TARGETS, \
-    PICKING_OUT, PICKING_SCRIPT, PICKING_SLICES
+    PICKING_OUT, PICKING_SCRIPT, PICKING_SLICES, REC_SCRIPT, REC_OUT
 from pyseg.convert import readStarFile
 
 
@@ -122,12 +122,31 @@ class ProtPySegGFPRParticles(EMProtocol, ProtTomoBase):
                       help='Mask used for the post processing. '
                            'Is is Required if field _psSegImage is not contained in'
                            'the star file generated in the picking step.')
+        group = form.addGroup('Particles pre-processing settings')
+        group.addParam('doBin', IntParam,
+                       label='Binning of the picked particles',
+                       default=1,
+                       validators=[GT(0)])
+        group.addParam('doNoise', BooleanParam,
+                       label='Set gray-values in background randomly?',
+                       default=False)
+        group.addParam('doUseFG', BooleanParam,
+                       label='Take foregraund values as reference?',
+                       default=True)
+        group.addParam('doNorm', BooleanParam,
+                       label='Apply gray-values normalization?',
+                       default=True)
         form.addParallelSection(threads=4, mpi=0)
 
     def _insertAllSteps(self):
         graphsStarFile = self._insertFunctionStep('pysegGraphs')
         filsStarFile = self._insertFunctionStep('pysegFils', graphsStarFile)
         pickingStarFile = self._insertFunctionStep('pysegPicking', filsStarFile)
+        # PARSE STAR FILE LINE BY LINE OR BETTER TOMO BY TOMO
+        # FOR EACH TOMO
+        #   CALL REC SCRIPT
+        # END
+        # JOIN EACH GENERATED STAR FILE INTO ONE
         self._insertFunctionStep('pysegRec', pickingStarFile)
         self._insertFunctionStep('createOutputStep')
 
@@ -187,13 +206,20 @@ class ProtPySegGFPRParticles(EMProtocol, ProtTomoBase):
 
         return join(outDir, removeBaseExt(self.inStar.get()) + '_parts.star')
 
-    def pysegRec(self, pickingStarFile):
+    def pysegRec(self, tomoStarFile, missingWedgeCTF):
         # Generate output dir
-        outDir = self._getExtraPath(PICKING_OUT)
+        outDir = self._getExtraPath(REC_OUT)
         makePath(outDir)
 
         # Script called
-        Plugin.runPySeg(self, PYTHON, '%s %s %s %s %s %s' % ())
+        Plugin.runPySeg(self, PYTHON, '%s %s %s %s %s %s %s' % (
+            self._getPysegScript(REC_SCRIPT),
+            tomoStarFile,
+            outDir,
+            join(outDir, 'rec_particles.star'),
+            missingWedgeCTF,
+            self.inMask.get(),
+            self.numberOfThreads.get()))
 
     def createOutputStep(self):
         pass
