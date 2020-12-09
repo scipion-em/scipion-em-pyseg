@@ -29,7 +29,7 @@ from pyworkflow.protocol.params import PathParam, FloatParam, String
 from pyworkflow.utils.path import copyFile, createAbsLink
 from pwem.protocols import EMProtocol, basename
 from tomo.protocols import ProtTomoBase
-from ..convert import readStarFile
+from ..convert import readStarFile, RELION_TOMO_LABELS, RELION_SUBTOMO_STAR
 
 
 class ProtPySegImportSubtomos(EMProtocol, ProtTomoBase):
@@ -58,7 +58,7 @@ class ProtPySegImportSubtomos(EMProtocol, ProtTomoBase):
 
         self.subtomoSet = self._createSetOfSubTomograms()
         self.subtomoSet.setSamplingRate(self.samplingRate.get())
-        warningMsg = readStarFile(self, self.subtomoSet)
+        warningMsg = readStarFile(self, self.subtomoSet, RELION_SUBTOMO_STAR)
         if warningMsg:
             self.warningMsg = String(warningMsg)
             self._store()

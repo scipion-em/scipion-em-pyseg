@@ -1,16 +1,12 @@
-import json
-from os import environ
-from os.path import join
-
 from pwem.protocols import EMProtocol, FileParam, PointerParam
-from pyworkflow.protocol import IntParam, GT, String
+from pyworkflow.protocol import String
 from pyworkflow.utils import Message, makePath
 from scipion.constants import PYTHON
 from tomo.protocols import ProtTomoBase
 
 from pyseg import Plugin
-from pyseg.constants import POST_REC_OUT, POST_REC_SCRIPT
-from pyseg.convert import readStarFile
+from pyseg.constants import POST_REC_SCRIPT, POST_REC_OUT
+from pyseg.convert import readStarFile, RELION_SUBTOMO_STAR
 
 
 class ProtPySegPostRecParticles(EMProtocol, ProtTomoBase):
@@ -64,7 +60,7 @@ class ProtPySegPostRecParticles(EMProtocol, ProtTomoBase):
         # Read generated star file and create the output objects
         self.subtomoSet = self._createSetOfSubTomograms()
         self.subtomoSet.setSamplingRate(self.inMask.get().getSamplingRate())
-        warningMsg = readStarFile(self, self.subtomoSet, starFile=outStar)
+        warningMsg = readStarFile(self, self.subtomoSet, RELION_SUBTOMO_STAR, starFile=outStar)
         if warningMsg:
             self.warningMsg = String(warningMsg)
             self._store()
