@@ -5,20 +5,21 @@ from pwem.protocols import EMProtocol, FileParam
 from pyworkflow.protocol import FloatParam, NumericListParam, EnumParam
 from pyworkflow.utils import Message, makePath, removeBaseExt
 from scipion.constants import PYTHON
+from tomo.objects import SetOfCoordinates3D
 from tomo.protocols import ProtTomoBase
 
 from pyseg import Plugin
 from pyseg.constants import GRAPHS_OUT, GRAPHS_SCRIPT, FILS_OUT, FILS_SCRIPT, FILS_SOURCES, FILS_TARGETS, \
     PICKING_OUT, PICKING_SCRIPT, PICKING_SLICES
-from pyseg.convert import readStarFile
+from pyseg.convert import readStarFile, PYSEG_PICKING_STAR, getTomoSetFromStar
 
 
 class ProtPySegGFP(EMProtocol, ProtTomoBase):
     """"""
 
     _label = 'Graphs-Fils-Picking'
-    # warningMsg = None
-    # subtomoSet = None
+    tomoSet = None
+    warningMsg = None
 
     # -------------------------- DEFINE param functions ----------------------
     def _defineParams(self, form):
@@ -34,11 +35,11 @@ class ProtPySegGFP(EMProtocol, ProtTomoBase):
                       allowsNull=False,
                       help='Star file obtained in PySeg seg step.')
         form.addParam('pixelSize', FloatParam,
-                      label='Pixel size (nm/voxel)',
+                      label='Pixel size (Å/voxel)',
                       default=1,
                       important=True,
                       allowsNull=False,
-                      help='Input tomograms voxel size (nm/voxel)')
+                      help='Input tomograms voxel size (Å/voxel)')
 
         form.addSection(label='Graphs')
         group = form.addGroup('GraphMCF')
@@ -104,9 +105,9 @@ class ProtPySegGFP(EMProtocol, ProtTomoBase):
         form.addParallelSection(threads=4, mpi=0)
 
     def _insertAllSteps(self):
-        graphsStarFile = self._insertFunctionStep('pysegGraphs')
-        filsStarFile = self._insertFunctionStep('pysegFils', graphsStarFile)
-        pickingStarFile = self._insertFunctionStep('pysegPicking', filsStarFile)
+        self._insertFunctionStep('pysegGraphs')
+        self._insertFunctionStep('pysegFils')
+        self._insertFunctionStep('pysegPicking')
         self._insertFunctionStep('createOutputStep')
 
     def pysegGraphs(self):
@@ -119,17 +120,14 @@ class ProtPySegGFP(EMProtocol, ProtTomoBase):
             self._getPysegScript(GRAPHS_SCRIPT),
             self.inStar.get(),
             outDir,
-            self.pixelSize.get(),
+            self.pixelSize.get()/10,  # PySeg requires it in nm
             self.numberOfThreads.get(),
             self.sSig.get(),  # Sigma for gaussian filtering
             self.vDen.get(),  # Vertex density within membranes (nm³)
             self.vRatio.get(),  # Avg ratio vertex/edge of graph within membrane
             self.maxLen.get()))  # Shortest distance to membrane (nm)
 
-        # Generated star file
-        return join(outDir, removeBaseExt(self.inStar.get()) + '_mb_graph.star')
-
-    def pysegFils(self, graphsStarFile):
+    def pysegFils(self):
         # Generate output dir
         outDir = self._getExtraPath(FILS_OUT)
         makePath(outDir)
@@ -154,10 +152,7 @@ class ProtPySegGFP(EMProtocol, ProtTomoBase):
             gRgSin[0],
             gRgSin[1]))
 
-        # Generated star file
-        return join(outDir, 'fil_' + removeBaseExt(FILS_SOURCES) + '_to_' + removeBaseExt(FILS_TARGETS) + '_net.star')
-
-    def pysegPicking(self, filsStarFile):
+    def pysegPicking(self):
         # Generate output dir
         outDir = self._getExtraPath(PICKING_OUT)
         makePath(outDir)
@@ -172,11 +167,21 @@ class ProtPySegGFP(EMProtocol, ProtTomoBase):
             self.peakTh.get(),
             self.peakNs.get()))
 
-        # return join(outDir, removeBaseExt(self.inStar.get()) + '_parts.star')
-
     def createOutputStep(self):
-        pass
-        # self._defineOutputs(outputSubTomograms=self.subtomoSet)
+        pickingStarFile = self._getExtraPath(PICKING_OUT, removeBaseExt(self.inStar.get()) + '_parts.star')
+
+        tomoSet = self._createSetOfTomograms()
+        tomoSet.setSamplingRate(self.pixelSize.get())
+        self.tomoSet = tomoSet
+        getTomoSetFromStar(self, pickingStarFile)
+
+        suffix = self._getOutputSuffix(SetOfCoordinates3D)
+        coordsSet = self._createSetOfCoordinates3D(tomoSet, suffix)
+        coordsSet.setSamplingRate(self.pixelSize.get())
+        readStarFile(self, coordsSet, PYSEG_PICKING_STAR, starFile=None, invert=True)
+
+        self._defineOutputs(outputCoordinates=coordsSet)
+
 
     # --------------------------- INFO functions -----------------------------------
     def _summary(self):

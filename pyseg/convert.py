@@ -32,8 +32,8 @@ import pwem.convert.transformations as tfs
 from os.path import join
 from pyworkflow.utils import createAbsLink
 from relion.convert import Table
-from tomo.objects import SubTomogram, Coordinate3D, TomoAcquisition
-
+from tomo.objects import SubTomogram, Coordinate3D, TomoAcquisition, Tomogram, SetOfCoordinates3D
+from tomo.utils import _getUniqueFileName
 
 FILE_NOT_FOUND = 'file_not_found'
 
@@ -84,7 +84,7 @@ RELION_SUBTOMO_STAR = 0
 PYSEG_PICKING_STAR = 1
 
 
-def readStarFile(prot, outputSubTomogramsSet, fileType, starFile=None, invert=True):
+def readStarFile(prot, outputSetObject, fileType, starFile=None, invert=True):
     warningMsg = None
     # Star file can be provided by the user or not, depending on the protocol invoking this method
     if not starFile:
@@ -104,9 +104,10 @@ def readStarFile(prot, outputSubTomogramsSet, fileType, starFile=None, invert=Tr
 
     if fileType == RELION_SUBTOMO_STAR:
         labels = RELION_TOMO_LABELS
-        _processRelionTomoStar(prot, outputSubTomogramsSet, tomoTable, starPath, isExtra, invert)
-    elif fileType == PYSEG_PICKING_STAR:
+        _relionTomoStar2Subtomograms(prot, outputSetObject, tomoTable, starPath, isExtra, invert)
+    else:  # fileType == PYSEG_PICKING_STAR:
         labels = PYSEG_PICKING_LABELS
+        _pysegStar2Coords3D(outputSetObject, tomoTable, invert)
 
     if not tomoTable.hasAllColumns(labels):
         missingCols = [name for name in labels if name not in tomoTable.getColumnNames()]
@@ -136,7 +137,7 @@ def genAbsLink(fileName, newFileName):
     createAbsLink(fileName, newFileName)
 
 
-def _processRelionTomoStar(prot, outputSubTomogramsSet, tomoTable, starPath, isExtra, invert):
+def _relionTomoStar2Subtomograms(prot, outputSubTomogramsSet, tomoTable, starPath, isExtra, invert):
     ih = ImageHandler()
     samplingRate = outputSubTomogramsSet.getSamplingRate()
     for counter, row in enumerate(tomoTable):
@@ -160,25 +161,7 @@ def _processRelionTomoStar(prot, outputSubTomogramsSet, tomoTable, starPath, isE
         coordinate3d.setY(float(y))
         coordinate3d.setZ(float(z))
         coordinate3d._3dcftMrcFile = String(join(starPath, ctf3d))  # Used for the ctf3d generation in Relion
-        shiftx = row.get(SHIFTX, 0)
-        shifty = row.get(SHIFTY, 0)
-        shiftz = row.get(SHIFTZ, 0)
-        tilt = row.get(TILT, 0)
-        psi = row.get(PSI, 0)
-        rot = row.get(ROT, 0)
-        shifts = (float(shiftx), float(shifty), float(shiftz))
-        angles = (float(rot), float(tilt), float(psi))
-        radAngles = -np.deg2rad(angles)
-        M = tfs.euler_matrix(radAngles[0], radAngles[1], radAngles[2], 'szyz')
-        if invert:
-            M[0, 3] = -shifts[0]
-            M[1, 3] = -shifts[1]
-            M[2, 3] = -shifts[2]
-            M = np.linalg.inv(M)
-        else:
-            M[0, 3] = shifts[0]
-            M[1, 3] = shifts[1]
-            M[2, 3] = shifts[2]
+        M = _getTransformMatrix(row, invert)
         transform.setMatrix(M)
 
         subtomo.setVolName(volname)
@@ -212,3 +195,81 @@ def _processRelionTomoStar(prot, outputSubTomogramsSet, tomoTable, starPath, isE
         # Add current subtomogram to the output set
         outputSubTomogramsSet.append(subtomo)
 
+
+def _getTransformMatrix(row, invert):
+    shiftx = row.get(SHIFTX, 0)
+    shifty = row.get(SHIFTY, 0)
+    shiftz = row.get(SHIFTZ, 0)
+    tilt = row.get(TILT, 0)
+    psi = row.get(PSI, 0)
+    rot = row.get(ROT, 0)
+    shifts = (float(shiftx), float(shifty), float(shiftz))
+    angles = (float(rot), float(tilt), float(psi))
+    radAngles = -np.deg2rad(angles)
+    M = tfs.euler_matrix(radAngles[0], radAngles[1], radAngles[2], 'szyz')
+    if invert:
+        M[0, 3] = -shifts[0]
+        M[1, 3] = -shifts[1]
+        M[2, 3] = -shifts[2]
+        M = np.linalg.inv(M)
+    else:
+        M[0, 3] = shifts[0]
+        M[1, 3] = shifts[1]
+        M[2, 3] = shifts[2]
+
+    return M
+
+
+def getTomoSetFromStar(prot, starFile):
+    samplingRate = prot.pixelSize.get()
+    imgh = ImageHandler()
+    tomoTable = Table()
+    tomoTable.read(starFile)
+    tomoNamesUnique = list(set([row.get(TOMO_NAME, FILE_NOT_FOUND) for row in tomoTable]))
+
+    # Create a Volume template object
+    tomo = Tomogram()
+    tomo.setSamplingRate(samplingRate)
+
+    for fileName in tomoNamesUnique:
+        x, y, z, n = imgh.getDimensions(fileName)
+        if fileName.endswith('.mrc') or fileName.endswith('.map'):
+            fileName += ':mrc'
+            if z == 1 and n != 1:
+                zDim = n
+                n = 1
+            else:
+                zDim = z
+        else:
+            zDim = z
+        origin = Transform()
+        origin.setShifts(x / -2. * samplingRate,
+                         y / -2. * samplingRate,
+                         zDim / -2. * samplingRate)
+
+        tomo.setOrigin(origin)  # read origin from form
+
+        for index in range(1, n + 1):
+            tomo.cleanObjId()
+            tomo.setLocation(index, fileName)
+            tomo.setAcquisition(prot._extractAcquisitionParameters(fileName))
+            prot.tomoSet.append(tomo)
+
+
+def _pysegStar2Coords3D(output3DCoordSet, tomoTable, invert):
+    for counter, row in enumerate(tomoTable):
+        coordinate3d = Coordinate3D()
+
+        x = row.get(COORD_X, 0)
+        y = row.get(COORD_Y, 0)
+        z = row.get(COORD_Z, 0)
+        M = _getTransformMatrix(row, invert)
+        coordinate3d.setVolId(counter)
+        coordinate3d.setX(float(x))
+        coordinate3d.setY(float(y))
+        coordinate3d.setZ(float(z))
+        coordinate3d.setMatrix(M)
+        coordinate3d._pysegMembrane = String(row.get(SUBTOMO_NAME, FILE_NOT_FOUND))
+
+        # Add current subtomogram to the output set
+        output3DCoordSet.append(coordinate3d)
