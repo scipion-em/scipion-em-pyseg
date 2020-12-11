@@ -175,7 +175,7 @@ def _relionTomoStar2Subtomograms(prot, outputSubTomogramsSet, tomoTable, starPat
         uniqueSubtomoFn = subtomoAbsFn
         if not isExtra:
             uniqueSubtomoFn = subtomoFn.replace("/", "_").replace("..", "")
-            genAbsLink(subtomoAbsFn, uniqueSubtomoFn)
+            genAbsLink(subtomoAbsFn, prot._getExtraPath(uniqueSubtomoFn))
 
         # Set the origin and the dimensions of the current subtomogram
         x, y, z, n = ih.getDimensions(subtomoAbsFn)
