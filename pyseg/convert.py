@@ -252,7 +252,7 @@ def getTomoSetFromStar(prot, starFile):
         for index in range(1, n + 1):
             tomo.cleanObjId()
             tomo.setLocation(index, fileName)
-            tomo.setAcquisition(prot._extractAcquisitionParameters(fileName))
+            # tomo.setAcquisition(prot._extractAcquisitionParameters(fileName))
             prot.tomoSet.append(tomo)
 
 

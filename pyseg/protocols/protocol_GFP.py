@@ -3,7 +3,7 @@ from os.path import join
 
 from pwem.protocols import EMProtocol, FileParam
 from pyworkflow.protocol import FloatParam, NumericListParam, EnumParam
-from pyworkflow.utils import Message, makePath, removeBaseExt
+from pyworkflow.utils import Message, makePath, removeBaseExt, moveFile
 from scipion.constants import PYTHON
 from tomo.objects import SetOfCoordinates3D
 from tomo.protocols import ProtTomoBase
@@ -158,27 +158,31 @@ class ProtPySegGFP(EMProtocol, ProtTomoBase):
         makePath(outDir)
 
         # Script called
+        inStar = self._getExtraPath(FILS_OUT, 'fil_' + removeBaseExt(FILS_SOURCES)
+                                    + '_to_' + removeBaseExt(FILS_TARGETS) + '_net.star')
         Plugin.runPySeg(self, PYTHON, '%s %s %s %s %s %s' % (
             self._getPysegScript(PICKING_SCRIPT),
-            self._getExtraPath(FILS_OUT, 'fil_' + removeBaseExt(FILS_SOURCES)
-                               + '_to_' + removeBaseExt(FILS_TARGETS) + '_net.star'),
+            inStar,
             outDir,
             Plugin.getHome(PICKING_SLICES),
             self.peakTh.get(),
             self.peakNs.get()))
 
+        moveFile(inStar, self.getPickingStarFileName())
+
     def createOutputStep(self):
-        pickingStarFile = self._getExtraPath(PICKING_OUT, removeBaseExt(self.inStar.get()) + '_parts.star')
+        pickingStarFile = self.getPickingStarFileName()
+        samplingRate = self.pixelSize.get()
 
         tomoSet = self._createSetOfTomograms()
-        tomoSet.setSamplingRate(self.pixelSize.get())
+        tomoSet.setSamplingRate(samplingRate)
         self.tomoSet = tomoSet
         getTomoSetFromStar(self, pickingStarFile)
 
         suffix = self._getOutputSuffix(SetOfCoordinates3D)
         coordsSet = self._createSetOfCoordinates3D(tomoSet, suffix)
-        coordsSet.setSamplingRate(self.pixelSize.get())
-        readStarFile(self, coordsSet, PYSEG_PICKING_STAR, starFile=None, invert=True)
+        coordsSet.setSamplingRate(samplingRate)
+        readStarFile(self, coordsSet, PYSEG_PICKING_STAR, starFile=pickingStarFile, invert=True)
 
         self._defineOutputs(outputCoordinates=coordsSet)
 
@@ -204,3 +208,7 @@ class ProtPySegGFP(EMProtocol, ProtTomoBase):
     def _ListAsStr2ListOfNum(inList):
         """Convert string of integers separated by spaces to a list of integers"""
         return [int(i) for i in inList.split()]
+
+    def getPickingStarFileName(self):
+        return self._getExtraPath(PICKING_OUT, removeBaseExt(self.inStar.get()) + '_parts.star')
+
