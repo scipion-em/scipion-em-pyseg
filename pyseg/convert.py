@@ -183,7 +183,7 @@ def _relionTomoStar2Subtomograms(prot, outputSubTomogramsSet, tomoTable, starPat
         origin.setShifts(x / -2. * samplingRate, y / -2. * samplingRate, zDim / -2. * samplingRate)
         subtomo.setOrigin(origin)
 
-        subtomo.setFileName(filename)
+        subtomo.setFileName(prot._getExtraPath(filename))
         # if subtomo is in a vesicle
         if 'tid_' in subtomoFn:
             vesicleId = subtomoFn.split('tid_')[1]
