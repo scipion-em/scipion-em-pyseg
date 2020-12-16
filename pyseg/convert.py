@@ -27,13 +27,14 @@ from os.path import dirname, abspath, isabs
 
 import numpy as np
 from pwem.emlib.image import ImageHandler
-from pwem.objects.data import Transform, String, Integer
+from pwem.objects.data import Transform, String
 import pwem.convert.transformations as tfs
 from os.path import join
+
+from pyworkflow.object import List
 from pyworkflow.utils import createAbsLink
 from relion.convert import Table
-from tomo.objects import SubTomogram, Coordinate3D, TomoAcquisition, Tomogram, SetOfCoordinates3D
-from tomo.utils import _getUniqueFileName
+from tomo.objects import SubTomogram, Coordinate3D, TomoAcquisition, Tomogram
 
 FILE_NOT_FOUND = 'file_not_found'
 
@@ -107,7 +108,7 @@ def readStarFile(prot, outputSetObject, fileType, starFile=None, invert=True):
         _relionTomoStar2Subtomograms(prot, outputSetObject, tomoTable, starPath, isExtra, invert)
     else:  # fileType == PYSEG_PICKING_STAR:
         labels = PYSEG_PICKING_LABELS
-        _pysegStar2Coords3D(outputSetObject, tomoTable, invert)
+        _pysegStar2Coords3D(prot, outputSetObject, tomoTable, invert)
 
     if not tomoTable.hasAllColumns(labels):
         missingCols = [name for name in labels if name not in tomoTable.getColumnNames()]
@@ -225,16 +226,16 @@ def getTomoSetFromStar(prot, starFile):
     imgh = ImageHandler()
     tomoTable = Table()
     tomoTable.read(starFile)
-    tomoNamesUnique = list(set([row.get(TOMO_NAME, FILE_NOT_FOUND) for row in tomoTable]))
+    tomoList = [row.get(TOMO_NAME, FILE_NOT_FOUND) for row in tomoTable]
+    prot.tomoList = List(tomoList)
+    tomoNamesUnique = list(set(tomoList))
 
     # Create a Volume template object
     tomo = Tomogram()
     tomo.setSamplingRate(samplingRate)
-
     for fileName in tomoNamesUnique:
         x, y, z, n = imgh.getDimensions(fileName)
         if fileName.endswith('.mrc') or fileName.endswith('.map'):
-            fileName += ':mrc'
             if z == 1 and n != 1:
                 zDim = n
                 n = 1
@@ -252,24 +253,27 @@ def getTomoSetFromStar(prot, starFile):
         for index in range(1, n + 1):
             tomo.cleanObjId()
             tomo.setLocation(index, fileName)
-            # tomo.setAcquisition(prot._extractAcquisitionParameters(fileName))
+            tomo.setAcquisition(TomoAcquisition(**prot.acquisitionParams))
             prot.tomoSet.append(tomo)
 
 
-def _pysegStar2Coords3D(output3DCoordSet, tomoTable, invert):
-    for counter, row in enumerate(tomoTable):
-        coordinate3d = Coordinate3D()
+def _pysegStar2Coords3D(prot, output3DCoordSet, tomoTable, invert):
+    for tomoNum, tomo in enumerate(prot.tomoSet.iterItems()):
+        tomoName = tomo.getFileName().replace(':mrc', '')
+        for ancestorName, row in zip(prot.tomoList, tomoTable):
+            if ancestorName == tomoName:
+                coordinate3d = Coordinate3D()
+                coordinate3d.setVolId(tomoNum)
+                x = row.get(COORD_X, 0)
+                y = row.get(COORD_Y, 0)
+                z = row.get(COORD_Z, 0)
+                M = _getTransformMatrix(row, invert)
+                coordinate3d.setX(float(x))
+                coordinate3d.setY(float(y))
+                coordinate3d.setZ(float(z))
+                coordinate3d.setMatrix(M)
+                coordinate3d.setVolume(tomo)
+                coordinate3d._pysegMembrane = String(row.get(SUBTOMO_NAME, FILE_NOT_FOUND))
 
-        x = row.get(COORD_X, 0)
-        y = row.get(COORD_Y, 0)
-        z = row.get(COORD_Z, 0)
-        M = _getTransformMatrix(row, invert)
-        coordinate3d.setVolId(counter)
-        coordinate3d.setX(float(x))
-        coordinate3d.setY(float(y))
-        coordinate3d.setZ(float(z))
-        coordinate3d.setMatrix(M)
-        coordinate3d._pysegMembrane = String(row.get(SUBTOMO_NAME, FILE_NOT_FOUND))
-
-        # Add current subtomogram to the output set
-        output3DCoordSet.append(coordinate3d)
+                # Add current subtomogram to the output set
+                output3DCoordSet.append(coordinate3d)

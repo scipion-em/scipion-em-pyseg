@@ -24,11 +24,11 @@ class ProtPySegPostRecParticles(EMProtocol, ProtTomoBase):
         """
         # You need a params to belong to a section:
         form.addSection(label=Message.LABEL_INPUT)
-        form.addParam('inStar', FileParam,
-                      label='Particles star file',
+        form.addParam('inputSubtomograms', PointerParam,
+                      pointerClass='SetOfSubTomograms',
                       important=True,
-                      allowsNull=False,
-                      help='Star file obtained in PySeg reconstruction.')
+                      label="Input subtomograms",
+                      help='Select the input subtomograms from the project.')
         form.addParam('inMask', PointerParam,
                       pointerClass='VolumeMask',
                       label='Mask',

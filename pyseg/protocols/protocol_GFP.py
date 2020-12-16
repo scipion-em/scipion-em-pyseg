@@ -7,6 +7,7 @@ from pyworkflow.utils import Message, makePath, removeBaseExt, moveFile
 from scipion.constants import PYTHON
 from tomo.objects import SetOfCoordinates3D
 from tomo.protocols import ProtTomoBase
+from tomo.protocols.protocol_base import ProtTomoImportAcquisition
 
 from pyseg import Plugin
 from pyseg.constants import GRAPHS_OUT, GRAPHS_SCRIPT, FILS_OUT, FILS_SCRIPT, FILS_SOURCES, FILS_TARGETS, \
@@ -14,12 +15,19 @@ from pyseg.constants import GRAPHS_OUT, GRAPHS_SCRIPT, FILS_OUT, FILS_SCRIPT, FI
 from pyseg.convert import readStarFile, PYSEG_PICKING_STAR, getTomoSetFromStar
 
 
-class ProtPySegGFP(EMProtocol, ProtTomoBase):
+class ProtPySegGFP(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
     """"""
 
     _label = 'Graphs-Fils-Picking'
     tomoSet = None
     warningMsg = None
+    acquisitionParams = {
+            'angleMin': 90,
+            'angleMax': -90,
+            'step': None,
+            'angleAxis1': None,
+            'angleAxis2': None
+        }
 
     # -------------------------- DEFINE param functions ----------------------
     def _defineParams(self, form):
@@ -168,8 +176,6 @@ class ProtPySegGFP(EMProtocol, ProtTomoBase):
             self.peakTh.get(),
             self.peakNs.get()))
 
-        moveFile(inStar, self.getPickingStarFileName())
-
     def createOutputStep(self):
         pickingStarFile = self.getPickingStarFileName()
         samplingRate = self.pixelSize.get()
@@ -178,14 +184,15 @@ class ProtPySegGFP(EMProtocol, ProtTomoBase):
         tomoSet.setSamplingRate(samplingRate)
         self.tomoSet = tomoSet
         getTomoSetFromStar(self, pickingStarFile)
+        self._defineOutputs(outputTomograms=self.tomoSet)
 
         suffix = self._getOutputSuffix(SetOfCoordinates3D)
         coordsSet = self._createSetOfCoordinates3D(tomoSet, suffix)
         coordsSet.setSamplingRate(samplingRate)
+        # coordsSet.setPrecedents(tomoSet)
         readStarFile(self, coordsSet, PYSEG_PICKING_STAR, starFile=pickingStarFile, invert=True)
 
         self._defineOutputs(outputCoordinates=coordsSet)
-
 
     # --------------------------- INFO functions -----------------------------------
     def _summary(self):
@@ -210,5 +217,7 @@ class ProtPySegGFP(EMProtocol, ProtTomoBase):
         return [int(i) for i in inList.split()]
 
     def getPickingStarFileName(self):
-        return self._getExtraPath(PICKING_OUT, removeBaseExt(self.inStar.get()) + '_parts.star')
+        filsStar = self._getExtraPath(FILS_OUT, 'fil_' + removeBaseExt(FILS_SOURCES)
+                                      + '_to_' + removeBaseExt(FILS_TARGETS) + '_net.star')
+        return self._getExtraPath(PICKING_OUT, removeBaseExt(filsStar) + '_parts.star')
 
