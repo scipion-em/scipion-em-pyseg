@@ -140,15 +140,15 @@ class TestPysegImportSubTomograms(BaseTest):
         self._writeTestStarFile(self._getKeysStar23())  # Write the corresponding star file
         protImport = self._runImportPySegSubTomograms()
         output = getattr(protImport, 'outputSubTomograms', None)
-        self._checkSet(output)
+        self._checkSet(output, protImport)
 
     def test_import_pyseg_subtomograms_14_columns(self):
         self._writeTestStarFile(RELION_TOMO_LABELS)  # Write the corresponding star file
         protImport = self._runImportPySegSubTomograms()
         subtomoSet = getattr(protImport, 'outputSubTomograms', None)
-        self._checkSet(subtomoSet)
+        self._checkSet(subtomoSet, protImport)
 
-    def _checkSet(self, subtomoSet):
+    def _checkSet(self, subtomoSet, protImport):
         # Check set attribute
         self.assertEqual(subtomoSet.getSize(), 2)
         self.assertEqual(subtomoSet.getSamplingRate(), 1.35)
@@ -165,8 +165,8 @@ class TestPysegImportSubTomograms(BaseTest):
             self.assertEqual(subtomo.getCoordinate3D().getX(), d['x'][i])
             self.assertEqual(subtomo.getCoordinate3D().getY(), d['y'][i])
             self.assertEqual(subtomo.getCoordinate3D().getZ(), d['z'][i])
-            self.assertEqual(subtomo.getFileName(), d['filenames'][i])
-            self.assertEqual(subtomo.getVolName(), d['volNames'][i])
+            self.assertEqual(subtomo.getFileName(), protImport._getExtraPath(d['filenames'][i]))
+            self.assertEqual(subtomo.getVolName(), protImport._getExtraPath(d['volNames'][i]))
             self.assertEqual(subtomo.getCoordinate3D()._3dcftMrcFile, d['wedges'][i])
             angles, shifts = self._checkTransform(subtomo)
             self.assertAlmostEqual(angles[0], d['rot'][i], delta=self.deltaAng)

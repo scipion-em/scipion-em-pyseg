@@ -31,44 +31,15 @@ from pwem.objects.data import Transform, String
 import pwem.convert.transformations as tfs
 from os.path import join
 
-from pyworkflow.object import List
+from pyworkflow.object import List, Float
 from pyworkflow.utils import createAbsLink
 from relion.convert import Table
+from reliontomo.convert.convert30_tomo import TOMO_NAME, SUBTOMO_NAME, COORD_X, COORD_Y, COORD_Z, ROT, TILT, PSI, \
+    RELION_TOMO_LABELS, TILT_PRIOR, PSI_PRIOR, CTF_MISSING_WEDGE, SHIFTX, SHIFTY, SHIFTZ
 from tomo.objects import SubTomogram, Coordinate3D, TomoAcquisition, Tomogram
 
 FILE_NOT_FOUND = 'file_not_found'
-
-# Star file fields
-TOMO_NAME = 'rlnMicrographName'
-COORD_X = 'rlnCoordinateX'
-COORD_Y = 'rlnCoordinateY'
-COORD_Z = 'rlnCoordinateZ'
-SUBTOMO_NAME = 'rlnImageName'
-CTF_MISSING_WEDGE = 'rlnCtfImage'
-MAGNIFICATION = 'rlnMagnification'
-PIXEL_SIZE = 'rlnDetectorPixelSize'
-ROT = 'rlnAngleRot'
-TILT = 'rlnAngleTilt'
-PSI = 'rlnAnglePsi'
-SHIFTX = 'rlnOriginX'
-SHIFTY = 'rlnOriginY'
-SHIFTZ = 'rlnOriginZ'
 PS_SEG_IMAGE = '_psSegImage'
-
-RELION_TOMO_LABELS = [TOMO_NAME,
-                      COORD_X,
-                      COORD_Y,
-                      COORD_Z,
-                      SUBTOMO_NAME,
-                      CTF_MISSING_WEDGE,
-                      MAGNIFICATION,
-                      PIXEL_SIZE,
-                      ROT,
-                      TILT,
-                      PSI,
-                      SHIFTX,
-                      SHIFTY,
-                      SHIFTZ]
 
 PYSEG_PICKING_LABELS = [TOMO_NAME,
                         SUBTOMO_NAME,
@@ -78,7 +49,8 @@ PYSEG_PICKING_LABELS = [TOMO_NAME,
                         COORD_Z,
                         ROT,
                         TILT,
-                        PSI]
+                        PSI,
+                        ]
 
 # Star files coding
 RELION_SUBTOMO_STAR = 0
@@ -157,6 +129,8 @@ def _relionTomoStar2Subtomograms(prot, outputSubTomogramsSet, tomoTable, starPat
         x = row.get(COORD_X, 0)
         y = row.get(COORD_Y, 0)
         z = row.get(COORD_Z, 0)
+        tiltPrior = row.get(TILT_PRIOR, 0)
+        psiPrior = row.get(PSI_PRIOR, 0)
         ctf3d = row.get(CTF_MISSING_WEDGE, FILE_NOT_FOUND)
         coordinate3d.setX(float(x))
         coordinate3d.setY(float(y))
@@ -171,6 +145,8 @@ def _relionTomoStar2Subtomograms(prot, outputSubTomogramsSet, tomoTable, starPat
         subtomo.setAcquisition(TomoAcquisition())
         subtomo.setClassId(row.get('rlnClassNumber', 0))
         subtomo.setSamplingRate(samplingRate)
+        subtomo._tiltPriorAngle = Float(tiltPrior)
+        subtomo._psiPriorAngle = Float(psiPrior)
 
         # Make link if necessary (only when the star file is out of a Scipion results dir)
         uniqueSubtomoFn = subtomoAbsFn

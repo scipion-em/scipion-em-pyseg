@@ -1,6 +1,7 @@
-from pwem.protocols import EMProtocol, FileParam, PointerParam
+from pwem.protocols import EMProtocol, PointerParam
 from pyworkflow.protocol import String
 from pyworkflow.utils import Message, makePath
+from reliontomo.convert import writeSetOfSubtomograms
 from scipion.constants import PYTHON
 from tomo.protocols import ProtTomoBase
 
@@ -13,6 +14,7 @@ class ProtPySegPostRecParticles(EMProtocol, ProtTomoBase):
     """"""
 
     _label = 'Post-process reconstructed particles'
+    inStarName = 'input_particles.star'
     warningMsg = None
     subtomoSet = None
 
@@ -24,7 +26,7 @@ class ProtPySegPostRecParticles(EMProtocol, ProtTomoBase):
         """
         # You need a params to belong to a section:
         form.addSection(label=Message.LABEL_INPUT)
-        form.addParam('inputSubtomograms', PointerParam,
+        form.addParam('inputSubtomos', PointerParam,
                       pointerClass='SetOfSubTomograms',
                       important=True,
                       label="Input subtomograms",
@@ -39,8 +41,16 @@ class ProtPySegPostRecParticles(EMProtocol, ProtTomoBase):
 
     def _insertAllSteps(self):
         outStar = self._getExtraPath(POST_REC_OUT + '.star')
+        self._insertFunctionStep('convertInputStep')
         self._insertFunctionStep('pysegPostRec', outStar)
         self._insertFunctionStep('createOutputStep', outStar)
+
+    def convertInputStep(self):
+        """ Create the input file in STAR format as expected by Relion.
+        """
+        imgSet = self.inputSubtomos.get()
+        imgStar = self._getExtraPath(self.inStarName)
+        writeSetOfSubtomograms(imgSet, imgStar, isPysegPosRec=True)
 
     def pysegPostRec(self, outStar):
         # Generate output subtomo dir
@@ -50,7 +60,7 @@ class ProtPySegPostRecParticles(EMProtocol, ProtTomoBase):
         pyseg_post_rec = Plugin.getHome(POST_REC_SCRIPT)
         Plugin.runPySeg(self, PYTHON, '%s %s %s %s %s %s' % (
             pyseg_post_rec,
-            self.inStar.get(),  # In star file
+            self._getExtraPath(self.inStarName),  # In star file
             self.inMask.get().getFileName(),  # In mask
             outDir,  # Out subtomo dir
             outStar,  # Out star file
