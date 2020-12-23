@@ -14,6 +14,9 @@ from pyseg.constants import GRAPHS_OUT, GRAPHS_SCRIPT, FILS_OUT, FILS_SCRIPT, FI
     PICKING_OUT, PICKING_SCRIPT, PICKING_SLICES
 from pyseg.convert import readStarFile, PYSEG_PICKING_STAR, getTomoSetFromStar
 
+TH_MODE_IN = 0
+TH_MODE_OUT = 1
+
 
 class ProtPySegGFP(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
     """"""
@@ -84,12 +87,12 @@ class ProtPySegGFP(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         group = form.addGroup('Filament geometry')
         group.addParam('gRgEud', NumericListParam,
                        label='Euclidean distance of vertices source-target (nm)',
-                       default='1 60',
+                       default='1 25',
                        allowsNull=False,
                        help='Euclidean distance between source and target vertices in nm.')
         group.addParam('gRgLen', NumericListParam,
                        label='Geodesic distance of vertices source-target (nm)',
-                       default='1 25',
+                       default='1 60',
                        allowsNull=False,
                        help='Geodesic distance trough the graph between source and target vertices in nm.')
         group.addParam('gRgSin', NumericListParam,
@@ -124,41 +127,15 @@ class ProtPySegGFP(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         makePath(outDir)
 
         # Script called
-        Plugin.runPySeg(self, PYTHON, '%s %s %s %s %s %s %s %s %s' % (
-            self._getPysegScript(GRAPHS_SCRIPT),
-            self.inStar.get(),
-            outDir,
-            self.pixelSize.get()/10,  # PySeg requires it in nm
-            self.numberOfThreads.get(),
-            self.sSig.get(),  # Sigma for gaussian filtering
-            self.vDen.get(),  # Vertex density within membranes (nm³)
-            self.vRatio.get(),  # Avg ratio vertex/edge of graph within membrane
-            self.maxLen.get()))  # Shortest distance to membrane (nm)
+        Plugin.runPySeg(self, PYTHON, self._getGraphsCommand(outDir))
 
     def pysegFils(self):
         # Generate output dir
         outDir = self._getExtraPath(FILS_OUT)
         makePath(outDir)
 
-        # Manage the 2-element list inputs
-        gRgEud = self._ListAsStr2ListOfNum(self.gRgEud.get())
-        gRgLen = self._ListAsStr2ListOfNum(self.gRgLen.get())
-        gRgSin = self._ListAsStr2ListOfNum(self.gRgSin.get())
-
         # Script called
-        Plugin.runPySeg(self, PYTHON, '%s %s %s %s %s %s %s %s %s  %s %s %s' % (
-            self._getPysegScript(FILS_SCRIPT),
-            self._getExtraPath(GRAPHS_OUT, removeBaseExt(self.inStar.get()) + '_mb_graph.star'),
-            outDir,
-            Plugin.getHome(FILS_SOURCES),
-            Plugin.getHome(FILS_TARGETS),
-            self.thMode.get(),
-            gRgEud[0],
-            gRgEud[1],
-            gRgLen[0],
-            gRgLen[1],
-            gRgSin[0],
-            gRgSin[1]))
+        Plugin.runPySeg(self, PYTHON, self._getFilsCommand(outDir))
 
     def pysegPicking(self):
         # Generate output dir
@@ -166,15 +143,7 @@ class ProtPySegGFP(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         makePath(outDir)
 
         # Script called
-        inStar = self._getExtraPath(FILS_OUT, 'fil_' + removeBaseExt(FILS_SOURCES)
-                                    + '_to_' + removeBaseExt(FILS_TARGETS) + '_net.star')
-        Plugin.runPySeg(self, PYTHON, '%s %s %s %s %s %s' % (
-            self._getPysegScript(PICKING_SCRIPT),
-            inStar,
-            outDir,
-            Plugin.getHome(PICKING_SLICES),
-            self.peakTh.get(),
-            self.peakNs.get()))
+        Plugin.runPySeg(self, PYTHON, self._getPickingCommand(outDir))
 
     def createOutputStep(self):
         pickingStarFile = self.getPickingStarFileName()
@@ -207,17 +176,62 @@ class ProtPySegGFP(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         # return summary
 
     # --------------------------- UTIL functions -----------------------------------
-    @staticmethod
-    def _getPysegScript(scriptName):
-        return join(environ.get("SCIPION_HOME", None), Plugin.getHome(scriptName))
-
-    @staticmethod
-    def _ListAsStr2ListOfNum(inList):
-        """Convert string of integers separated by spaces to a list of integers"""
-        return [int(i) for i in inList.split()]
-
+    # @staticmethod
+    # def _getPysegScript(scriptName):
+    #     return Plugin.getHome(scriptName)
+    #
+    # @staticmethod
+    # def _ListAsStr2ListOfNum(inList):
+    #     """Convert string of integers separated by spaces to a list of integers"""
+    #     return [int(i) for i in inList.split()]
+    #
     def getPickingStarFileName(self):
         filsStar = self._getExtraPath(FILS_OUT, 'fil_' + removeBaseExt(FILS_SOURCES)
                                       + '_to_' + removeBaseExt(FILS_TARGETS) + '_net.star')
         return self._getExtraPath(PICKING_OUT, removeBaseExt(filsStar) + '_parts.star')
 
+    def _getGraphsCommand(self, outDir):
+        pixSize = self.pixelSize.get()/10
+        graphsCmd = ' '
+        graphsCmd += '%s ' % Plugin.getHome(GRAPHS_SCRIPT)
+        graphsCmd += '--inStar %s ' % self.inStar.get()
+        graphsCmd += '--outDir %s ' % outDir
+        graphsCmd += '--pixelSize %s ' % pixSize  # PySeg requires it in nm
+        graphsCmd += '--sSig %s ' % self.sSig.get()
+        graphsCmd += '--vDen %s ' % self.vDen.get()
+        graphsCmd += '--veRatio %s ' % self.vRatio.get()
+        graphsCmd += '--maxLen %s ' % self.maxLen.get()
+        graphsCmd += '-j %s ' % self.numberOfThreads.get()
+        return graphsCmd
+
+    def _getFilsCommand(self, outDir):
+        filsCmd = ' '
+        filsCmd += '%s ' % Plugin.getHome(FILS_SCRIPT)
+        filsCmd += '--inStar %s ' % self._getExtraPath(GRAPHS_OUT, removeBaseExt(self.inStar.get()) + '_mb_graph.star')
+        filsCmd += '--outDir %s ' % outDir
+        filsCmd += '--inSources %s ' % Plugin.getHome(FILS_SOURCES)
+        filsCmd += '--inTargets %s ' % Plugin.getHome(FILS_TARGETS)
+        filsCmd += '--thMode %s ' % self._parseThModeSelection()
+        filsCmd += '--gRgLen %s ' % self.gRgLen.get()
+        filsCmd += '--gRgSin %s ' % self.gRgSin.get()
+        filsCmd += '--gRgEud %s ' % self.gRgEud.get()
+        return filsCmd
+
+    def _getPickingCommand(self, outDir):
+        pickingCmd = ' '
+        pickingCmd += '%s ' % Plugin.getHome(PICKING_SCRIPT)
+        pickingCmd += '--inStar %s ' % \
+                      self._getExtraPath(FILS_OUT, 'fil_' + removeBaseExt(FILS_SOURCES) +
+                                         '_to_' + removeBaseExt(FILS_TARGETS) + '_net.star')
+
+        pickingCmd += '--outDir %s ' % outDir
+        pickingCmd += '--slicesFile %s ' % Plugin.getHome(PICKING_SLICES)
+        pickingCmd += '--peakTh %s ' % self.peakTh.get()
+        pickingCmd += '--peakNs %s ' % self.peakNs.get()
+        return pickingCmd
+
+    def _parseThModeSelection(self):
+        if self.thMode.get() == TH_MODE_IN:
+            return 'in'
+        else:
+            return 'out'
