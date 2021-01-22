@@ -38,13 +38,18 @@ DEFAULT_ACTIVATION_CMD = 'conda activate %s' % PYSEG_ENV_NAME
 
 # Required files location in pyseg-system
 PYSEG_SYSTEM_MAIN = 'pyseg_system-%s' % BRANCH
-SYNTH_SUMB = join(PYSEG_SYSTEM_MAIN, 'data', 'tutorials', 'synth_sumb')
+DATA_TUTORIALS = join(PYSEG_SYSTEM_MAIN, 'data', 'tutorials')
+CODE_TUTORIALS = join(PYSEG_SYSTEM_MAIN, 'code', 'tutorials')
+EXP_SOMB = join(CODE_TUTORIALS, 'exp_somb')
+SYNTH_SUMB = join(DATA_TUTORIALS, 'synth_sumb')
+
+PRESEG_SCRIPT = join(EXP_SOMB, 'pre_tomos_seg.py')
 GRAPHS_SCRIPT = join(SYNTH_SUMB, 'tracing', 'mb_graph_mp.py')
 FILS_SCRIPT = join(SYNTH_SUMB, 'tracing', 'mb_fils_network.py')
 FILS_SOURCES = join(SYNTH_SUMB, 'fils', 'in', 'mb_sources.xml')
 FILS_TARGETS = join(SYNTH_SUMB, 'fils', 'in', 'no_mb_targets.xml')
-PICKING_SCRIPT = join(PYSEG_SYSTEM_MAIN, 'code', 'tutorials', 'exp_somb', 'mbo_picking.py')
-PICKING_SLICES = join(PYSEG_SYSTEM_MAIN, 'data', 'tutorials', 'exp_somb', 'mb_ext.xml')
+PICKING_SCRIPT = join(EXP_SOMB, 'mbo_picking.py')
+PICKING_SLICES = join(DATA_TUTORIALS, 'exp_somb', 'mb_ext.xml')
 POST_REC_SCRIPT = join(SYNTH_SUMB, 'rln', 'post_rec_particles.py')
 
 # Generated data
