@@ -61,3 +61,23 @@ POST_REC_OUT = 'subtomos_post_rec'
 # Third parties software
 CFITSIO = 'cfitsio'
 DISPERSE = 'disperse'
+
+# Star file fields #################################################################################
+NOT_FOUND = 'Not found'
+
+# Preseg_pre_centered
+TOMOGRAM = '_rlnMicrographName'
+MEMBRANE = '_rlnImageName'
+VESICLE = '_psSegImage'
+PYSEG_ROT = '_psSegRot'
+PYSEG_TILT = '_psSegTilt'
+PYSEG_PSI = '_psSegPsi'
+PYSEG_OFFSET_X = 'psSegOffX'
+PYSEG_OFFSET_Y = '_psSegOffY'
+PYSEG_OFFSET_Z = '_psSegOffZ'
+
+# Preseg_centered
+PYSEG_LABEL = '_psSegLabel'
+RLN_ORIGIN_X = '_rlnOriginX'
+RLN_ORIGIN_Y = '_rlnOriginy'
+RLN_ORIGIN_Z = '_rlnOriginz'
