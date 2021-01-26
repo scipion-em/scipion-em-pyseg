@@ -119,13 +119,13 @@ class ProtPySegPreSegParticles(EMProtocol):
         preSegCmd += '%s ' % Plugin.getHome(PRESEG_SCRIPT)
         preSegCmd += '--inStar %s ' % inStar
         preSegCmd += '--outDir %s ' % outDir
-        preSegCmd += '--spSplit %s ' % self._checkNoneValue4PySeg(self.spSplit.get())
-        preSegCmd += '-spOffVoxels %s ' % self.spOffVoxels.get()
-        preSegCmd += '-sgVoxelSize %s ' % self.sgVoxelSize.get()/10  # required in nm
-        preSegCmd += '-sgThreshold %s ' % self._checkNoneValue4PySeg(self.sgThreshold.get())
-        preSegCmd += '-sgSizeThreshold %s ' % self._checkNoneValue4PySeg(self.sgSizeThreshold.get())
-        preSegCmd += '-sgMembThk %s ' % self.sgMembThk.get()/10  # required in nm
-        preSegCmd += '-sgMembNeigh %s ' % self.sgMembThk.get()/10  # required in nm
+        preSegCmd += '--spSplit %s ' % self.spSplit.get()
+        preSegCmd += '--spOffVoxels %s ' % self.spOffVoxels.get()
+        preSegCmd += '--sgVoxelSize %s ' % (int(self.sgVoxelSize.get())/10)  # required in nm
+        preSegCmd += '--sgThreshold %s ' % self.sgThreshold.get()
+        preSegCmd += '--sgSizeThreshold %s ' % self.sgSizeThreshold.get()
+        preSegCmd += '--sgMembThk %s ' % self._checkValue4PySeg(self.sgMembThk.get())  # required in nm
+        preSegCmd += '--sgMembNeigh %s ' % self._checkValue4PySeg(self.sgMembNeigh.get())  # required in nm
 
         return preSegCmd
 
@@ -188,5 +188,5 @@ class ProtPySegPreSegParticles(EMProtocol):
                               ])
 
     @staticmethod
-    def _checkNoneValue4PySeg(value):
-        return None if value == -1 or value == [-1] else value
+    def _checkValue4PySeg(value):
+        return value if value == -1 else value/10
