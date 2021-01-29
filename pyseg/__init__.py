@@ -33,7 +33,7 @@ from pyseg.constants import PYSEG_HOME, PYSEG, PYSEG_SOURCE_URL, PYSEG_ENV_ACTIV
     PYSEG_ENV_NAME, CFITSIO, DISPERSE, BRANCH, DEFAULT_VERSION
 
 _logo = "icon.png"
-_references = ['AMartinez-Sanchez2020']
+_references = ['MartinezSanchez2020']
 __version__ = '3.0.0'
 
 

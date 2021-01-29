@@ -1,9 +1,9 @@
 from os import environ
-from os.path import join
+from os.path import abspath
 
-from pwem.protocols import EMProtocol, FileParam
-from pyworkflow.protocol import FloatParam, NumericListParam, EnumParam
-from pyworkflow.utils import Message, makePath, removeBaseExt, moveFile
+from pwem.protocols import EMProtocol
+from pyworkflow.protocol import FloatParam, NumericListParam, EnumParam, PointerParam
+from pyworkflow.utils import Message, makePath, removeBaseExt
 from scipion.constants import PYTHON
 from tomo.objects import SetOfCoordinates3D
 from tomo.protocols import ProtTomoBase
@@ -40,11 +40,17 @@ class ProtPySegGFP(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         """
         # You need a params to belong to a section:
         form.addSection(label=Message.LABEL_INPUT)
-        form.addParam('inStar', FileParam,
-                      label='Seg particles star file',
+        form.addParam('inSegProt', PointerParam,
+                      pointerClass='ProtPySegPreSegParticles',
+                      label='Pre segmentation',
                       important=True,
                       allowsNull=False,
-                      help='Star file obtained in PySeg seg step.')
+                      help='Pointer to preseg protocol.')
+        # form.addParam('inStar', FileParam,
+        #               label='Seg particles star file',
+        #               important=True,
+        #               allowsNull=False,
+        #               help='Star file obtained in PySeg seg step.')
         form.addParam('pixelSize', FloatParam,
                       label='Pixel size (Å/voxel)',
                       default=1,
@@ -194,7 +200,7 @@ class ProtPySegGFP(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         pixSize = self.pixelSize.get()/10
         graphsCmd = ' '
         graphsCmd += '%s ' % Plugin.getHome(GRAPHS_SCRIPT)
-        graphsCmd += '--inStar %s ' % self.inStar.get()
+        graphsCmd += '--inStar %s ' % abspath(self.inSegProt.get()._getVesiclesCenteredStarFile())  # self.inStar.get()
         graphsCmd += '--outDir %s ' % outDir
         graphsCmd += '--pixelSize %s ' % pixSize  # PySeg requires it in nm
         graphsCmd += '--sSig %s ' % self.sSig.get()
@@ -207,7 +213,7 @@ class ProtPySegGFP(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
     def _getFilsCommand(self, outDir):
         filsCmd = ' '
         filsCmd += '%s ' % Plugin.getHome(FILS_SCRIPT)
-        filsCmd += '--inStar %s ' % self._getExtraPath(GRAPHS_OUT, removeBaseExt(self.inStar.get()) + '_mb_graph.star')
+        filsCmd += '--inStar %s ' % self._getExtraPath(GRAPHS_OUT, removeBaseExt(self.inSegProt.get()._getVesiclesCenteredStarFile()) + '_mb_graph.star')
         filsCmd += '--outDir %s ' % outDir
         filsCmd += '--inSources %s ' % Plugin.getHome(FILS_SOURCES)
         filsCmd += '--inTargets %s ' % Plugin.getHome(FILS_TARGETS)

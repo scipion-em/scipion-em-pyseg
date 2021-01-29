@@ -1,12 +1,15 @@
+from os.path import abspath
+
 from pwem.emlib.image import ImageHandler
 from pwem.protocols import EMProtocol
 from pyworkflow.protocol import FileParam, NumericListParam, IntParam, FloatParam, GT
-from pyworkflow.utils import Message, removeExt
+from pyworkflow.utils import Message, removeBaseExt
 from scipion.constants import PYTHON
 
 from pyseg import Plugin
-from pyseg.constants import PRESEG_SCRIPT, TOMOGRAM, MEMBRANE, PYSEG_LABEL, VESICLE, RLN_ORIGIN_X, NOT_FOUND, \
-    PYSEG_OFFSET_X, RLN_ORIGIN_Y, RLN_ORIGIN_Z, PYSEG_OFFSET_Y, PYSEG_OFFSET_Z
+from pyseg.constants import PRESEG_SCRIPT, TOMOGRAM, PYSEG_LABEL, VESICLE, NOT_FOUND, \
+    PYSEG_OFFSET_X, PYSEG_OFFSET_Y, PYSEG_OFFSET_Z, MASK, RLN_ORIGIN_X, RLN_ORIGIN_Y, \
+    RLN_ORIGIN_Z
 from relion.convert import Table
 
 
@@ -68,7 +71,6 @@ class ProtPySegPreSegParticles(EMProtocol):
         self._insertFunctionStep('pysegPreSegStep')
         self._insertFunctionStep('getMembraneCenterStep')
         self._insertFunctionStep('pysegPreSegCenteredStep')
-        self._insertFunctionStep('createOutputStep')
 
     def pysegPreSegStep(self):
         inStar = self.inStar.get()
@@ -78,28 +80,15 @@ class ProtPySegPreSegParticles(EMProtocol):
         Plugin.runPySeg(self, PYTHON, self._getPreSegCmd(inStar, outDir))
 
     def getMembraneCenterStep(self):
-        inStar = self._getTmpPath(removeExt(self.inStar.get()) + '_pre.star')
-        self._findVesicleCenter(inStar)
+        inStar = self._getTmpPath(removeBaseExt(self.inStar.get()) + '_pre.star')
+        self._findVesicleCenter(self.inStar.get(), inStar)
 
-    def pysegPreSegCenteredStep(self, starWithCenters):
-        inStar = self._getVesiclesCenteredStarFile()
+    def pysegPreSegCenteredStep(self):
+        inStar = abspath(self._getVesiclesCenteredStarFile())
         outDir = self._getExtraPath()
 
         # Script called
         Plugin.runPySeg(self, PYTHON, self._getPreSegCmd(inStar, outDir))
-
-    def createOutputStep(self):
-        # preSegStarCentered = self._getExtraPath(removeExt(self.inStar.get()) + '_pre.star')
-        pass
-        # # Read generated star file and create the output objects
-        # self.subtomoSet = self._createSetOfSubTomograms()
-        # self.subtomoSet.setSamplingRate(self.inMask.get().getSamplingRate())
-        # warningMsg = readStarFile(self, self.subtomoSet, RELION_SUBTOMO_STAR, starFile=outStar)
-        # if warningMsg:
-        #     self.warningMsg = String(warningMsg)
-        #     self._store()
-        #
-        # self._defineOutputs(outputSubTomograms=self.subtomoSet)
 
     # --------------------------- INFO functions -----------------------------------
     def _summary(self):
@@ -129,36 +118,31 @@ class ProtPySegPreSegParticles(EMProtocol):
 
         return preSegCmd
 
-    def _findVesicleCenter(self, starFile):
+    def _findVesicleCenter(self, starFileInit, starFilePreseg1):
         ih = ImageHandler()
         outputTable = self._createTable()
-        prevTomo = ''
-        materialIndex = 1
         # Read preseg (vesicles not centered) table
         presegTable = Table()
-        presegTable.read(starFile)
+        presegTable.read(starFilePreseg1)
+        # Read initial data
+        initTable = Table()
+        initTable.read(starFileInit)
 
         # Generate the star file with the vesicles centered for the second pre_seg execution
-        for row in presegTable:
+        for row, rowp in zip(initTable, presegTable):
             tomo = row.get(TOMOGRAM, NOT_FOUND)
             vesicle = row.get(VESICLE, NOT_FOUND)
+            materialIndex = row.get(PYSEG_LABEL, NOT_FOUND)
 
             # Get the upper left corner of the vesicle in the original tomogram: _psSegOffX #7 _psSegOffY #8 _psSegOffZ
             # #9 from output star file of pre_tomos_seg.py that do not distinguish inner and outer densities
-            xdimCorner = row.get(PYSEG_OFFSET_X, 0)
-            ydimCorner = row.get(PYSEG_OFFSET_Y, 0)
-            zdimCorner = row.get(PYSEG_OFFSET_Z, 0)
+            xdimCorner = rowp.get(PYSEG_OFFSET_X, 0)
+            ydimCorner = rowp.get(PYSEG_OFFSET_Y, 0)
+            zdimCorner = rowp.get(PYSEG_OFFSET_Z, 0)
 
             # Get the box dimensions, be sure that the Dimensions format is Dimensions: 239 x 1 x 298 x 298
-            # ((N)Objects x (Z)Slices x (Y)Rows x (X)Columns); if N object and slices are shifted you hve to change
-            # the awk index for Z dimension
-            x, y, _, z = ih.getDimensions(vesicle)
-
-            # Set material index
-            if prevTomo != tomo:
-                materialIndex = 1
-            else:
-                materialIndex += 1
+            # ((N)Objects x (Z)Slices x (Y)Rows x (X)Columns)
+            x, y, z, _ = ih.getDimensions(rowp.get(MASK, NOT_FOUND))
 
             # Add row to output table
             outputTable.addRow(tomo,
@@ -179,12 +163,12 @@ class ProtPySegPreSegParticles(EMProtocol):
     def _createTable():
         # Headers for pySeg pre_seg centered star file
         return Table(columns=[TOMOGRAM,
-                              MEMBRANE,
-                              PYSEG_LABEL,
                               VESICLE,
+                              PYSEG_LABEL,
+                              MASK,
                               RLN_ORIGIN_X,
                               RLN_ORIGIN_Y,
-                              RLN_ORIGIN_Z,
+                              RLN_ORIGIN_Z
                               ])
 
     @staticmethod

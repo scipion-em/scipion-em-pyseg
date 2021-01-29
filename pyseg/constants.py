@@ -67,8 +67,8 @@ NOT_FOUND = 'Not found'
 
 # Preseg_pre_centered
 TOMOGRAM = 'rlnMicrographName'
-MEMBRANE = 'rlnImageName'
-VESICLE = 'psSegImage'
+VESICLE = 'rlnImageName'
+MASK = 'psSegImage'
 PYSEG_ROT = 'psSegRot'
 PYSEG_TILT = 'psSegTilt'
 PYSEG_PSI = 'psSegPsi'
@@ -79,5 +79,5 @@ PYSEG_OFFSET_Z = 'psSegOffZ'
 # Preseg_centered
 PYSEG_LABEL = 'psSegLabel'
 RLN_ORIGIN_X = 'rlnOriginX'
-RLN_ORIGIN_Y = 'rlnOriginy'
-RLN_ORIGIN_Z = 'rlnOriginz'
+RLN_ORIGIN_Y = 'rlnOriginY'
+RLN_ORIGIN_Z = 'rlnOriginZ'
