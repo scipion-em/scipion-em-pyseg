@@ -74,17 +74,17 @@ class ProtPySegPreSegParticles(EMProtocol):
 
     def pysegPreSegStep(self):
         inStar = self.inStar.get()
-        outDir = self._getTmpPath()
+        outDir = self._getExtraPath()
 
         # Script called
         Plugin.runPySeg(self, PYTHON, self._getPreSegCmd(inStar, outDir))
 
     def getMembraneCenterStep(self):
-        inStar = self._getTmpPath(removeBaseExt(self.inStar.get()) + '_pre.star')
+        inStar = self.getPresegOutputFile(self.inStar.get())
         self._findVesicleCenter(self.inStar.get(), inStar)
 
     def pysegPreSegCenteredStep(self):
-        inStar = abspath(self._getVesiclesCenteredStarFile())
+        inStar = abspath(self.getVesiclesCenteredStarFile())
         outDir = self._getExtraPath()
 
         # Script called
@@ -154,9 +154,12 @@ class ProtPySegPreSegParticles(EMProtocol):
                                zdimCorner + z / 2,
                                )
 
-            outputTable.write(self._getVesiclesCenteredStarFile())
+            outputTable.write(self.getVesiclesCenteredStarFile())
 
-    def _getVesiclesCenteredStarFile(self):
+    def getPresegOutputFile(self, inStar):
+        return self._getExtraPath(removeBaseExt(inStar) + '_pre.star')
+
+    def getVesiclesCenteredStarFile(self):
         return self._getExtraPath('presegVesiclesCentered.star')
 
     @ staticmethod

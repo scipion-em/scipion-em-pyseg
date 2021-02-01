@@ -200,7 +200,7 @@ class ProtPySegGFP(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         pixSize = self.pixelSize.get()/10
         graphsCmd = ' '
         graphsCmd += '%s ' % Plugin.getHome(GRAPHS_SCRIPT)
-        graphsCmd += '--inStar %s ' % abspath(self.inSegProt.get()._getVesiclesCenteredStarFile())  # self.inStar.get()
+        graphsCmd += '--inStar %s ' % self._getPreSegStarFile()  # self.inStar.get()
         graphsCmd += '--outDir %s ' % outDir
         graphsCmd += '--pixelSize %s ' % pixSize  # PySeg requires it in nm
         graphsCmd += '--sSig %s ' % self.sSig.get()
@@ -213,7 +213,7 @@ class ProtPySegGFP(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
     def _getFilsCommand(self, outDir):
         filsCmd = ' '
         filsCmd += '%s ' % Plugin.getHome(FILS_SCRIPT)
-        filsCmd += '--inStar %s ' % self._getExtraPath(GRAPHS_OUT, removeBaseExt(self.inSegProt.get()._getVesiclesCenteredStarFile()) + '_mb_graph.star')
+        filsCmd += '--inStar %s ' % self._getExtraPath(GRAPHS_OUT, removeBaseExt(self._getPreSegStarFile()) + '_mb_graph.star')
         filsCmd += '--outDir %s ' % outDir
         filsCmd += '--inSources %s ' % Plugin.getHome(FILS_SOURCES)
         filsCmd += '--inTargets %s ' % Plugin.getHome(FILS_TARGETS)
@@ -241,3 +241,6 @@ class ProtPySegGFP(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
             return 'in'
         else:
             return 'out'
+
+    def _getPreSegStarFile(self):
+        return self.inSegProt.get().getPresegOutputFile(self.inSegProt.get().getVesiclesCenteredStarFile())
