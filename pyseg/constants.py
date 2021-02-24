@@ -62,7 +62,11 @@ POST_REC_OUT = 'subtomos_post_rec'
 CFITSIO = 'cfitsio'
 DISPERSE = 'disperse'
 
-# Star file fields #################################################################################
+# Dataata source codification
+FROM_SCIPION = 0
+FROM_STAR_FILE = 1
+
+# Star file fields #####################################################################################################
 NOT_FOUND = 'Not found'
 
 # Preseg_pre_centered

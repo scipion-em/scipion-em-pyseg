@@ -27,4 +27,7 @@
 from .protocol_import_starfile import ProtPySegImportSubtomos
 from .protocol_post_rec_particles import ProtPySegPostRecParticles
 from .protocol_GFP import ProtPySegGFP
+from .protocol_graphs import ProtPySegGraphs
+from .protocol_fils import ProtPySegFils
+from .protocol_picking import ProtPySegPicking
 from .protocol_pre_seg import ProtPySegPreSegParticles
