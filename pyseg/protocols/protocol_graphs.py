@@ -83,7 +83,7 @@ class ProtPySegGraphs(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
 
     def pysegGraphs(self):
         # Generate output dir
-        outDir = self._getExtraPath(GRAPHS_OUT)
+        outDir = self._getExtraPath()
         makePath(outDir)
 
         # Script called

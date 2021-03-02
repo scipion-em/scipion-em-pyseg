@@ -190,7 +190,7 @@ class ProtPySegFils(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
 
     def pysegFils(self):
         # Generate output dir
-        outDir = self._getExtraPath(FILS_OUT)
+        outDir = self._getExtraPath()
         makePath(outDir)
 
         # Generate sources xml
@@ -223,7 +223,7 @@ class ProtPySegFils(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         source = self.graphsFrom.get()
         if source == FROM_SCIPION:
             prot = self.inGraphsProt.get()
-            return prot._getExtraPath(GRAPHS_OUT, removeBaseExt(prot._getPreSegStarFile()) + '_mb_graph.star')
+            return prot._getExtraPath(removeBaseExt(prot._getPreSegStarFile()) + '_mb_graph.star')
         elif source == FROM_STAR_FILE:
             return self.inStar.get()
 

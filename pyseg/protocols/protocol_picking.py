@@ -118,7 +118,7 @@ class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
 
     def pysegPicking(self):
         # Generate output dir
-        outDir = self._getExtraPath(PICKING_OUT)
+        outDir = self._getExtraPath()
         makePath(outDir)
 
         # Generate slices xml
@@ -153,16 +153,16 @@ class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         source = self.filsFrom.get()
         if source == FROM_SCIPION:
             prot = self.inFilsProt.get()
-            return prot._getExtraPath(FILS_OUT, 'fil_' + removeBaseExt(FILS_SOURCES)
+            return prot._getExtraPath('fil_' + removeBaseExt(FILS_SOURCES)
                                       + '_to_' + removeBaseExt(FILS_TARGETS) + '_net.star')
 
         elif source == FROM_STAR_FILE:
             return self.inStar.get()
 
     def _getPickingStarFileName(self):
-        filsStar = self._getExtraPath(FILS_OUT, 'fil_' + removeBaseExt(FILS_SOURCES)
+        filsStar = self._getExtraPath('fil_' + removeBaseExt(FILS_SOURCES)
                                       + '_to_' + removeBaseExt(FILS_TARGETS) + '_net.star')
-        return self._getExtraPath(PICKING_OUT, removeBaseExt(filsStar) + '_parts.star')
+        return self._getExtraPath(removeBaseExt(filsStar) + '_parts.star')
 
     def _getPickingCommand(self, outDir):
         pickingCmd = ' '

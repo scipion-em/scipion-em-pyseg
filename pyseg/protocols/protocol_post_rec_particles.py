@@ -69,7 +69,7 @@ class ProtPySegPostRecParticles(EMProtocol, ProtTomoBase):
             self.warningMsg = String(warningMsg)
             self._store()
 
-        self._defineOutputs(outputSubTomograms=self.subtomoSet)
+        self._defineOutputs(outputSetOfSubtomogram=self.subtomoSet)
 
     # --------------------------- INFO functions -----------------------------------
     def _summary(self):
