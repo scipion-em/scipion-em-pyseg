@@ -1,4 +1,5 @@
 from pwem.protocols import EMProtocol, PointerParam
+from pyworkflow import BETA
 from pyworkflow.protocol import String
 from pyworkflow.utils import Message, makePath
 from reliontomo.convert import writeSetOfSubtomograms
@@ -14,6 +15,7 @@ class ProtPySegPostRecParticles(EMProtocol, ProtTomoBase):
     """"""
 
     _label = 'Post-process reconstructed particles'
+    _devStatus = BETA
     inStarName = 'input_particles.star'
     warningMsg = None
     subtomoSet = None

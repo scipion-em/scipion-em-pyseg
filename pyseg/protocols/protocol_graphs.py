@@ -1,4 +1,5 @@
 from pwem.protocols import EMProtocol
+from pyworkflow import BETA
 from pyworkflow.protocol import FloatParam, EnumParam, PointerParam, FileParam, LEVEL_ADVANCED
 from pyworkflow.utils import Message, makePath
 from scipion.constants import PYTHON
@@ -13,6 +14,7 @@ class ProtPySegGraphs(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
     """"""
 
     _label = 'Graphs'
+    _devStatus = BETA
 
     # -------------------------- DEFINE param functions ----------------------
     def _defineParams(self, form):

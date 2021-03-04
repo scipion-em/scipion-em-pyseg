@@ -3,6 +3,7 @@ from os.path import basename, join, abspath
 import xml.etree.ElementTree as ET
 
 from pwem.protocols import EMProtocol
+from pyworkflow import BETA
 from pyworkflow.protocol import FloatParam, NumericListParam, EnumParam, PointerParam, IntParam, FileParam, StringParam
 from pyworkflow.utils import Message, makePath, removeBaseExt, copyFile
 from scipion.constants import PYTHON
@@ -31,6 +32,7 @@ class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
     """"""
 
     _label = 'Picking'
+    _devStatus = BETA
     tomoSet = None
     acquisitionParams = {
             'angleMin': 90,

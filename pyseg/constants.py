@@ -28,7 +28,7 @@ from os.path import join
 
 PYSEG = 'pySeg'
 PYSEG_HOME = 'PYSEG_HOME'
-BRANCH = 'nightly'
+BRANCH = 'jj_nightly_scipion_changes'
 DEFAULT_VERSION = '1.0.%s' % BRANCH
 PYSEG_SOURCE_URL = 'https://github.com/anmartinezs/pyseg_system/archive/%s.zip' % BRANCH
 

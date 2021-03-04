@@ -2,6 +2,7 @@ from os.path import abspath
 
 from pwem.emlib.image import ImageHandler
 from pwem.protocols import EMProtocol
+from pyworkflow import BETA
 from pyworkflow.protocol import FileParam, NumericListParam, IntParam, FloatParam, GT
 from pyworkflow.utils import Message, removeBaseExt
 from scipion.constants import PYTHON
@@ -17,6 +18,7 @@ class ProtPySegPreSegParticles(EMProtocol):
     """"""
 
     _label = 'Pre-process segmented CIRCULAR membranes'
+    _devStatus = BETA
 
     # -------------------------- DEFINE param functions ----------------------
     def _defineParams(self, form):

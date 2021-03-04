@@ -3,6 +3,7 @@ from os.path import basename, join, abspath
 import xml.etree.ElementTree as ET
 
 from pwem.protocols import EMProtocol
+from pyworkflow import BETA
 from pyworkflow.protocol import FloatParam, NumericListParam, EnumParam, PointerParam, IntParam, FileParam
 from pyworkflow.utils import Message, makePath, removeBaseExt, copyFile
 from scipion.constants import PYTHON
@@ -50,6 +51,7 @@ class ProtPySegFils(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
     """"""
 
     _label = 'Fils'
+    _devStatus = BETA
     _xmlSources = None
     _xmlTargets = None
 
