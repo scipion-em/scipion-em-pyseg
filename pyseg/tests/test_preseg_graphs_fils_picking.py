@@ -150,7 +150,7 @@ class TestFromPresegToPicking(BaseTest):
         self.assertTrue(exists(protPicking._getExtraPath(outputStar)))
         for i in range(nVesicles):
             for file in graphsFilesPerVesicle:
-                self.assertTrue(protPicking._getExtraPath(exists(file % i)))
+                self.assertTrue(exists(protPicking._getExtraPath(file % i)))
 
         # Output coordinates must have an attribute named _pysegMembrane, which stores the corresponding
         # membrane file

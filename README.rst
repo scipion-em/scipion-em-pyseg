@@ -2,7 +2,8 @@
 Scipion - PySeg plugin
 =======================
 
-This plugin allows to use **PySeg** (https://github.com/anmartinezs/pyseg_system) within the Scipion framework.
+This plugin allows to use **PySeg - De novo analysis for cryo-electron tomography -**
+(https://github.com/anmartinezs/pyseg_system) within the Scipion framework.
 
 =====
 Setup
