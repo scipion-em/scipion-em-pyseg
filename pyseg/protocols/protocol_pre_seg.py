@@ -3,7 +3,7 @@ from os.path import abspath
 from pwem.emlib.image import ImageHandler
 from pwem.protocols import EMProtocol
 from pyworkflow import BETA
-from pyworkflow.protocol import FileParam, NumericListParam, IntParam, FloatParam, GT
+from pyworkflow.protocol import FileParam, NumericListParam, IntParam, FloatParam, GT, LEVEL_ADVANCED
 from pyworkflow.utils import Message, removeBaseExt
 from scipion.constants import PYTHON
 
@@ -17,7 +17,7 @@ from relion.convert import Table
 class ProtPySegPreSegParticles(EMProtocol):
     """"""
 
-    _label = 'Pre-process segmented CIRCULAR membranes'
+    _label = 'Pre-process segmented circular membranes'
     _devStatus = BETA
 
     # -------------------------- DEFINE param functions ----------------------
@@ -38,12 +38,13 @@ class ProtPySegPreSegParticles(EMProtocol):
                        default='-1',
                        allowsNull=False,
                        label='Number of splits (X, Y, Z)',
-                       help='')  # TODO
+                       help='Parts in which the tomogram will be split, respecting X, Y and Z axis. Value -1'
+                            'is used to indicate no splitting.')
         group.addParam('spOffVoxels', IntParam,
                        label='Offset voxels',
                        allowsNull=False,
                        validators=[GT(0)],
-                       help='')  # TODO
+                       help='Margin to ensure that the desired entities, e. g. membranes, proteins, are included.')
         group = form.addGroup('Membrane segmentation')
         group.addParam('sgVoxelSize', FloatParam,
                        label='Voxel size (Å/voxel)',
@@ -53,12 +54,14 @@ class ProtPySegPreSegParticles(EMProtocol):
         group.addParam('sgThreshold', IntParam,
                        default=-1,
                        label='Density threshold',
-                       help='')  # TODO
+                       expertLevel=LEVEL_ADVANCED,
+                       help='All the voxels with density equal to or higher than the threshold are set to 1. '
+                            'The remaining voxels are set to 0.')
         group.addParam('sgSizeThreshold', IntParam,
                        default=-1,
                        label='Size threshold (voxels)',
                        condition='sgThreshold > 0',
-                       help='')  # TODO
+                       help='It sets the minimal size for a component to be considered as membrane.')
         group.addParam('sgMembThk', FloatParam,
                        label='Segmented membrane thickness (Å)',
                        allowsNull=False,
@@ -67,7 +70,8 @@ class ProtPySegPreSegParticles(EMProtocol):
                        label='Segmented mebmrane neighbours (Å)',
                        allowsNull=False,
                        validators=[GT(0)],
-                       help='')  # TODO
+                       help='Thickness around the membrane to represent the in-membrane and out-membrane surroundings '
+                            'desired to be included in the analysis.')
 
     def _insertAllSteps(self):
         self._insertFunctionStep('pysegPreSegStep')
