@@ -28,16 +28,15 @@ from os.path import join
 
 PYSEG = 'pySeg'
 PYSEG_HOME = 'PYSEG_HOME'
-BRANCH = 'jj_nightly_scipion_changes'
-DEFAULT_VERSION = '1.0.%s' % BRANCH
-PYSEG_SOURCE_URL = 'https://github.com/anmartinezs/pyseg_system/archive/%s.zip' % BRANCH
+DEFAULT_VERSION = '1.1.0'
+PYSEG_SOURCE_URL = 'https://github.com/anmartinezs/pyseg_system/archive/refs/tags/v%s.tar.gz' % DEFAULT_VERSION
 
 PYSEG_ENV_NAME = 'pySeg-%s' % DEFAULT_VERSION
 PYSEG_ENV_ACTIVATION = 'PYSEG_ENV_ACTIVATION'
 DEFAULT_ACTIVATION_CMD = 'conda activate %s' % PYSEG_ENV_NAME
 
 # Required files location in pyseg-system
-PYSEG_SYSTEM_MAIN = 'pyseg_system-%s' % BRANCH
+PYSEG_SYSTEM_MAIN = 'pyseg_system-%s' % DEFAULT_VERSION
 DATA_TUTORIALS = join(PYSEG_SYSTEM_MAIN, 'data', 'tutorials')
 CODE_TUTORIALS = join(PYSEG_SYSTEM_MAIN, 'code', 'tutorials')
 EXP_SOMB = join(CODE_TUTORIALS, 'exp_somb')
