@@ -96,8 +96,8 @@ class Plugin(pwem.Plugin):
     @classmethod
     def _genCmdToGetPySegSrcCode(cls, pySegDir):
         installationCmd = 'wget ' + PYSEG_SOURCE_URL
-        installationCmd += ' && tar zxf %s' % join(pySegDir, basename(PYSEG_SOURCE_URL))
-        installationCmd += ' && rm -rf %s' % join(pySegDir, DEFAULT_VERSION + '.tar')  # rm downloaded file (>600 MB)
+        installationCmd += ' && unzip %s' % join(pySegDir, basename(PYSEG_SOURCE_URL))
+        installationCmd += ' && rm -rf %s' % join(pySegDir, DEFAULT_VERSION + '.zip')  # rm downloaded file (>600 MB)
 
         return installationCmd
 
@@ -131,7 +131,7 @@ class Plugin(pwem.Plugin):
         installationCmd = cls.getCondaActivationCmd()
 
         # Create the environment
-        installationCmd += 'conda create -y -n %s  -c conda-forge -c anaconda python=2.7 ' \
+        installationCmd += 'conda create -y -n %s  -c conda-forge -c anaconda python=3.6 ' \
                            'opencv=4.2.0 ' \
                            'graph-tool=2.29 && ' % PYSEG_ENV_NAME
 
@@ -147,7 +147,10 @@ class Plugin(pwem.Plugin):
         installationCmd += 'pip install scikit-learn==0.20.4 && '
         installationCmd += 'pip install scikit-fmm==2021.2.2 && '
         installationCmd += 'pip install scipy==1.2.1 && '
-        installationCmd += 'pip install vtk==8.1.2'
+        installationCmd += 'pip install vtk==8.1.2 '
+        installationCmd += 'pip install astropy==4.1 '
+        installationCmd += 'pip install imageio==2.9.0 '
+        installationCmd += 'pip install future'
 
         return installationCmd
 
