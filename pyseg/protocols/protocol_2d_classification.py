@@ -128,6 +128,7 @@ class ProtPySegPlaneAlignClassification(EMProtocol, ProtTomoBase):
                               condition=AP_CONDITION)
         group.addParam('apPref', FloatParam,
                        label='Preference (-inf, inf)',
+                       default=-6,
                        help='Preference parameter (-inf, inf).\nThe smaller value the higher number of '
                             'potential classes.\nIf None, the median of the affinity class is considered.')
         group.addParam('apDumping', FloatParam,
