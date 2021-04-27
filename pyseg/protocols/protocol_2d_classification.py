@@ -1,15 +1,41 @@
+# -*- coding: utf-8 -*-
+# **************************************************************************
+# *
+# * Authors:     Scipion Team
+# *
+# * National Center of Biotechnology, CSIC, Spain
+# *
+# * This program is free software; you can redistribute it and/or modify
+# * it under the terms of the GNU General Public License as published by
+# * the Free Software Foundation; either version 2 of the License, or
+# * (at your option) any later version.
+# *
+# * This program is distributed in the hope that it will be useful,
+# * but WITHOUT ANY WARRANTY; without even the implied warranty of
+# * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# * GNU General Public License for more details.
+# *
+# * You should have received a copy of the GNU General Public License
+# * along with this program; if not, write to the Free Software
+# * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
+# * 02111-1307  USA
+# *
+# *  All comments concerning this program package may be sent to the
+# *  e-mail address 'scipion@cnb.csic.es'
+# *
+# **************************************************************************
+from os.path import abspath
+
 from pwem.protocols import EMProtocol, PointerParam
 from pyworkflow import BETA
-from pyworkflow.protocol import String, EnumParam, IntParam, LEVEL_ADVANCED, GT, FloatParam, GE, LT, \
-    BooleanParam
+from pyworkflow.protocol import EnumParam, IntParam, LEVEL_ADVANCED, GT, FloatParam, GE, LT, BooleanParam
 from pyworkflow.utils import Message, makePath
 from reliontomo.convert import writeSetOfSubtomograms
 from scipion.constants import PYTHON
 from tomo.protocols import ProtTomoBase
 
 from pyseg import Plugin
-from pyseg.constants import POST_REC_SCRIPT, POST_REC_OUT, PLANE_ALIGN_CLASS_OUT
-from pyseg.convert import readStarFile, RELION_SUBTOMO_STAR
+from pyseg.constants import PLANE_ALIGN_CLASS_OUT, PLANE_ALIGN_CLASS_SCRIPT
 
 # Processing level choices
 PARTICLE_FLATENNING = 0  # Particle flattening
@@ -113,7 +139,7 @@ class ProtPySegPlaneAlignClassification(EMProtocol, ProtTomoBase):
         group.addParam('pcaComps', IntParam,
                        label='PCA components for dim. reduction',
                        validators=[GT(0)],
-                       default=0,
+                       default=20,
                        help='Number of components (moments) after the reductions.\nIf None, '
                             'then n_comp == min(n_samples, n_features) - 1')
         group.addParam('aggNClusters', IntParam,
@@ -164,7 +190,7 @@ class ProtPySegPlaneAlignClassification(EMProtocol, ProtTomoBase):
                        expertLevel=LEVEL_ADVANCED,
                        help='Purge classes with the cross correlation against the reference '
                             'lower than the specified value.')
-
+        form.addParallelSection(threads=4, mpi=0)
         # group.addParam('aggLinkage', EnumParam,
         #                label='linkage criterion',
         #                choices=[])
@@ -172,7 +198,6 @@ class ProtPySegPlaneAlignClassification(EMProtocol, ProtTomoBase):
         # to be the case)
 
     def _insertAllSteps(self):
-        outStar = self._getExtraPath(POST_REC_OUT + '.star')
         self._initialize()
         self._insertFunctionStep('convertInputStep')
         self._insertFunctionStep('pysegPlaneAlignClassification')
@@ -230,9 +255,10 @@ class ProtPySegPlaneAlignClassification(EMProtocol, ProtTomoBase):
 
     def _getCommand(self, outDir):
         classCmd = ' '
-        classCmd += '%s ' % Plugin.getHome(POST_REC_SCRIPT)
+        classCmd += '%s ' % Plugin.getHome(PLANE_ALIGN_CLASS_SCRIPT)
+        classCmd += '--inRootDir scipion '
         classCmd += '--inStar %s ' % self._getExtraPath(self.inStarName)
-        classCmd += '--inMask %s ' % self.inMask.get().getFileName()
+        classCmd += '--inMask %s ' % abspath(self.inMask.get().getFileName())
         classCmd += '--outDir %s ' % outDir
         classCmd += '--filterSize %s ' % self.filterSize.get()
         classCmd += '--procLevel %s ' % self.procLevel.get()
@@ -250,6 +276,7 @@ class ProtPySegPlaneAlignClassification(EMProtocol, ProtTomoBase):
             classCmd += '--apCCRefFilter %s ' % self.apCCRefFilter.get()
         else:
             classCmd += '--aggNClusters %s ' % self.aggNClusters.get()
+        classCmd += '-j %s ' % self.numberOfThreads.get()
 
         return classCmd
 

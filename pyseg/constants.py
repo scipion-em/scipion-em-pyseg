@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 # **************************************************************************
 # *
-# * Authors:     you (you@yourinstitution.email)
+# * Authors:     Scipion Team
 # *
-# * your institution
+# * National Center of Biotechnology, CSIC, Spain
 # *
 # * This program is free software; you can redistribute it and/or modify
 # * it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@
 # * 02111-1307  USA
 # *
 # *  All comments concerning this program package may be sent to the
-# *  e-mail address 'you@yourinstitution.email'
+# *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
 from os.path import join
