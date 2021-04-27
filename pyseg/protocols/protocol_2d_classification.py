@@ -8,7 +8,7 @@ from scipion.constants import PYTHON
 from tomo.protocols import ProtTomoBase
 
 from pyseg import Plugin
-from pyseg.constants import POST_REC_SCRIPT, POST_REC_OUT
+from pyseg.constants import POST_REC_SCRIPT, POST_REC_OUT, PLANE_ALIGN_CLASS_OUT
 from pyseg.convert import readStarFile, RELION_SUBTOMO_STAR
 
 # Processing level choices
@@ -83,7 +83,6 @@ class ProtPySegPlaneAlignClassification(EMProtocol, ProtTomoBase):
                        default=True,
                        help='If "No" is selected, the normalized corss correlation (NCC) is made in 2D, '
                             'otherwise radial average is compensated for doing a NCC in 3D.')
-        # TODO: Ask Antonio about these parameters to check which are the most critical/important
 
         group = form.addGroup('Radial averages', condition='procLevel >= %s' % CC_MATRIX)
         group.addParam('ccMetric', EnumParam,
@@ -111,7 +110,6 @@ class ProtPySegPlaneAlignClassification(EMProtocol, ProtTomoBase):
                        choices=['Cross correlation',
                                 'Euclidean distance among image vectors'],
                        default=CC_DISTANCE)
-        # TODO: in initialization, set distanceMetric to 1 (vectors) if clustering algorithm != AP
         group.addParam('pcaComps', IntParam,
                        label='PCA components for dim. reduction',
                        validators=[GT(0)],
@@ -122,12 +120,11 @@ class ProtPySegPlaneAlignClassification(EMProtocol, ProtTomoBase):
                        label='Number of clusters to find',
                        default=50,
                        condition='clusteringAlg in [%s, %s]' % (AGGLOMERATIVE, KMEANS))
-        # TODO: in validation, check that pcaComps > 0 if the clustering algorithm is AGG or K-means
 
         group = form.addGroup('Affinity propagation',
                               condition=AP_CONDITION)
         group.addParam('apPref', FloatParam,
-                       label='Preference (-inf, inf)',
+                       label='Affinity propagation preference (-inf, inf)',
                        default=-6,
                        help='Preference parameter (-inf, inf).\nThe smaller value the higher number of '
                             'potential classes.\nIf None, the median of the affinity class is considered.')
@@ -146,7 +143,7 @@ class ProtPySegPlaneAlignClassification(EMProtocol, ProtTomoBase):
                        default=40,
                        expertLevel=LEVEL_ADVANCED)
         group.addParam('apReference', EnumParam,
-                       label='reference 2D image used for classes',
+                       label='Reference 2D image used for classes',
                        choices=['Exemplar', 'Average'],
                        default=EXEMPLAR,
                        expertLevel=LEVEL_ADVANCED)
@@ -165,68 +162,128 @@ class ProtPySegPlaneAlignClassification(EMProtocol, ProtTomoBase):
                        validators=[GE(0)],
                        default=0,
                        expertLevel=LEVEL_ADVANCED,
-                       help='Purging classes with the cross correlation against the reference '
+                       help='Purge classes with the cross correlation against the reference '
                             'lower than the specified value.')
-
 
         # group.addParam('aggLinkage', EnumParam,
         #                label='linkage criterion',
         #                choices=[])
-        #TODO: ask Antonio about the linkage criterion, if other values apart from ward are implemented (it seems not to be the case)
-
-        form.addParallelSection(threads=4, mpi=0)
+        # TODO: ask Antonio about the linkage criterion, if other values apart from ward are implemented (it seems not
+        # to be the case)
 
     def _insertAllSteps(self):
         outStar = self._getExtraPath(POST_REC_OUT + '.star')
+        self._initialize()
         self._insertFunctionStep('convertInputStep')
-        self._insertFunctionStep('pysegPostRec', outStar)
-        self._insertFunctionStep('createOutputStep', outStar)
+        self._insertFunctionStep('pysegPlaneAlignClassification')
+        # self._insertFunctionStep('createOutputStep')
 
     def convertInputStep(self):
         """ Create the input file in STAR format as expected by Relion.
         """
-        imgSet = self.inputSubtomos.get()
+        subtomoSet = self.inputSubtomos.get()
         imgStar = self._getExtraPath(self.inStarName)
-        writeSetOfSubtomograms(imgSet, imgStar, isPysegPosRec=True)
+        writeSetOfSubtomograms(subtomoSet, imgStar, isPyseg=True)
 
-    def pysegPostRec(self, outStar):
+    def pysegPlaneAlignClassification(self):
         # Generate output subtomo dir
-        outDir = self._getExtraPath(POST_REC_OUT)
+        outDir = self._getExtraPath(PLANE_ALIGN_CLASS_OUT)
         makePath(outDir)
-
         # Script called
-        Plugin.runPySeg(self, PYTHON, self. _getCommand(outDir, outStar))
+        Plugin.runPySeg(self, PYTHON, self. _getCommand(outDir))
 
-    def createOutputStep(self, outStar):
-        # Read generated star file and create the output objects
-        self.subtomoSet = self._createSetOfSubTomograms()
-        self.subtomoSet.setSamplingRate(self.inMask.get().getSamplingRate())
-        warningMsg = readStarFile(self, self.subtomoSet, RELION_SUBTOMO_STAR, starFile=outStar)
-        if warningMsg:
-            self.warningMsg = String(warningMsg)
-            self._store()
-
-        self._defineOutputs(outputSetOfSubtomogram=self.subtomoSet)
+    # def createOutputStep(self, outStar):
+    #     # Read generated star file and create the output objects
+    #     self.subtomoSet = self._createSetOfSubTomograms()
+    #     self.subtomoSet.setSamplingRate(self.inMask.get().getSamplingRate())
+    #     warningMsg = readStarFile(self, self.subtomoSet, RELION_SUBTOMO_STAR, starFile=outStar)
+    #     if warningMsg:
+    #         self.warningMsg = String(warningMsg)
+    #         self._store()
+    #
+    #     self._defineOutputs(outputSetOfSubtomogram=self.subtomoSet)
 
     # --------------------------- INFO functions -----------------------------------
-    def _summary(self):
-        summary = []
-        if self.isFinished():
-            summary.append('Generated files location:\n'
-                           'Subtomograms files directory: %s\n'
-                           'Star file: %s' %
-                           (self._getExtraPath(POST_REC_OUT),
-                            self._getExtraPath(POST_REC_OUT + '.star')))
-        return summary
+    # def _summary(self):
+    #     summary = []
+    #     if self.isFinished():
+    #         summary.append('Generated files location:\n'
+    #                        'Subtomograms files directory: %s\n'
+    #                        'Star file: %s' %
+    #                        (self._getExtraPath(POST_REC_OUT),
+    #                         self._getExtraPath(POST_REC_OUT + '.star')))
+    #     return summary
+
+    def _validate(self):
+        errors = []
+        if self.clusteringAlg != AFFINITY_PROP and self.aggNClusters.get <= 0:
+            errors.append('Number of clusters to find must be greater than 0.')
+        return errors
 
     # --------------------------- UTIL functions -----------------------------------
 
-    def _getCommand(self, outDir, outStar):
-        posRecCmd = ' '
-        posRecCmd += '%s ' % Plugin.getHome(POST_REC_SCRIPT)
-        posRecCmd += '--inStar %s ' % self._getExtraPath(self.inStarName)
-        posRecCmd += '--inMask %s ' % self.inMask.get().getFileName()
-        posRecCmd += '--outDir %s ' % outDir
-        posRecCmd += '--outStar %s ' % outStar
-        posRecCmd += '-j %s ' % self.numberOfThreads.get()
-        return posRecCmd
+    def _initialize(self):
+        # Only the ecludian distance is a valid distance metric if the clustering algorithm is different to
+        # Affinity Propagation
+        if self.clusteringAlg.get() != AFFINITY_PROP:
+            self.distanceMetric.set(EUCLIDEAN_DISTANCE)
+
+    def _getCommand(self, outDir):
+        classCmd = ' '
+        classCmd += '%s ' % Plugin.getHome(POST_REC_SCRIPT)
+        classCmd += '--inStar %s ' % self._getExtraPath(self.inStarName)
+        classCmd += '--inMask %s ' % self.inMask.get().getFileName()
+        classCmd += '--outDir %s ' % outDir
+        classCmd += '--filterSize %s ' % self.filterSize.get()
+        classCmd += '--procLevel %s ' % self.procLevel.get()
+        classCmd += '--doCC3d %s ' % self.doCC3d.get()
+        classCmd += '--ccMetric %s ' % self._decodeCCMetric()
+        classCmd += '--clusteringAlg %s ' % self._decodeClusteringAlg()
+        classCmd += '--distanceMetric %s ' % self._decodeDistanceMetric()
+        classCmd += '--pcaComps %s ' % self.pcaComps.get()
+        if self.clusteringAlg.get() != AFFINITY_PROP:
+            classCmd += '--apPref %s ' % self.apPref.get()
+            classCmd += '--apDumping %s ' % self.apDumping.get()
+            classCmd += '--apMaxIter %s ' % self.apMaxIter.get()
+            classCmd += '--apConvIter %s ' % self.apConvIter.get()
+            classCmd += '--apPartSizeFilter %s ' % self.apPartSizeFilter.get()
+            classCmd += '--apCCRefFilter %s ' % self.apCCRefFilter.get()
+        else:
+            classCmd += '--aggNClusters %s ' % self.aggNClusters.get()
+
+        return classCmd
+
+    def _decodeCCMetric(self):
+        res = None
+        ccMetric = self.ccMetric.get()
+        if ccMetric == CC_WITHIN_MASK:
+            res = 'cc'
+        elif ccMetric == SIMILARITY:
+            res = 'similarity'
+        elif ccMetric == FULL_CC:
+            res = 'full_cc'
+
+        return res
+
+    def _decodeClusteringAlg(self):
+        res = None
+        clusteringAlg = self.clusteringAlg.get()
+        if clusteringAlg == AFFINITY_PROP:
+            res = 'AP'
+        elif clusteringAlg == AGGLOMERATIVE:
+            res = 'AG'
+        elif clusteringAlg == KMEANS:
+            res = 'Kmeans'
+
+        return res
+
+    def _decodeDistanceMetric(self):
+        res = None
+        distanceMetric = self.distanceMetric.get()
+        if distanceMetric == CC_DISTANCE:
+            res = 'ncc_2dz'
+        elif distanceMetric == EUCLIDEAN_DISTANCE:
+            res = 'vectors'
+
+        return res
+

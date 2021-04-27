@@ -52,7 +52,7 @@ class ProtPySegPostRecParticles(EMProtocol, ProtTomoBase):
         """
         imgSet = self.inputSubtomos.get()
         imgStar = self._getExtraPath(self.inStarName)
-        writeSetOfSubtomograms(imgSet, imgStar, isPysegPosRec=True)
+        writeSetOfSubtomograms(imgSet, imgStar, isPyseg=True)
 
     def pysegPostRec(self, outStar):
         # Generate output subtomo dir
