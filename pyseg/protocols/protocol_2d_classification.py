@@ -38,26 +38,26 @@ from pyseg import Plugin
 from pyseg.constants import PLANE_ALIGN_CLASS_OUT, PLANE_ALIGN_CLASS_SCRIPT
 
 # Processing level choices
-PARTICLE_FLATENNING = 0  # Particle flattening
-CC_MATRIX = 1            # Cross correlation matrix / Feature vectors
-FULL_CLASSIFICATION = 2  # Full classification
+PARTICLE_FLATENNING = 0     # Particle flattening
+CC_MATRIX_FEAT_VECTORS = 1  # Cross correlation matrix / Feature vectors
+FULL_CLASSIFICATION = 2     # Full classification
+
+# Distance metric choices
+CC_DISTANCE = 0             # Cross correlation used as distance
+EUCLIDEAN_DISTANCE = 1      # Euclidean distance among image vectors used as distance metric.
 
 # Cross correlation metric choices
-CC_WITHIN_MASK = 0  # Cross-correlation within mask
-SIMILARITY = 1      # Mask normalized similarity (negative squared Euclidean distance)
-FULL_CC = 2         # Full cross-correlation
+CC_WITHIN_MASK = 0          # Cross-correlation within mask
+SIMILARITY = 1              # Mask normalized similarity (negative squared Euclidean distance)
+FULL_CC = 2                 # Full cross-correlation
 
 # Clustering algorithm choices
-AFFINITY_PROP = 0   # Affinity propagation
-AGGLOMERATIVE = 1   # Agglomerative clustering
-KMEANS = 2          # K-means
+AFFINITY_PROP = 0           # Affinity propagation
+AGGLOMERATIVE = 1           # Agglomerative clustering
+KMEANS = 2                  # K-means
 
 # Affinity propagation condition
 AP_CONDITION = 'clusteringAlg == %s and procLevel == %s' % (AFFINITY_PROP, FULL_CLASSIFICATION)
-
-# Affinity propagation distance metric choices
-CC_DISTANCE = 0         # Cross correlation used as distance
-EUCLIDEAN_DISTANCE = 1  # Euclidean distance among image vectors used as distance metric.
 
 # Affinity Propagation reference choices
 EXEMPLAR = 0
@@ -110,38 +110,37 @@ class ProtPySegPlaneAlignClassification(EMProtocol, ProtTomoBase):
                        help='If "No" is selected, the normalized corss correlation (NCC) is made in 2D, '
                             'otherwise radial average is compensated for doing a NCC in 3D.')
 
-        group = form.addGroup('Radial averages', condition='procLevel >= %s' % CC_MATRIX)
+        group = form.addGroup('Radial averages', condition='procLevel >= %s' % CC_MATRIX_FEAT_VECTORS)
+        group.addParam('distanceMetric', EnumParam,
+                       label='Distance metric',
+                       choices=['Cross correlation',
+                                'Euclidean distance among image vectors'],
+                       default=CC_DISTANCE)
         group.addParam('ccMetric', EnumParam,
                        label='Cross correlation metric',
                        choices=['Cross-correlation within the mask',
                                 'Mask normalized similarity',
                                 'Full cross-correlation'],
                        default=CC_WITHIN_MASK,
+                       condition='distanceMetric == %s' % CC_DISTANCE,
                        help='Metric used when computing the cross correlation matrix among the 2D particles. '
                             'Considerations:\n'
                             '\t- Mask normalized similarity is referred to negative squared Euclidean distance.\n'
                             '\t- Full cross-correlation (slower than ross-correlation within the mask but allows '
                             'small disalignments between particles).')
-
-        group = form.addGroup('Classification', condition='procLevel >= %s' % FULL_CLASSIFICATION)
-        group.addParam('clusteringAlg', EnumParam,
-                       label='Clustering algorithm',
-                       choices=['Affinity propagation',
-                                'Agglomerative clustering',
-                                'K-means'],
-                       default=AFFINITY_PROP)
-        group.addParam('distanceMetric', EnumParam,
-                       label='Distance metric',
-                       condition='clusteringAlg == %s' % AFFINITY_PROP,
-                       choices=['Cross correlation',
-                                'Euclidean distance among image vectors'],
-                       default=CC_DISTANCE)
         group.addParam('pcaComps', IntParam,
                        label='PCA components for dim. reduction',
                        validators=[GT(0)],
                        default=20,
+                       condition='distanceMetric == %s' % EUCLIDEAN_DISTANCE,
                        help='Number of components (moments) after the reductions.\nIf None, '
                             'then n_comp == min(n_samples, n_features) - 1')
+
+        group = form.addGroup('Classification', condition='procLevel >= %s' % FULL_CLASSIFICATION)
+        group.addParam('clusteringAlg', EnumParam,
+                       label='Clustering algorithm',
+                       choices=['Affinity propagation','Agglomerative clustering', 'K-means'],
+                       default=AFFINITY_PROP)
         group.addParam('aggNClusters', IntParam,
                        label='Number of clusters to find',
                        default=50,
@@ -198,7 +197,7 @@ class ProtPySegPlaneAlignClassification(EMProtocol, ProtTomoBase):
         # to be the case)
 
     def _insertAllSteps(self):
-        self._initialize()
+        # self._initialize()
         self._insertFunctionStep('convertInputStep')
         self._insertFunctionStep('pysegPlaneAlignClassification')
         # self._insertFunctionStep('createOutputStep')
@@ -207,8 +206,8 @@ class ProtPySegPlaneAlignClassification(EMProtocol, ProtTomoBase):
         """ Create the input file in STAR format as expected by Relion.
         """
         subtomoSet = self.inputSubtomos.get()
-        imgStar = self._getExtraPath(self.inStarName)
-        writeSetOfSubtomograms(subtomoSet, imgStar, isPyseg=True)
+        subTomoStar = self._getExtraPath(self.inStarName)
+        writeSetOfSubtomograms(subtomoSet, subTomoStar, isPyseg=True)
 
     def pysegPlaneAlignClassification(self):
         # Generate output subtomo dir
@@ -229,31 +228,59 @@ class ProtPySegPlaneAlignClassification(EMProtocol, ProtTomoBase):
     #     self._defineOutputs(outputSetOfSubtomogram=self.subtomoSet)
 
     # --------------------------- INFO functions -----------------------------------
-    # def _summary(self):
-    #     summary = []
-    #     if self.isFinished():
-    #         summary.append('Generated files location:\n'
-    #                        'Subtomograms files directory: %s\n'
-    #                        'Star file: %s' %
-    #                        (self._getExtraPath(POST_REC_OUT),
-    #                         self._getExtraPath(POST_REC_OUT + '.star')))
-    #     return summary
+    def _summary(self):
+        summary = []
+        if self.isFinished():
+            procLevel = self.procLevel.get()
+            if procLevel == PARTICLE_FLATENNING:
+                summary.append('Processing level: *Particles flattening*')
+            elif procLevel == CC_MATRIX_FEAT_VECTORS:
+                summary.append('Processing level: *CC matrix or Feature vectors computing*')
+            if procLevel >= PARTICLE_FLATENNING:
+                r3dMsg = 'Radial compensation for 3D'
+                r3dMsg = r3dMsg if self.doCC3d.get() else 'No ' + r3dMsg
+                summary.append(
+                    '\nParticles pre-processing:\n'
+                    '   - Low pass Gaussian filter sigma: %i voxels.\n'
+                    '   - %s' % (self.filterSize.get(), r3dMsg)
+                )
+            if procLevel >= CC_MATRIX_FEAT_VECTORS:
+                distanceMetric = self.distanceMetric.get()
+                if distanceMetric == CC_DISTANCE:
+                    msg = '   - Cross correlation metric: %s\n' % self._decodeCCMetric()
+                else:
+                    msg = '   - Number of components for PCA dimensionality reduction: %i\n' % self.pcaComps.get()
+                summary.append(
+                    '\nDistance metric calculation:\n'
+                    '   - Distance metric: %s\n%s' % (self._decodeDistanceMetric(), msg))
+        return summary
 
     def _validate(self):
+        alg = self.clusteringAlg.get()
+        distMetric = self.distanceMetric.get()
+        nSubtomos = self.inputSubtomos.get().getSize()
         errors = []
-        if self.clusteringAlg != AFFINITY_PROP and self.aggNClusters.get <= 0:
-            errors.append('Number of clusters to find must be greater than 0.')
+        if distMetric == EUCLIDEAN_DISTANCE and self.pcaComps.get() > nSubtomos:
+            errors.append('Number of PCA components must be between 0 and min(n_samples, n_features).')
+        if alg == KMEANS and distMetric != EUCLIDEAN_DISTANCE:
+            errors.append('*K-means* clustering algorithm requires *Euclidean distance* as distance metric.')
+        if alg != AFFINITY_PROP and self.aggNClusters.get() <= 0 or self.aggNClusters.get() > nSubtomos:
+            errors.append('Number of clusters to find must be in range (0, nParticles).')
         return errors
 
     # --------------------------- UTIL functions -----------------------------------
 
-    def _initialize(self):
-        # Only the ecludian distance is a valid distance metric if the clustering algorithm is different to
-        # Affinity Propagation
-        if self.clusteringAlg.get() != AFFINITY_PROP:
-            self.distanceMetric.set(EUCLIDEAN_DISTANCE)
+    # def _initialize(self):
+    #     # Only the ecludian distance is a valid distance metric if the clustering algorithm is different to
+    #     # Affinity Propagation
+    #     # if self.clusteringAlg.get() != AFFINITY_PROP:
+    #     #     self.distanceMetric.set(EUCLIDEAN_DISTANCE)
+    #     if self.distanceMetric.get() == CC_DISTANCE:
+    #         self.ccMetric.set()
+
 
     def _getCommand(self, outDir):
+        alg = self.clusteringAlg.get()
         classCmd = ' '
         classCmd += '%s ' % Plugin.getHome(PLANE_ALIGN_CLASS_SCRIPT)
         classCmd += '--inRootDir scipion '
@@ -261,21 +288,24 @@ class ProtPySegPlaneAlignClassification(EMProtocol, ProtTomoBase):
         classCmd += '--inMask %s ' % abspath(self.inMask.get().getFileName())
         classCmd += '--outDir %s ' % outDir
         classCmd += '--filterSize %s ' % self.filterSize.get()
-        classCmd += '--procLevel %s ' % self.procLevel.get()
+        classCmd += '--procLevel %s ' % (self.procLevel.get() + 1)  # Numbered from 1 in pyseg
         classCmd += '--doCC3d %s ' % self.doCC3d.get()
         classCmd += '--ccMetric %s ' % self._decodeCCMetric()
         classCmd += '--clusteringAlg %s ' % self._decodeClusteringAlg()
         classCmd += '--distanceMetric %s ' % self._decodeDistanceMetric()
         classCmd += '--pcaComps %s ' % self.pcaComps.get()
-        if self.clusteringAlg.get() != AFFINITY_PROP:
+        if alg == AFFINITY_PROP:
             classCmd += '--apPref %s ' % self.apPref.get()
             classCmd += '--apDumping %s ' % self.apDumping.get()
             classCmd += '--apMaxIter %s ' % self.apMaxIter.get()
             classCmd += '--apConvIter %s ' % self.apConvIter.get()
             classCmd += '--apPartSizeFilter %s ' % self.apPartSizeFilter.get()
             classCmd += '--apCCRefFilter %s ' % self.apCCRefFilter.get()
-        else:
+        elif alg == AGGLOMERATIVE:
             classCmd += '--aggNClusters %s ' % self.aggNClusters.get()
+        else:
+            classCmd += '--kmeansNClusters %s ' % self.aggNClusters.get()
+
         classCmd += '-j %s ' % self.numberOfThreads.get()
 
         return classCmd
