@@ -57,7 +57,7 @@ RELION_SUBTOMO_STAR = 0
 PYSEG_PICKING_STAR = 1
 
 
-def readStarFile(prot, outputSetObject, fileType, starFile=None, invert=True):
+def readStarFile(prot, outputSetObject, fileType, starFile=None, invert=True, returnTable=False):
     warningMsg = None
     # Star file can be provided by the user or not, depending on the protocol invoking this method
     if not starFile:
@@ -88,7 +88,10 @@ def readStarFile(prot, outputSetObject, fileType, starFile=None, invert=True):
                      'values will be considered as 0.' \
                      % '  '.join(['*' + colName + '*' for colName in missingCols])
 
-    return warningMsg
+    if returnTable:
+        return warningMsg, tomoTable
+    else:
+        return warningMsg
 
 
 def manageIhDims(fileName, z, n):

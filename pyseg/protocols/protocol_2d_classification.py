@@ -24,20 +24,27 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
-from os.path import abspath
+from os.path import abspath, join, exists
 
+import glob
+
+from emtable import Table
 from pwem.protocols import EMProtocol, PointerParam
 from pyworkflow import BETA
+from pyworkflow.object import String
 from pyworkflow.protocol import EnumParam, IntParam, LEVEL_ADVANCED, GT, FloatParam, GE, LT, BooleanParam
 from pyworkflow.utils import Message, makePath
 from reliontomo.convert import writeSetOfSubtomograms
 from scipion.constants import PYTHON
+from tomo.objects import SetOfSubTomograms, SetOfClassesSubTomograms, ClassSubTomogram
 from tomo.protocols import ProtTomoBase
 
 from pyseg import Plugin
 from pyseg.constants import PLANE_ALIGN_CLASS_OUT, PLANE_ALIGN_CLASS_SCRIPT
 
 # Processing level choices
+from pyseg.convert import readStarFile, RELION_SUBTOMO_STAR
+
 PARTICLE_FLATENNING = 0     # Particle flattening
 CC_MATRIX_FEAT_VECTORS = 1  # Cross correlation matrix / Feature vectors
 FULL_CLASSIFICATION = 2     # Full classification
@@ -70,6 +77,9 @@ class ProtPySegPlaneAlignClassification(EMProtocol, ProtTomoBase):
     _label = '2D classification'
     _devStatus = BETA
     inStarName = 'input_particles.star'
+    _dataTable = Table()
+    _outDir = None
+    _warningMsg = String()
 
     # -------------------------- DEFINE param functions ----------------------
     def _defineParams(self, form):
@@ -186,6 +196,7 @@ class ProtPySegPlaneAlignClassification(EMProtocol, ProtTomoBase):
                        label='Cross-correlation against AP reference filter',
                        validators=[GE(0)],
                        default=0,
+                       condition='distanceMetric == %s' % CC_DISTANCE,
                        expertLevel=LEVEL_ADVANCED,
                        help='Purge classes with the cross correlation against the reference '
                             'lower than the specified value.')
@@ -197,10 +208,10 @@ class ProtPySegPlaneAlignClassification(EMProtocol, ProtTomoBase):
         # to be the case)
 
     def _insertAllSteps(self):
-        # self._initialize()
+        self._initialize()
         self._insertFunctionStep('convertInputStep')
         self._insertFunctionStep('pysegPlaneAlignClassification')
-        # self._insertFunctionStep('createOutputStep')
+        self._insertFunctionStep('createOutputStep')
 
     def convertInputStep(self):
         """ Create the input file in STAR format as expected by Relion.
@@ -210,22 +221,56 @@ class ProtPySegPlaneAlignClassification(EMProtocol, ProtTomoBase):
         writeSetOfSubtomograms(subtomoSet, subTomoStar, isPyseg=True)
 
     def pysegPlaneAlignClassification(self):
-        # Generate output subtomo dir
-        outDir = self._getExtraPath(PLANE_ALIGN_CLASS_OUT)
-        makePath(outDir)
         # Script called
-        Plugin.runPySeg(self, PYTHON, self. _getCommand(outDir))
+        Plugin.runPySeg(self, PYTHON, self. _getCommand())
 
-    # def createOutputStep(self, outStar):
-    #     # Read generated star file and create the output objects
-    #     self.subtomoSet = self._createSetOfSubTomograms()
-    #     self.subtomoSet.setSamplingRate(self.inMask.get().getSamplingRate())
-    #     warningMsg = readStarFile(self, self.subtomoSet, RELION_SUBTOMO_STAR, starFile=outStar)
-    #     if warningMsg:
-    #         self.warningMsg = String(warningMsg)
-    #         self._store()
-    #
-    #     self._defineOutputs(outputSetOfSubtomogram=self.subtomoSet)
+    def createOutputStep(self):
+        if self.procLevel.get() == FULL_CLASSIFICATION:
+            # Read generated star file and create the output objects:
+            # 1) Set of subtomograms
+            outStar = self._getGatheredStarFile()
+            subtomoSet = SetOfSubTomograms.create(self._getPath(), template='setOfSubTomograms%s.sqlite')
+            subtomoSet.copyInfo(self.inputSubtomos.get())
+            warningMsg, self._dataTable = readStarFile(self, subtomoSet, RELION_SUBTOMO_STAR, starFile=outStar,
+                                                       returnTable=True)
+            if warningMsg:
+                self._warningMsg.set(warningMsg)
+                self._store()
+            self._defineOutputs(outputSetOfSubtomogram=subtomoSet)
+
+            # 2) Set of classes subtomograms
+            classesSet = self._createSetOfClassesSubTomograms(subtomoSet)
+            self._fillClasses(classesSet)
+            self._defineOutputs(outputClasses=classesSet)
+            self._defineSourceRelation(subtomoSet, classesSet)
+
+    def _fillClasses(self, classesSet):
+        classesSet.classifyItems(updateItemCallback=self._updateParticle,
+                                 updateClassCallback=self._updateClass,
+                                 itemDataIterator=self._dataTable.__iter__())
+
+    @staticmethod
+    def _updateParticle(item, row):
+        item.setClassId(int(row.rlnClassNumber))
+
+    def _updateClass(self, item):
+        classId = item.getObjId()
+        fn = self._getReferenceImage(classId)
+        item.setAlignment3D()
+        item.getRepresentative().setLocation(fn + ':mrc')
+
+    def _getReferenceImage(self, classId):
+        # Search in exemplars directory. If file does not exist, search in averages directory
+        exemplarssLocation = glob.glob(join(self._outDir, '*_exemplars'))
+        averagesLocation = glob.glob(join(self._outDir, '*_averages'))
+        if exemplarssLocation:
+            if exists(abspath(exemplarssLocation[0])):
+                representativesLocation = exemplarssLocation[0]
+        else:
+            if exists(abspath(averagesLocation[0])):
+                representativesLocation = averagesLocation[0]
+
+        return glob.glob(join(representativesLocation, 'class_k%i.png' % classId))[0]
 
     # --------------------------- INFO functions -----------------------------------
     def _summary(self):
@@ -236,6 +281,9 @@ class ProtPySegPlaneAlignClassification(EMProtocol, ProtTomoBase):
                 summary.append('Processing level: *Particles flattening*')
             elif procLevel == CC_MATRIX_FEAT_VECTORS:
                 summary.append('Processing level: *CC matrix or Feature vectors computing*')
+            else:
+                summary.append('Proceesing level: *Full classification*')
+
             if procLevel >= PARTICLE_FLATENNING:
                 r3dMsg = 'Radial compensation for 3D'
                 r3dMsg = r3dMsg if self.doCC3d.get() else 'No ' + r3dMsg
@@ -244,6 +292,7 @@ class ProtPySegPlaneAlignClassification(EMProtocol, ProtTomoBase):
                     '   - Low pass Gaussian filter sigma: %i voxels.\n'
                     '   - %s' % (self.filterSize.get(), r3dMsg)
                 )
+
             if procLevel >= CC_MATRIX_FEAT_VECTORS:
                 distanceMetric = self.distanceMetric.get()
                 if distanceMetric == CC_DISTANCE:
@@ -253,6 +302,13 @@ class ProtPySegPlaneAlignClassification(EMProtocol, ProtTomoBase):
                 summary.append(
                     '\nDistance metric calculation:\n'
                     '   - Distance metric: %s\n%s' % (self._decodeDistanceMetric(), msg))
+
+            if procLevel >= FULL_CLASSIFICATION:
+                summary.append(
+                    'Classification:\n'
+                    '   - Clustering algorithm: %s\n' % self._decodeClusteringAlg()
+                )
+
         return summary
 
     def _validate(self):
@@ -260,33 +316,40 @@ class ProtPySegPlaneAlignClassification(EMProtocol, ProtTomoBase):
         distMetric = self.distanceMetric.get()
         nSubtomos = self.inputSubtomos.get().getSize()
         errors = []
-        if distMetric == EUCLIDEAN_DISTANCE and self.pcaComps.get() > nSubtomos:
-            errors.append('Number of PCA components must be between 0 and min(n_samples, n_features).')
         if alg == KMEANS and distMetric != EUCLIDEAN_DISTANCE:
             errors.append('*K-means* clustering algorithm requires *Euclidean distance* as distance metric.')
+        if alg == AGGLOMERATIVE and distMetric != EUCLIDEAN_DISTANCE:
+            errors.append('*Agglomerative* clustering algorithm requires *Euclidean distance* as distance metric.')
         if alg != AFFINITY_PROP and self.aggNClusters.get() <= 0 or self.aggNClusters.get() > nSubtomos:
             errors.append('Number of clusters to find must be in range (0, nParticles).')
+        if alg == AFFINITY_PROP and distMetric == EUCLIDEAN_DISTANCE:
+            errors.append('*Affinity Propagation* clustering algorithm requires *Cross Correlation* as distance '
+                          'metric.')
+        if distMetric == EUCLIDEAN_DISTANCE and self.pcaComps.get() > nSubtomos:
+            errors.append('Number of PCA components must be between 0 and min(n_samples, n_features).')
         return errors
 
     # --------------------------- UTIL functions -----------------------------------
 
-    # def _initialize(self):
-    #     # Only the ecludian distance is a valid distance metric if the clustering algorithm is different to
-    #     # Affinity Propagation
-    #     # if self.clusteringAlg.get() != AFFINITY_PROP:
-    #     #     self.distanceMetric.set(EUCLIDEAN_DISTANCE)
-    #     if self.distanceMetric.get() == CC_DISTANCE:
-    #         self.ccMetric.set()
+    def _initialize(self):
+        self._outDir = self._getExtraPath(PLANE_ALIGN_CLASS_OUT)
+        # Generate output subtomo dir
+        makePath(self._outDir)
 
+    def _getGatheredStarFile(self):
+        return glob.glob(join(self._outDir, '*_gather.star'))[0]
 
-    def _getCommand(self, outDir):
+    def _getNumberOfClasses(self):
+        return len(glob.glob(join(self._outDir, '*_split.star')))
+
+    def _getCommand(self):
         alg = self.clusteringAlg.get()
         classCmd = ' '
         classCmd += '%s ' % Plugin.getHome(PLANE_ALIGN_CLASS_SCRIPT)
         classCmd += '--inRootDir scipion '
         classCmd += '--inStar %s ' % self._getExtraPath(self.inStarName)
         classCmd += '--inMask %s ' % abspath(self.inMask.get().getFileName())
-        classCmd += '--outDir %s ' % outDir
+        classCmd += '--outDir %s ' % self._outDir
         classCmd += '--filterSize %s ' % self.filterSize.get()
         classCmd += '--procLevel %s ' % (self.procLevel.get() + 1)  # Numbered from 1 in pyseg
         classCmd += '--doCC3d %s ' % self.doCC3d.get()
@@ -299,13 +362,13 @@ class ProtPySegPlaneAlignClassification(EMProtocol, ProtTomoBase):
             classCmd += '--apDumping %s ' % self.apDumping.get()
             classCmd += '--apMaxIter %s ' % self.apMaxIter.get()
             classCmd += '--apConvIter %s ' % self.apConvIter.get()
-            classCmd += '--apPartSizeFilter %s ' % self.apPartSizeFilter.get()
             classCmd += '--apCCRefFilter %s ' % self.apCCRefFilter.get()
         elif alg == AGGLOMERATIVE:
             classCmd += '--aggNClusters %s ' % self.aggNClusters.get()
         else:
             classCmd += '--kmeansNClusters %s ' % self.aggNClusters.get()
 
+        classCmd += '--apPartSizeFilter %s ' % self.apPartSizeFilter.get()
         classCmd += '-j %s ' % self.numberOfThreads.get()
 
         return classCmd
