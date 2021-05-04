@@ -113,7 +113,7 @@ class ProtPySegPlaneAlignClassification(EMProtocol, ProtTomoBase):
         group.addParam('doCC3d', BooleanParam,
                        label='Do 3D radial compensation?',
                        default=True,
-                       help='If "No" is selected, the normalized corss correlation (NCC) is made in 2D, '
+                       help='If "No" is selected, the normalized cross correlation (NCC) is made in 2D, '
                             'otherwise radial average is compensated for doing a NCC in 3D.')
 
         group = form.addGroup('Radial averages')
@@ -260,10 +260,10 @@ class ProtPySegPlaneAlignClassification(EMProtocol, ProtTomoBase):
             if sizePostPorcessing or ccPostProcessing:
                 msg = ''
                 if sizePostPorcessing:
-                    msg += '   - Purged classes containing less than %i particles\n' % sizePostPorcessing
+                    msg += '   - Classes containing less than %i particles were purged\n' % sizePostPorcessing
                 if ccPostProcessing:
-                    msg += '   - Purge classes with the cross correlation against the reference lower than %1.2f' \
-                           % ccPostProcessing
+                    msg += '   - Classes with the cross correlation against the reference lower than %1.2f were ' \
+                           'purged' % ccPostProcessing
                 summary.append('Post-processing:\n%s' % msg)
         return summary
 
