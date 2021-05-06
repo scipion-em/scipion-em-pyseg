@@ -129,7 +129,6 @@ class TestPostRecAndClassify2d(BaseTest):
             inMask=getattr(protImportMask, 'outputMask', None),
             clusteringAlg=clusteringAlg,
             filterSize=3,
-            pcaComps=10,
             aggNClusters=nClasses,
         )
 
