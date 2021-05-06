@@ -108,6 +108,7 @@ class ProtPySegPlaneAlignClassification(EMProtocol, ProtTomoBase):
         group.addParam('filterSize', IntParam,
                        label='Filter size (voxels)',
                        allowsNull=False,
+                       important=True,
                        help='A value of n means that the voxels will be grouped in groups of size n.'
                        )
         group.addParam('doCC3d', BooleanParam,
@@ -116,7 +117,9 @@ class ProtPySegPlaneAlignClassification(EMProtocol, ProtTomoBase):
                        help='If "No" is selected, the normalized cross correlation (NCC) is made in 2D, '
                             'otherwise radial average is compensated for doing a NCC in 3D.')
 
-        group = form.addGroup('Radial averages')
+        group = form.addGroup('Radial averages',
+                              condition='%s or (%s and expertLevel == %s)' %
+                                        (AP_CONDITION, NOT_AP_CONDITION, LEVEL_ADVANCED))
         group.addParam('ccMetric', EnumParam,
                        label='Cross correlation metric',
                        choices=['Cross-correlation within the mask',
@@ -131,11 +134,12 @@ class ProtPySegPlaneAlignClassification(EMProtocol, ProtTomoBase):
                             'small disalignments between particles).')
         group.addParam('pcaComps', IntParam,
                        label='PCA components for dim. reduction',
-                       validators=[GT(0)],
-                       default=20,
+                       validators=[GE(0)],
+                       default=0,
+                       expertLevel=LEVEL_ADVANCED,
                        condition=NOT_AP_CONDITION,
-                       help='Number of components (moments) after the reductions.\nIf None, '
-                            'then n_comp == min(n_samples, n_features) - 1')
+                       help='Number of components (moments) after the reductions.\nIf 0 or None, '
+                            'then they will be automatically estimated considering the size ob the input subtomograms.')
 
         group = form.addGroup('Parameters of chosen classification algorithm')
         group.addParam('aggNClusters', IntParam,
@@ -172,11 +176,12 @@ class ProtPySegPlaneAlignClassification(EMProtocol, ProtTomoBase):
                        condition=AP_CONDITION,
                        expertLevel=LEVEL_ADVANCED)
 
-        group = form.addGroup('Classification post-processing')
+        group = form.addGroup('Classification post-processing', expertLevel=LEVEL_ADVANCED)
         group.addParam('apPartSizeFilter', IntParam,
                        label='Minimum number of particles per class',
                        validators=[GE(0)],
                        default=0,
+                       expertLevel=LEVEL_ADVANCED,
                        help='Purge classes with less than the specified number of particles. '
                             'If 0, this filter will not be applied.')
         group.addParam('apCCRefFilter', FloatParam,
@@ -188,11 +193,6 @@ class ProtPySegPlaneAlignClassification(EMProtocol, ProtTomoBase):
                        help='Purge classes with the cross correlation against the reference '
                             'lower than the specified value. If 0, this filter will not be applied.')
         form.addParallelSection(threads=4, mpi=0)
-        # group.addParam('aggLinkage', EnumParam,
-        #                label='linkage criterion',
-        #                choices=[])
-        # TODO: ask Antonio about the linkage criterion, if other values apart from ward are implemented (it seems not
-        # to be the case)
 
     def _insertAllSteps(self):
         self._initialize()
@@ -304,17 +304,18 @@ class ProtPySegPlaneAlignClassification(EMProtocol, ProtTomoBase):
         classCmd += '--ccMetric %s ' % self._decodeCCMetric()
         classCmd += '--clusteringAlg %s ' % self._decodeClusteringAlg()
         classCmd += '--distanceMetric %s ' % self._decodeDistanceMetric()
-        classCmd += '--pcaComps %s ' % self.pcaComps.get()
         if alg == AFFINITY_PROP:
             classCmd += '--apPref %s ' % self.apPref.get()
             classCmd += '--apDumping %s ' % self.apDumping.get()
             classCmd += '--apMaxIter %s ' % self.apMaxIter.get()
             classCmd += '--apConvIter %s ' % self.apConvIter.get()
             classCmd += '--apCCRefFilter %s ' % self.apCCRefFilter.get()
-        elif alg == AGGLOMERATIVE:
-            classCmd += '--aggNClusters %s ' % self.aggNClusters.get()
         else:
-            classCmd += '--kmeansNClusters %s ' % self.aggNClusters.get()
+            classCmd += '--pcaComps %s ' % self._estimatePCAComps()
+            if alg == AGGLOMERATIVE:
+                classCmd += '--aggNClusters %s ' % self.aggNClusters.get()
+            else:
+                classCmd += '--kmeansNClusters %s ' % self.aggNClusters.get()
 
         classCmd += '--apPartSizeFilter %s ' % self.apPartSizeFilter.get()
         classCmd += '-j %s ' % self.numberOfThreads.get()
@@ -382,5 +383,13 @@ class ProtPySegPlaneAlignClassification(EMProtocol, ProtTomoBase):
                 representativesLocation = averagesLocation[0]
 
         return glob.glob(join(representativesLocation, 'class_k%i.png' % classId))[0]
+
+    def _estimatePCAComps(self):
+        pcaComps = self.pcaComps.get()
+        if not pcaComps:
+            x, y, _ = self.inputSubtomos.get().getDimensions()
+            pcaComps = round(1/100 * 0.5 * x * y)
+
+        return pcaComps
 
 
