@@ -232,7 +232,7 @@ class ProtPySegPlaneAlignClassification(EMProtocol, ProtTomoBase):
 
     # --------------------------- INFO functions -----------------------------------
 
-    def _summary(self):
+    def _methods(self):
         summary = []
         if self.isFinished():
             sizePostPorcessing = self.apPartSizeFilter.get()

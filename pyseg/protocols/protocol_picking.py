@@ -1,10 +1,37 @@
+# -*- coding: utf-8 -*-
+# **************************************************************************
+# *
+# * Authors:     Scipion Team
+# *
+# * National Center of Biotechnology, CSIC, Spain
+# *
+# * This program is free software; you can redistribute it and/or modify
+# * it under the terms of the GNU General Public License as published by
+# * the Free Software Foundation; either version 2 of the License, or
+# * (at your option) any later version.
+# *
+# * This program is distributed in the hope that it will be useful,
+# * but WITHOUT ANY WARRANTY; without even the implied warranty of
+# * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# * GNU General Public License for more details.
+# *
+# * You should have received a copy of the GNU General Public License
+# * along with this program; if not, write to the Free Software
+# * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
+# * 02111-1307  USA
+# *
+# *  All comments concerning this program package may be sent to the
+# *  e-mail address 'scipion@cnb.csic.es'
+# *
+# **************************************************************************
+
 from collections import OrderedDict
-from os.path import basename, join, abspath
+from os.path import basename, join
 import xml.etree.ElementTree as ET
 
 from pwem.protocols import EMProtocol
 from pyworkflow import BETA
-from pyworkflow.protocol import FloatParam, NumericListParam, EnumParam, PointerParam, IntParam, FileParam, StringParam
+from pyworkflow.protocol import FloatParam, EnumParam, PointerParam, IntParam, FileParam
 from pyworkflow.utils import Message, makePath, removeBaseExt, copyFile
 from scipion.constants import PYTHON
 from tomo.objects import SetOfCoordinates3D
@@ -12,8 +39,7 @@ from tomo.protocols import ProtTomoBase
 from tomo.protocols.protocol_base import ProtTomoImportAcquisition
 
 from pyseg import Plugin
-from pyseg.constants import GRAPHS_OUT, GRAPHS_SCRIPT, FILS_OUT, FILS_SCRIPT, FILS_SOURCES, FILS_TARGETS, \
-    PICKING_OUT, PICKING_SCRIPT, PICKING_SLICES, FROM_SCIPION, FROM_STAR_FILE
+from pyseg.constants import FILS_SOURCES, FILS_TARGETS, PICKING_SCRIPT, PICKING_SLICES, FROM_SCIPION, FROM_STAR_FILE
 from pyseg.convert import readStarFile, PYSEG_PICKING_STAR, getTomoSetFromStar
 
 TH_MODE_IN = 0
@@ -29,9 +55,9 @@ PROJECTIONS = 1
 
 
 class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
-    """"""
+    """extract particles from a filament network of a oriented single membrane graph"""
 
-    _label = 'Picking'
+    _label = 'picking'
     _devStatus = BETA
     tomoSet = None
     acquisitionParams = {
