@@ -373,6 +373,7 @@ class ProtPySegPlaneAlignClassification(EMProtocol, ProtTomoBase):
 
     def _getReferenceImage(self, classId):
         # Search in exemplars directory. If file does not exist, search in averages directory
+        representativesLocation = None
         exemplarssLocation = glob.glob(join(self._outDir, '*_exemplars'))
         averagesLocation = glob.glob(join(self._outDir, '*_averages'))
         if exemplarssLocation:
@@ -382,7 +383,7 @@ class ProtPySegPlaneAlignClassification(EMProtocol, ProtTomoBase):
             if exists(abspath(averagesLocation[0])):
                 representativesLocation = averagesLocation[0]
 
-        return glob.glob(join(representativesLocation, 'class_k%i.png' % classId))[0]
+        return glob.glob(join(representativesLocation, 'class_k%i.mrc' % classId))[0]
 
     def _estimatePCAComps(self):
         pcaComps = self.pcaComps.get()
