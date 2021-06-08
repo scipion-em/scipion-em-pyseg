@@ -98,6 +98,11 @@ class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
                       important=True,
                       allowsNull=False,
                       help='Input tomograms voxel size (Å/voxel)')
+        form.addParam('boxSize', IntParam,
+                      label='Box size (pixels)',
+                      default=20,
+                      important=True,
+                      allowsNull=False)
 
         form.addSection(label='Picking')
         self._defineFilsXMLParams(form, self._getSlicesXMLDefaultVals())
@@ -165,6 +170,7 @@ class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         suffix = self._getOutputSuffix(SetOfCoordinates3D)
         coordsSet = self._createSetOfCoordinates3D(tomoSet, suffix)
         coordsSet.setSamplingRate(samplingRate)
+        coordsSet.setBoxSize(self.boxSize.get())
         readStarFile(self, coordsSet, PYSEG_PICKING_STAR, starFile=pickingStarFile, invert=True)
 
         self._defineOutputs(outputCoordinates=coordsSet)
