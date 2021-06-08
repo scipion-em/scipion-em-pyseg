@@ -36,6 +36,7 @@ from pyworkflow.utils import createAbsLink
 from relion.convert import Table
 from reliontomo.convert.convert30_tomo import TOMO_NAME, SUBTOMO_NAME, COORD_X, COORD_Y, COORD_Z, ROT, TILT, PSI, \
     RELION_TOMO_LABELS, TILT_PRIOR, PSI_PRIOR, CTF_MISSING_WEDGE, SHIFTX, SHIFTY, SHIFTZ
+from tomo.constants import BOTTOM_LEFT_CORNER
 from tomo.objects import SubTomogram, Coordinate3D, TomoAcquisition, Tomogram
 
 FILE_NOT_FOUND = 'file_not_found'
@@ -135,9 +136,9 @@ def _relionTomoStar2Subtomograms(prot, outputSubTomogramsSet, tomoTable, starPat
         tiltPrior = row.get(TILT_PRIOR, 0)
         psiPrior = row.get(PSI_PRIOR, 0)
         ctf3d = row.get(CTF_MISSING_WEDGE, FILE_NOT_FOUND)
-        coordinate3d.setX(float(x))
-        coordinate3d.setY(float(y))
-        coordinate3d.setZ(float(z))
+        coordinate3d.setX(float(x), BOTTOM_LEFT_CORNER)
+        coordinate3d.setY(float(y), BOTTOM_LEFT_CORNER)
+        coordinate3d.setZ(float(z), BOTTOM_LEFT_CORNER)
         coordinate3d._3dcftMrcFile = String(join(starPath, ctf3d))  # Used for the ctf3d generation in Relion
         M = _getTransformMatrix(row, invert)
         transform.setMatrix(M)
@@ -243,15 +244,15 @@ def _pysegStar2Coords3D(prot, output3DCoordSet, tomoTable, invert):
             if ancestorName == tomoName:
                 coordinate3d = Coordinate3D()
                 coordinate3d.setVolId(tomoNum)
+                coordinate3d.setVolume(tomo)
                 x = row.get(COORD_X, 0)
                 y = row.get(COORD_Y, 0)
                 z = row.get(COORD_Z, 0)
                 M = _getTransformMatrix(row, invert)
-                coordinate3d.setX(float(x))
-                coordinate3d.setY(float(y))
-                coordinate3d.setZ(float(z))
+                coordinate3d.setX(float(x), BOTTOM_LEFT_CORNER)
+                coordinate3d.setY(float(y), BOTTOM_LEFT_CORNER)
+                coordinate3d.setZ(float(z), BOTTOM_LEFT_CORNER)
                 coordinate3d.setMatrix(M)
-                coordinate3d.setVolume(tomo)
                 coordinate3d._pysegMembrane = String(row.get(SUBTOMO_NAME, FILE_NOT_FOUND))
 
                 # Add current subtomogram to the output set

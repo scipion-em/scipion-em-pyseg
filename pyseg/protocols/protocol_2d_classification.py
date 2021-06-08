@@ -172,7 +172,7 @@ class ProtPySegPlaneAlignClassification(EMProtocol, ProtTomoBase):
         group.addParam('apReference', EnumParam,
                        label='Reference 2D image used for classes',
                        choices=['Exemplar', 'Average'],
-                       default=EXEMPLAR,
+                       default=AVERAGE,
                        condition=AP_CONDITION,
                        expertLevel=LEVEL_ADVANCED)
 

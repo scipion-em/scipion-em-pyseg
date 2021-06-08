@@ -91,7 +91,6 @@ class ProtPySegPostRecParticles(EMProtocol, ProtTomoBase):
 
     def createOutputStep(self, outStar):
         # Read generated star file and create the output objects
-        self.subtomoSet = self._createSetOfSubTomograms()
         self.subtomoSet.setSamplingRate(self.inMask.get().getSamplingRate())
         warningMsg = readStarFile(self, self.subtomoSet, RELION_SUBTOMO_STAR, starFile=outStar)
         if warningMsg:

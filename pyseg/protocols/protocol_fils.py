@@ -125,7 +125,7 @@ class ProtPySegFils(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         form.addSection(label='Refinement')
         group = form.addGroup('Graph thresholding')
         group.addParam('thMode', EnumParam,
-                       default=0,
+                       default=TH_MODE_IN,
                        choices=['in', 'out'],
                        label='Orientation with respect to the membrane/filament',
                        display=EnumParam.DISPLAY_HLIST)

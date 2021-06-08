@@ -24,7 +24,7 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
-
+import glob
 from os.path import abspath
 
 from pwem.emlib.image import ImageHandler
@@ -34,6 +34,7 @@ from pyworkflow.protocol import FileParam, NumericListParam, IntParam, FloatPara
     PointerParam
 from pyworkflow.utils import Message, removeBaseExt, removeExt
 from scipion.constants import PYTHON
+from tomo.objects import SetOfTomoMasks, TomoMask, SetOfSubTomograms
 
 from pyseg import Plugin
 from pyseg.constants import PRESEG_SCRIPT, TOMOGRAM, PYSEG_LABEL, VESICLE, NOT_FOUND, \
@@ -62,7 +63,7 @@ class ProtPySegPreSegParticles(EMProtocol):
         form.addSection(label=Message.LABEL_INPUT)
         form.addParam('segmentationFrom', EnumParam,
                       choices=['Scipion Protocol', 'Star file'],
-                      default=0,
+                      default=SEG_FROM_SCIPION,
                       label='Choose pre seg data source',
                       important=True,
                       display=EnumParam.DISPLAY_HLIST)
@@ -124,6 +125,7 @@ class ProtPySegPreSegParticles(EMProtocol):
         self._insertFunctionStep('pysegPreSegStep')
         self._insertFunctionStep('getMembraneCenterStep')
         self._insertFunctionStep('pysegPreSegCenteredStep')
+        self._insertFunctionStep('createOutputStep')
 
     def _initialize(self):
         if self.segmentationFrom.get() == SEG_FROM_SCIPION:
@@ -146,6 +148,40 @@ class ProtPySegPreSegParticles(EMProtocol):
 
         # Script called
         Plugin.runPySeg(self, PYTHON, self._getPreSegCmd(inStar, outDir))
+
+    def createOutputStep(self):
+        segVesSet = self._genOutputSetOfTomoMasks()
+        self._defineOutputs(outputSetofTomoMasks=segVesSet)
+
+    def _genOutputSetOfTomoMasks(self):
+        tomoMaskList = sorted(glob.glob(self._getExtraPath('segs', '*_seg.mrc')))
+        vesicleSubtomoList = [tomoMask.replace('_seg.mrc', '.mrc') for tomoMask in tomoMaskList]
+        tomoMaskSet = SetOfTomoMasks.create(self._getPath(), template='tomomasks%s.sqlite', suffix='segVesicles')
+        subTomoSet = SetOfSubTomograms.create(self._getPath(), template='subtomograms%s.sqlite', suffix='vesicles')
+        if self.segmentationFrom.get() == SEG_FROM_SCIPION:
+            inTomoMaskSet = self.inTomoMasks.get()
+            tomoMaskSet.copyInfo(inTomoMaskSet)
+            subTomoSet.copyInfo(inTomoMaskSet)
+            sRate = inTomoMaskSet.getFirstItem.getSamplingRate()
+        else:
+            sRate = self.sgVoxelSize.get()
+            tomoMaskSet.setSamplingRate(sRate)
+            subTomoSet.setSamplingRate(sRate)
+        counter = 1
+        for tomoMaskFile, vesicleFile in zip(tomoMaskList, vesicleSubtomoList):
+            # TomoMask
+            tomoMask = TomoMask()
+            tomoMask.setSamplingRate(sRate)
+            tomoMask.setLocation((counter, tomoMaskFile))
+            tomoMask.setVolName(vesicleFile)
+            tomoMaskSet.append(tomoMask)
+            # Subtomogram
+
+            # Tomograms, only if the input is a star file
+
+            counter += 1
+
+        return tomoMaskSet
 
     # --------------------------- INFO functions -----------------------------------
     def _summary(self):

@@ -42,9 +42,6 @@ from pyseg import Plugin
 from pyseg.constants import FILS_SOURCES, FILS_TARGETS, PICKING_SCRIPT, PICKING_SLICES, FROM_SCIPION, FROM_STAR_FILE
 from pyseg.convert import readStarFile, PYSEG_PICKING_STAR, getTomoSetFromStar
 
-TH_MODE_IN = 0
-TH_MODE_OUT = 1
-
 # Fils slices xml fields
 SIDE = 'side'
 CONT = 'cont'
