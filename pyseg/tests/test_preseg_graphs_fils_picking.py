@@ -126,11 +126,13 @@ class TestFromPresegToPicking(BaseTest):
 
     def _runPicking(self, filsProt):
         print(magentaStr("\n==> Running picking:"))
+        bSize = 30
         protPicking = self.newProtocol(
             ProtPySegPicking,
             inFilsProt=filsProt,
             pixelSize=self.samplingRate,
             side=3,  # Pick out of the membrane, labelled as 3 for this data
+            boxSize=bSize
         )
 
         protPicking.setObjLabel('Picking')
@@ -156,6 +158,7 @@ class TestFromPresegToPicking(BaseTest):
 
         # Output coordinates must have an attribute named _pysegMembrane, which stores the corresponding
         # membrane file
+        self.assertEqual(outputCoordinates.getBoxSize(), bSize)
         for coord3d in outputCoordinates:
             self.assertTrue(exists(coord3d._pysegMembrane.get()))
         # Validate precedents
