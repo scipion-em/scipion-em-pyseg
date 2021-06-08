@@ -5,6 +5,7 @@ from pyworkflow.utils import magentaStr
 from relion.convert import Table
 from pyseg.constants import TOMOGRAM, VESICLE, PYSEG_LABEL, MASK
 from pyseg.protocols import *
+from pyseg.protocols.protocol_pre_seg import SEG_FROM_STAR
 
 
 class TestFromPresegToPicking(BaseTest):
@@ -44,6 +45,7 @@ class TestFromPresegToPicking(BaseTest):
         self._genPreSegStar()
         protPreseg = self.newProtocol(
             ProtPySegPreSegParticles,
+            segmentationFrom=SEG_FROM_STAR,
             inStar=self.preSegStar,
             spOffVoxels=30,
             sgVoxelSize=self.samplingRate,

@@ -30,3 +30,4 @@ from .protocol_graphs import ProtPySegGraphs
 from .protocol_fils import ProtPySegFils
 from .protocol_picking import ProtPySegPicking
 from .protocol_pre_seg import ProtPySegPreSegParticles
+from .protocol_2d_classification import ProtPySegPlaneAlignClassification

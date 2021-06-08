@@ -1,3 +1,30 @@
+# -*- coding: utf-8 -*-
+# **************************************************************************
+# *
+# * Authors:     Scipion Team
+# *
+# * National Center of Biotechnology, CSIC, Spain
+# *
+# * This program is free software; you can redistribute it and/or modify
+# * it under the terms of the GNU General Public License as published by
+# * the Free Software Foundation; either version 2 of the License, or
+# * (at your option) any later version.
+# *
+# * This program is distributed in the hope that it will be useful,
+# * but WITHOUT ANY WARRANTY; without even the implied warranty of
+# * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# * GNU General Public License for more details.
+# *
+# * You should have received a copy of the GNU General Public License
+# * along with this program; if not, write to the Free Software
+# * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
+# * 02111-1307  USA
+# *
+# *  All comments concerning this program package may be sent to the
+# *  e-mail address 'scipion@cnb.csic.es'
+# *
+# **************************************************************************
+
 from pwem.protocols import EMProtocol
 from pyworkflow import BETA
 from pyworkflow.protocol import FloatParam, EnumParam, PointerParam, FileParam, LEVEL_ADVANCED
@@ -7,13 +34,13 @@ from tomo.protocols import ProtTomoBase
 from tomo.protocols.protocol_base import ProtTomoImportAcquisition
 
 from pyseg import Plugin
-from pyseg.constants import GRAPHS_OUT, GRAPHS_SCRIPT, FROM_SCIPION, FROM_STAR_FILE
+from pyseg.constants import GRAPHS_SCRIPT, FROM_SCIPION, FROM_STAR_FILE
 
 
 class ProtPySegGraphs(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
-    """"""
+    """analyze a GraphMCF (Mean Cumulative Function) from a segmented membrane"""
 
-    _label = 'Graphs'
+    _label = 'graphs'
     _devStatus = BETA
 
     # -------------------------- DEFINE param functions ----------------------

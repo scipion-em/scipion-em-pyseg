@@ -1,11 +1,40 @@
+# -*- coding: utf-8 -*-
+# **************************************************************************
+# *
+# * Authors:     Scipion Team
+# *
+# * National Center of Biotechnology, CSIC, Spain
+# *
+# * This program is free software; you can redistribute it and/or modify
+# * it under the terms of the GNU General Public License as published by
+# * the Free Software Foundation; either version 2 of the License, or
+# * (at your option) any later version.
+# *
+# * This program is distributed in the hope that it will be useful,
+# * but WITHOUT ANY WARRANTY; without even the implied warranty of
+# * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# * GNU General Public License for more details.
+# *
+# * You should have received a copy of the GNU General Public License
+# * along with this program; if not, write to the Free Software
+# * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
+# * 02111-1307  USA
+# *
+# *  All comments concerning this program package may be sent to the
+# *  e-mail address 'scipion@cnb.csic.es'
+# *
+# **************************************************************************
+import glob
 from os.path import abspath
 
 from pwem.emlib.image import ImageHandler
 from pwem.protocols import EMProtocol
 from pyworkflow import BETA
-from pyworkflow.protocol import FileParam, NumericListParam, IntParam, FloatParam, GT, LEVEL_ADVANCED
-from pyworkflow.utils import Message, removeBaseExt
+from pyworkflow.protocol import FileParam, NumericListParam, IntParam, FloatParam, GT, LEVEL_ADVANCED, EnumParam, \
+    PointerParam
+from pyworkflow.utils import Message, removeBaseExt, removeExt
 from scipion.constants import PYTHON
+from tomo.objects import SetOfTomoMasks, TomoMask, SetOfSubTomograms
 
 from pyseg import Plugin
 from pyseg.constants import PRESEG_SCRIPT, TOMOGRAM, PYSEG_LABEL, VESICLE, NOT_FOUND, \
@@ -13,12 +42,16 @@ from pyseg.constants import PRESEG_SCRIPT, TOMOGRAM, PYSEG_LABEL, VESICLE, NOT_F
     RLN_ORIGIN_Z
 from relion.convert import Table
 
+SEG_FROM_SCIPION = 0
+SEG_FROM_STAR = 1
+
 
 class ProtPySegPreSegParticles(EMProtocol):
-    """"""
+    """pre-process segmented circular membranes"""
 
-    _label = 'Pre-process segmented circular membranes'
+    _label = 'preseg circular membranes'
     _devStatus = BETA
+    _starFile = None
 
     # -------------------------- DEFINE param functions ----------------------
     def _defineParams(self, form):
@@ -28,11 +61,25 @@ class ProtPySegPreSegParticles(EMProtocol):
         """
         # You need a params to belong to a section:
         form.addSection(label=Message.LABEL_INPUT)
-        form.addParam('inStar', FileParam,
-                      label='Seg particles star file',
+        form.addParam('segmentationFrom', EnumParam,
+                      choices=['Scipion Protocol', 'Star file'],
+                      default=SEG_FROM_SCIPION,
+                      label='Choose pre seg data source',
+                      important=True,
+                      display=EnumParam.DISPLAY_HLIST)
+        form.addParam('inTomoMasks', PointerParam,
+                      pointerClass='SetOfTomoMasks',
+                      label='Segmented and annotated tomograms',
+                      condition='segmentationFrom == %i' % SEG_FROM_SCIPION,
                       important=True,
                       allowsNull=False,
-                      help='Star file obtained in PySeg seg step.')
+                      help='Pointer to segmented and annotated tomograms within Scipion.')
+        form.addParam('inStar', FileParam,
+                      label='Seg particles star file',
+                      condition='segmentationFrom == %i' % SEG_FROM_STAR,
+                      important=True,
+                      allowsNull=False,
+                      help='Star file obtained in PySeg graphs step.')
         group = form.addGroup('Sub-volume splitting')
         group.addParam('spSplit', NumericListParam,
                        default='-1',
@@ -74,20 +121,26 @@ class ProtPySegPreSegParticles(EMProtocol):
                             'desired to be included in the analysis.')
 
     def _insertAllSteps(self):
+        self._initialize()
         self._insertFunctionStep('pysegPreSegStep')
         self._insertFunctionStep('getMembraneCenterStep')
         self._insertFunctionStep('pysegPreSegCenteredStep')
+        self._insertFunctionStep('createOutputStep')
+
+    def _initialize(self):
+        if self.segmentationFrom.get() == SEG_FROM_SCIPION:
+            self._starFile = self._convertInput2Star()
+        else:
+            self._starFile = self.inStar.get()
 
     def pysegPreSegStep(self):
-        inStar = self.inStar.get()
         outDir = self._getExtraPath()
-
         # Script called
-        Plugin.runPySeg(self, PYTHON, self._getPreSegCmd(inStar, outDir))
+        Plugin.runPySeg(self, PYTHON, self._getPreSegCmd(self._starFile, outDir))
 
     def getMembraneCenterStep(self):
-        inStar = self.getPresegOutputFile(self.inStar.get())
-        self._findVesicleCenter(self.inStar.get(), inStar)
+        inStar = self.getPresegOutputFile(self._starFile)
+        self._findVesicleCenter(self._starFile, inStar)
 
     def pysegPreSegCenteredStep(self):
         inStar = abspath(self.getVesiclesCenteredStarFile())
@@ -95,6 +148,40 @@ class ProtPySegPreSegParticles(EMProtocol):
 
         # Script called
         Plugin.runPySeg(self, PYTHON, self._getPreSegCmd(inStar, outDir))
+
+    def createOutputStep(self):
+        segVesSet = self._genOutputSetOfTomoMasks()
+        self._defineOutputs(outputSetofTomoMasks=segVesSet)
+
+    def _genOutputSetOfTomoMasks(self):
+        tomoMaskList = sorted(glob.glob(self._getExtraPath('segs', '*_seg.mrc')))
+        vesicleSubtomoList = [tomoMask.replace('_seg.mrc', '.mrc') for tomoMask in tomoMaskList]
+        tomoMaskSet = SetOfTomoMasks.create(self._getPath(), template='tomomasks%s.sqlite', suffix='segVesicles')
+        subTomoSet = SetOfSubTomograms.create(self._getPath(), template='subtomograms%s.sqlite', suffix='vesicles')
+        if self.segmentationFrom.get() == SEG_FROM_SCIPION:
+            inTomoMaskSet = self.inTomoMasks.get()
+            tomoMaskSet.copyInfo(inTomoMaskSet)
+            subTomoSet.copyInfo(inTomoMaskSet)
+            sRate = inTomoMaskSet.getFirstItem.getSamplingRate()
+        else:
+            sRate = self.sgVoxelSize.get()
+            tomoMaskSet.setSamplingRate(sRate)
+            subTomoSet.setSamplingRate(sRate)
+        counter = 1
+        for tomoMaskFile, vesicleFile in zip(tomoMaskList, vesicleSubtomoList):
+            # TomoMask
+            tomoMask = TomoMask()
+            tomoMask.setSamplingRate(sRate)
+            tomoMask.setLocation((counter, tomoMaskFile))
+            tomoMask.setVolName(vesicleFile)
+            tomoMaskSet.append(tomoMask)
+            # Subtomogram
+
+            # Tomograms, only if the input is a star file
+
+            counter += 1
+
+        return tomoMaskSet
 
     # --------------------------- INFO functions -----------------------------------
     def _summary(self):
@@ -123,6 +210,38 @@ class ProtPySegPreSegParticles(EMProtocol):
         preSegCmd += '--sgMembNeigh %s ' % self._checkValue4PySeg(self.sgMembNeigh.get())  # required in nm
 
         return preSegCmd
+
+    def _convertInput2Star(self):
+        inStar = self._getExtraPath('inStar.star')
+        outputTable = self._createTable(isConvertingInput=True)
+
+        # Generate the star file with the vesicles centered for the second pre_seg execution
+        for tomoMask in self.inTomoMasks.get():
+            vesicle = tomoMask.getFileName()
+
+            for materialIndex in self._getMaterialsList(vesicle):   # Get annotated materials from txt file and add one
+                # line for each one
+
+                # Add row to output table
+                outputTable.addRow(tomoMask.getVolName(),
+                                   vesicle,
+                                   int(materialIndex),
+                                   vesicle
+                                   )
+
+        outputTable.write(inStar)
+        return inStar
+
+    @staticmethod
+    def _getMaterialsList(vesicle):
+        # Get annotated materials from txt file and add one line for each one
+        materialsFile = removeExt(vesicle) + '.txt'
+        with open(materialsFile) as matFile:
+            materialsList = matFile.read()
+
+        # Expected format is a string like 'ind1,ind2,...,indn\n, so it's necessary to transform it into a list of
+        # material indices
+        return materialsList.replace('\n', '').split(',')
 
     def _findVesicleCenter(self, starFileInit, starFilePreseg1):
         ih = ImageHandler()
@@ -160,7 +279,7 @@ class ProtPySegPreSegParticles(EMProtocol):
                                zdimCorner + z / 2,
                                )
 
-            outputTable.write(self.getVesiclesCenteredStarFile())
+        outputTable.write(self.getVesiclesCenteredStarFile())
 
     def getPresegOutputFile(self, inStar):
         return self._getExtraPath(removeBaseExt(inStar) + '_pre.star')
@@ -169,16 +288,23 @@ class ProtPySegPreSegParticles(EMProtocol):
         return self._getExtraPath('presegVesiclesCentered.star')
 
     @ staticmethod
-    def _createTable():
-        # Headers for pySeg pre_seg centered star file
-        return Table(columns=[TOMOGRAM,
-                              VESICLE,
-                              PYSEG_LABEL,
-                              MASK,
-                              RLN_ORIGIN_X,
-                              RLN_ORIGIN_Y,
-                              RLN_ORIGIN_Z
-                              ])
+    def _createTable(isConvertingInput=False):
+        if isConvertingInput:
+            # Headers for the input star file to the first pre seg when the input data is from Scipion
+            return Table(columns=[TOMOGRAM,
+                                  VESICLE,
+                                  PYSEG_LABEL,
+                                  MASK])
+        else:
+            # Headers for pySeg pre_seg centered star file
+            return Table(columns=[TOMOGRAM,
+                                  VESICLE,
+                                  PYSEG_LABEL,
+                                  MASK,
+                                  RLN_ORIGIN_X,
+                                  RLN_ORIGIN_Y,
+                                  RLN_ORIGIN_Z
+                                  ])
 
     @staticmethod
     def _checkValue4PySeg(value):
