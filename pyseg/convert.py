@@ -240,8 +240,9 @@ def getTomoSetFromStar(prot, starFile):
 def _pysegStar2Coords3D(prot, output3DCoordSet, tomoTable, invert):
     for tomoNum, tomo in enumerate(prot.tomoSet.iterItems()):
         tomoName = tomo.getFileName().replace(':mrc', '')
-        for ancestorName, row in zip(prot.tomoList, tomoTable):
-            if ancestorName == tomoName:
+        for row in tomoTable:
+            # Create the set of coordinates referring each of them to its corresponding tomogram (ancestor)
+            if row.get(TOMO_NAME) == tomoName:
                 coordinate3d = Coordinate3D()
                 coordinate3d.setVolId(tomoNum)
                 coordinate3d.setVolume(tomo)

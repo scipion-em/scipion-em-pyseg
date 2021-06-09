@@ -70,9 +70,9 @@ class ProtPySegPostRecParticles(EMProtocol, ProtTomoBase):
 
     def _insertAllSteps(self):
         outStar = self._getExtraPath(POST_REC_OUT + '.star')
-        self._insertFunctionStep('convertInputStep')
-        self._insertFunctionStep('pysegPostRec', outStar)
-        self._insertFunctionStep('createOutputStep', outStar)
+        self._insertFunctionStep(self.convertInputStep.__name__)
+        self._insertFunctionStep(self.pysegPostRec.__name__)
+        self._insertFunctionStep(self.createOutputStep.__name__, outStar)
 
     def convertInputStep(self):
         """ Create the input file in STAR format as expected by Relion.

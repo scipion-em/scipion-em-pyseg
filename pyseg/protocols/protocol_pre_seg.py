@@ -39,11 +39,8 @@ from tomo.objects import SetOfTomoMasks, TomoMask, SetOfSubTomograms, SubTomogra
 from pyseg import Plugin
 from pyseg.constants import PRESEG_SCRIPT, TOMOGRAM, PYSEG_LABEL, VESICLE, NOT_FOUND, \
     PYSEG_OFFSET_X, PYSEG_OFFSET_Y, PYSEG_OFFSET_Z, MASK, RLN_ORIGIN_X, RLN_ORIGIN_Y, \
-    RLN_ORIGIN_Z
+    RLN_ORIGIN_Z, FROM_SCIPION, FROM_STAR_FILE
 from relion.convert import Table
-
-SEG_FROM_SCIPION = 0
-SEG_FROM_STAR = 1
 
 
 class ProtPySegPreSegParticles(EMProtocol):
@@ -63,20 +60,20 @@ class ProtPySegPreSegParticles(EMProtocol):
         form.addSection(label=Message.LABEL_INPUT)
         form.addParam('segmentationFrom', EnumParam,
                       choices=['Scipion Protocol', 'Star file'],
-                      default=SEG_FROM_SCIPION,
+                      default=FROM_SCIPION,
                       label='Choose pre seg data source',
                       important=True,
                       display=EnumParam.DISPLAY_HLIST)
         form.addParam('inTomoMasks', PointerParam,
                       pointerClass='SetOfTomoMasks',
                       label='Segmented and annotated tomograms',
-                      condition='segmentationFrom == %i' % SEG_FROM_SCIPION,
+                      condition='segmentationFrom == %i' % FROM_SCIPION,
                       important=True,
                       allowsNull=False,
                       help='Pointer to segmented and annotated tomograms within Scipion.')
         form.addParam('inStar', FileParam,
                       label='Seg particles star file',
-                      condition='segmentationFrom == %i' % SEG_FROM_STAR,
+                      condition='segmentationFrom == %i' % FROM_STAR_FILE,
                       important=True,
                       allowsNull=False,
                       help='Star file obtained in PySeg graphs step.')
@@ -95,9 +92,8 @@ class ProtPySegPreSegParticles(EMProtocol):
         group = form.addGroup('Membrane segmentation')
         group.addParam('sgVoxelSize', FloatParam,
                        label='Voxel size (Å/voxel)',
-                       validators=[GT(0)],
-                       important=True,
-                       allowsNull=False)
+                       condition='segmentationFrom == %s' % FROM_STAR_FILE,
+                       important=True)
         group.addParam('sgThreshold', IntParam,
                        default=-1,
                        label='Density threshold',
@@ -128,7 +124,7 @@ class ProtPySegPreSegParticles(EMProtocol):
         self._insertFunctionStep(self.createOutputStep.__name__)
 
     def _initialize(self):
-        if self.segmentationFrom.get() == SEG_FROM_SCIPION:
+        if self.segmentationFrom.get() == FROM_SCIPION:
             self._starFile = self._convertInput2Star()
         else:
             self._starFile = self.inStar.get()
@@ -158,6 +154,18 @@ class ProtPySegPreSegParticles(EMProtocol):
             self._defineOutputs(outputSetofTomograms=tomogramSet)
 
     # --------------------------- INFO functions -----------------------------------
+    def _validate(self):
+        validationMsg = []
+        if self.segmentationFrom.get() == FROM_STAR_FILE:
+            voxelSize = self.sgVoxelSize.get()
+            msg = 'Voxel size must be greater than 0.'
+            if voxelSize:
+                if voxelSize <= 0:
+                    validationMsg.append(msg)
+            else:
+                validationMsg.append(msg)
+
+        return validationMsg
 
     # --------------------------- UTIL functions -----------------------------------
 
@@ -168,7 +176,7 @@ class ProtPySegPreSegParticles(EMProtocol):
         preSegCmd += '--outDir %s ' % outDir
         preSegCmd += '--spSplit %s ' % self.spSplit.get()
         preSegCmd += '--spOffVoxels %s ' % self.spOffVoxels.get()
-        preSegCmd += '--sgVoxelSize %s ' % (int(self.sgVoxelSize.get())/10)  # required in nm
+        preSegCmd += '--sgVoxelSize %s ' % (float(self._getSamplingRate())/10)  # required in nm
         preSegCmd += '--sgThreshold %s ' % self.sgThreshold.get()
         preSegCmd += '--sgSizeThreshold %s ' % self.sgSizeThreshold.get()
         preSegCmd += '--sgMembThk %s ' % self._checkValue4PySeg(self.sgMembThk.get())  # required in nm
@@ -292,13 +300,12 @@ class ProtPySegPreSegParticles(EMProtocol):
         vesicleSubtomoList = [tomoMask.replace('_seg.mrc', '.mrc') for tomoMask in tomoMaskList]
         tomoMaskSet = SetOfTomoMasks.create(self._getPath(), template='tomomasks%s.sqlite', suffix='segVesicles')
         subTomoSet = SetOfSubTomograms.create(self._getPath(), template='subtomograms%s.sqlite', suffix='vesicles')
-        if self.segmentationFrom.get() == SEG_FROM_SCIPION:
+        sRate = self._getSamplingRate()
+        if self.segmentationFrom.get() == FROM_SCIPION:
             inTomoMaskSet = self.inTomoMasks.get()
             tomoMaskSet.copyInfo(inTomoMaskSet)
             subTomoSet.copyInfo(inTomoMaskSet)
-            sRate = inTomoMaskSet.getFirstItem().getSamplingRate()
         else:
-            sRate = self.sgVoxelSize.get()
             tomoMaskSet.setSamplingRate(sRate)
             subTomoSet.setSamplingRate(sRate)
             # Generate the set of tomograms
@@ -331,3 +338,9 @@ class ProtPySegPreSegParticles(EMProtocol):
             counter += 1
 
         return tomoMaskSet, subTomoSet, tomogramSet
+
+    def _getSamplingRate(self):
+        if self.segmentationFrom.get() == FROM_SCIPION:
+            return self.inTomoMasks.get().getFirstItem().getSamplingRate()
+        else:
+            return self.sgVoxelSize.get()

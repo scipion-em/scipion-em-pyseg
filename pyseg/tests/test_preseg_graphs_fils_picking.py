@@ -3,9 +3,8 @@ from os.path import join, abspath, exists
 from pyworkflow.tests import BaseTest, setupTestProject, DataSet
 from pyworkflow.utils import magentaStr
 from relion.convert import Table
-from pyseg.constants import TOMOGRAM, VESICLE, PYSEG_LABEL, MASK
+from pyseg.constants import TOMOGRAM, VESICLE, PYSEG_LABEL, MASK, FROM_STAR_FILE, FROM_SCIPION
 from pyseg.protocols import *
-from pyseg.protocols.protocol_pre_seg import SEG_FROM_STAR
 
 
 class TestFromPresegToPicking(BaseTest):
@@ -45,7 +44,7 @@ class TestFromPresegToPicking(BaseTest):
         self._genPreSegStar()
         protPreseg = self.newProtocol(
             ProtPySegPreSegParticles,
-            segmentationFrom=SEG_FROM_STAR,
+            segmentationFrom=FROM_STAR_FILE,
             inStar=self.preSegStar,
             spOffVoxels=30,
             sgVoxelSize=self.samplingRate,
@@ -90,11 +89,8 @@ class TestFromPresegToPicking(BaseTest):
         print(magentaStr("\n==> Running graphs:"))
         protGraphs = self.newProtocol(
             ProtPySegGraphs,
+            presegFrom=FROM_SCIPION,
             inSegProt=presegProt,
-            importFrom=3,  # Dynamo
-            filesPath=self.ds.getPath(),
-            filesPattern='*.tbl',
-            pixelSize=self.samplingRate,
         )
 
         protGraphs.setObjLabel('Graphs')
@@ -111,8 +107,8 @@ class TestFromPresegToPicking(BaseTest):
         print(magentaStr("\n==> Running fils:"))
         protFils = self.newProtocol(
             ProtPySegFils,
+            graphsFrom=FROM_SCIPION,
             inGraphsProt=graphsProt,
-            pixelSize=self.samplingRate,
             segLabelS=3,  # From out of the membrane (labelled as 3 for this data)
             segLabelT=2,  # To inside the vesicle (labelled as 2 for this data)
             gRgEud='1 30',
@@ -142,13 +138,14 @@ class TestFromPresegToPicking(BaseTest):
 
         return protFils
 
-    def _runPicking(self, filsProt):
+    def _runPicking(self, filsProt, inTomoSet):
         print(magentaStr("\n==> Running picking:"))
         bSize = 30
         protPicking = self.newProtocol(
             ProtPySegPicking,
             inFilsProt=filsProt,
-            pixelSize=self.samplingRate,
+            inTomoSet=inTomoSet,
+            filsFrom=FROM_SCIPION,
             side=3,  # Pick out of the membrane, labelled as 3 for this data
             boxSize=bSize
         )
@@ -193,7 +190,7 @@ class TestFromPresegToPicking(BaseTest):
         protPreseg = self._runPreseg()
         protGraphs = self._runGraphs(protPreseg)
         protFils = self._runFils(protGraphs)
-        self._runPicking(protFils)
+        self._runPicking(protFils, protPreseg.outputSetofTomograms)
         # Remove generated star file
         if exists(self.preSegStar):
             remove(self.preSegStar)
