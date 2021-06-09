@@ -66,6 +66,24 @@ class TestFromPresegToPicking(BaseTest):
             self.assertTrue(exists(protPreseg._getExtraPath('segs', outputVesiclesPattern % i)))
             self.assertTrue(exists(protPreseg._getExtraPath('segs', outputVesiclesSegPattern % i)))
 
+        # Check the generated outputs
+        nTomograms = 1
+        nVesicles = 3
+        vesiclesSize = (470, 454, 256)
+        tomogramSize = (1024, 1440, 300)
+        setOfVesiclesTomomasks = getattr(protPreseg, 'outputSetofTomoMasks', None)
+        setOfVesiclesSubtomograms = getattr(protPreseg, 'outputSetofSubTomograms', None)
+        setOfTomograms = getattr(protPreseg, 'outputSetofTomograms', None)
+        self.assertSetSize(setOfVesiclesTomomasks, nVesicles)
+        self.assertSetSize(setOfVesiclesSubtomograms, nVesicles)
+        self.assertSetSize(setOfTomograms, nTomograms)
+        self.assertEqual(setOfVesiclesTomomasks.getSamplingRate(), self.samplingRate)
+        self.assertEqual(setOfVesiclesSubtomograms.getSamplingRate(), self.samplingRate)
+        self.assertEqual(setOfTomograms.getSamplingRate(), self.samplingRate)
+        self.assertEqual(setOfVesiclesTomomasks.getDimensions(), vesiclesSize)
+        self.assertEqual(setOfVesiclesSubtomograms.getDimensions(), vesiclesSize)
+        self.assertEqual(setOfTomograms.getDimensions(), tomogramSize)
+
         return protPreseg
 
     def _runGraphs(self, presegProt):

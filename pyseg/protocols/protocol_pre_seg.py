@@ -52,7 +52,6 @@ class ProtPySegPreSegParticles(EMProtocol):
     _label = 'preseg circular membranes'
     _devStatus = BETA
     _starFile = None
-    tomoFileList = []
 
     # -------------------------- DEFINE param functions ----------------------
     def _defineParams(self, form):
@@ -123,17 +122,16 @@ class ProtPySegPreSegParticles(EMProtocol):
 
     def _insertAllSteps(self):
         self._initialize()
-        self._insertFunctionStep('pysegPreSegStep')
-        self._insertFunctionStep('getMembraneCenterStep')
-        self._insertFunctionStep('pysegPreSegCenteredStep')
-        self._insertFunctionStep('createOutputStep')
+        self._insertFunctionStep(self.pysegPreSegStep.__name__)
+        self._insertFunctionStep(self.getMembraneCenterStep.__name__)
+        self._insertFunctionStep(self.pysegPreSegCenteredStep.__name__)
+        self._insertFunctionStep(self.createOutputStep.__name__)
 
     def _initialize(self):
         if self.segmentationFrom.get() == SEG_FROM_SCIPION:
             self._starFile = self._convertInput2Star()
         else:
             self._starFile = self.inStar.get()
-            self._getTomogramsFromStar()
 
     def pysegPreSegStep(self):
         outDir = self._getExtraPath()
@@ -159,64 +157,7 @@ class ProtPySegPreSegParticles(EMProtocol):
         if tomogramSet:
             self._defineOutputs(outputSetofTomograms=tomogramSet)
 
-    def _genOutputSetOfTomoMasks(self):
-        tomogramSet = []
-        tomoMaskList = sorted(glob.glob(self._getExtraPath('segs', '*_seg.mrc')))
-        vesicleSubtomoList = [tomoMask.replace('_seg.mrc', '.mrc') for tomoMask in tomoMaskList]
-        tomoMaskSet = SetOfTomoMasks.create(self._getPath(), template='tomomasks%s.sqlite', suffix='segVesicles')
-        subTomoSet = SetOfSubTomograms.create(self._getPath(), template='subtomograms%s.sqlite', suffix='vesicles')
-        if self.segmentationFrom.get() == SEG_FROM_SCIPION:
-            inTomoMaskSet = self.inTomoMasks.get()
-            tomogramFileList = [tomoMask.getTomogram().getFileName() for tomoMask in inTomoMaskSet]
-            tomoMaskSet.copyInfo(inTomoMaskSet)
-            subTomoSet.copyInfo(inTomoMaskSet)
-            sRate = inTomoMaskSet.getFirstItem.getSamplingRate()
-        else:
-            tomogramFileList = self.tomoFileList
-            sRate = self.sgVoxelSize.get()
-            tomoMaskSet.setSamplingRate(sRate)
-            subTomoSet.setSamplingRate(sRate)
-            # Generate the set of tomograms
-            tomogramSet = SetOfTomograms.create(self._getPath(), template='tomograms%s.sqlite')
-            tomogramSet.setSamplingRate(sRate)
-            counter = 1
-            for tomoFile in tomogramFileList:
-                tomo = Tomogram()
-                tomo.setLocation(counter, tomoFile)
-                tomo.setSamplingRate(sRate)
-                tomogramSet.append(tomo)
-                counter += 1
-
-        counter = 1
-        for tomoMaskFile, vesicleFile in zip(tomoMaskList, vesicleSubtomoList):
-            # TomoMask
-            tomoMask = TomoMask()
-            tomoMask.setSamplingRate(sRate)
-            tomoMask.setLocation((counter, tomoMaskFile))
-            tomoMask.setVolName(vesicleFile)
-            tomoMaskSet.append(tomoMask)
-            # Subtomogram
-            subtomo = SubTomogram()
-            subtomo.setFileName(vesicleFile)
-            subtomo.setSamplingRate(sRate)
-            subtomo.setClassId(counter - 1)
-            subtomo.setVolName(tomogramFileList[counter - 1])
-            subTomoSet.append(subtomo)
-
-            counter += 1
-
-        return tomoMaskSet, subTomoSet, tomogramSet
-
     # --------------------------- INFO functions -----------------------------------
-    def _summary(self):
-        summary = []
-        # if self.isFinished():
-        #     summary.append('Generated files location:\n'
-        #                    'Subtomograms files directory: %s\n'
-        #                    'Star file: %s' %
-        #                    (self._getExtraPath(POST_REC_OUT),
-        #                     self._getExtraPath(POST_REC_OUT + '.star')))
-        return summary
 
     # --------------------------- UTIL functions -----------------------------------
 
@@ -335,8 +276,58 @@ class ProtPySegPreSegParticles(EMProtocol):
         return value if value == -1 else value/10
 
     def _getTomogramsFromStar(self):
-        # Get the tomograms names to generate the output setOfTomograms
+        """Get the tomograms names to generate the output setOfTomograms and vesicles subtomogras ref tomograms"""
+        tomoFileList = []
         tomoTable = Table()
         tomoTable.read(self._starFile)
         for row in tomoTable:
-            self.tomoFileList.append(row.get(TOMOGRAM))
+            tomoFileList.append(row.get(TOMOGRAM))
+
+        return tomoFileList
+
+    def _genOutputSetOfTomoMasks(self):
+        tomogramSet = []
+        tomoFileList = self._getTomogramsFromStar()
+        tomoMaskList = sorted(glob.glob(self._getExtraPath('segs', '*_seg.mrc')))
+        vesicleSubtomoList = [tomoMask.replace('_seg.mrc', '.mrc') for tomoMask in tomoMaskList]
+        tomoMaskSet = SetOfTomoMasks.create(self._getPath(), template='tomomasks%s.sqlite', suffix='segVesicles')
+        subTomoSet = SetOfSubTomograms.create(self._getPath(), template='subtomograms%s.sqlite', suffix='vesicles')
+        if self.segmentationFrom.get() == SEG_FROM_SCIPION:
+            inTomoMaskSet = self.inTomoMasks.get()
+            tomoMaskSet.copyInfo(inTomoMaskSet)
+            subTomoSet.copyInfo(inTomoMaskSet)
+            sRate = inTomoMaskSet.getFirstItem().getSamplingRate()
+        else:
+            sRate = self.sgVoxelSize.get()
+            tomoMaskSet.setSamplingRate(sRate)
+            subTomoSet.setSamplingRate(sRate)
+            # Generate the set of tomograms
+            tomogramSet = SetOfTomograms.create(self._getPath(), template='tomograms%s.sqlite')
+            tomogramSet.setSamplingRate(sRate)
+            counter = 1
+            for tomoFile in sorted(set(tomoFileList)):
+                tomo = Tomogram()
+                tomo.setLocation(counter, tomoFile)
+                tomo.setSamplingRate(sRate)
+                tomogramSet.append(tomo)
+                counter += 1
+
+        counter = 1
+        for tomoMaskFile, vesicleFile in zip(tomoMaskList, vesicleSubtomoList):
+            # TomoMask
+            tomoMask = TomoMask()
+            tomoMask.setSamplingRate(sRate)
+            tomoMask.setLocation((counter, tomoMaskFile))
+            tomoMask.setVolName(vesicleFile)
+            tomoMaskSet.append(tomoMask)
+            # Subtomogram
+            subtomo = SubTomogram()
+            subtomo.setFileName(vesicleFile)
+            subtomo.setSamplingRate(sRate)
+            subtomo.setClassId(counter - 1)
+            subtomo.setVolName(tomoFileList[counter - 1])
+            subTomoSet.append(subtomo)
+
+            counter += 1
+
+        return tomoMaskSet, subTomoSet, tomogramSet
