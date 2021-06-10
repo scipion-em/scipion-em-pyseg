@@ -34,7 +34,7 @@ from pyworkflow import BETA
 from pyworkflow.protocol import FloatParam, EnumParam, PointerParam, IntParam, FileParam
 from pyworkflow.utils import Message, makePath, removeBaseExt, copyFile
 from scipion.constants import PYTHON
-from tomo.objects import SetOfCoordinates3D
+from tomo.objects import SetOfCoordinates3D, SetOfTomograms
 from tomo.protocols import ProtTomoBase
 from tomo.protocols.protocol_base import ProtTomoImportAcquisition
 
@@ -75,28 +75,33 @@ class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         form.addSection(label=Message.LABEL_INPUT)
         form.addParam('filsFrom', EnumParam,
                       choices=['Scipion Protocol', 'Star file'],
-                      default=0,
+                      default=FROM_SCIPION,
                       label='Choose graphs data source',
                       important=True,
                       display=EnumParam.DISPLAY_HLIST)
         form.addParam('inFilsProt', PointerParam,
                       pointerClass='ProtPySegFils',
                       label='Pre segmentation',
-                      condition='filsFrom == 0',
+                      condition='filsFrom == %s' % FROM_SCIPION,
                       important=True,
                       allowsNull=False,
                       help='Pointer to fils protocol.')
         form.addParam('inStar', FileParam,
                       label='Seg particles star file',
-                      condition='filsFrom == 1',
+                      condition='filsFrom == %s' % FROM_STAR_FILE,
                       important=True,
                       allowsNull=False,
                       help='Star file obtained in PySeg seg step.')
-        form.addParam('pixelSize', FloatParam,
-                      label='Pixel size (Å/voxel)',
-                      default=1,
+        form.addParam('inTomoSet', PointerParam,
+                      pointerClass='SetOfTomograms',
+                      label='Tomograms',
+                      condition='filsFrom == %s' % FROM_SCIPION,
                       important=True,
                       allowsNull=False,
+                      help='Tomograms used for the graphs and filaments calculation.')
+        form.addParam('pixelSize', FloatParam,
+                      label='Pixel size (Å/voxel)',
+                      condition='filsFrom == %s' % FROM_STAR_FILE,
                       help='Input tomograms voxel size (Å/voxel)')
         form.addParam('boxSize', IntParam,
                       label='Box size (pixels)',
@@ -143,8 +148,9 @@ class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         return d
 
     def _insertAllSteps(self):
-        self._insertFunctionStep('pysegPicking')
-        self._insertFunctionStep('createOutputStep')
+        self._initialize()
+        self._insertFunctionStep(self.pysegPicking.__name__)
+        self._insertFunctionStep(self.createOutputStep.__name__)
 
     def pysegPicking(self):
         # Generate output dir
@@ -158,26 +164,28 @@ class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         Plugin.runPySeg(self, PYTHON, self._getPickingCommand(outDir))
 
     def createOutputStep(self):
-        pickingStarFile = self._getPickingStarFileName()
-        samplingRate = self.pixelSize.get()
-
-        tomoSet = self._createSetOfTomograms()
-        tomoSet.setSamplingRate(samplingRate)
-        self.tomoSet = tomoSet
-        getTomoSetFromStar(self, pickingStarFile)
-        self._defineOutputs(outputTomograms=self.tomoSet)
-
         suffix = self._getOutputSuffix(SetOfCoordinates3D)
-        coordsSet = self._createSetOfCoordinates3D(tomoSet, suffix)
-        coordsSet.setSamplingRate(samplingRate)
+        coordsSet = self._createSetOfCoordinates3D(self.tomoSet, suffix)
+        coordsSet.setSamplingRate(self._getSamplingRate())
         coordsSet.setBoxSize(self.boxSize.get())
-        readStarFile(self, coordsSet, PYSEG_PICKING_STAR, starFile=pickingStarFile, invert=True)
+        readStarFile(self, coordsSet, PYSEG_PICKING_STAR,
+                     starFile=self._getPickingStarFileName(), invert=True)
 
         self._defineOutputs(outputCoordinates=coordsSet)
 
     # --------------------------- INFO functions -----------------------------------
-    def _summary(self):
-        pass
+    def _validate(self):
+        validationMsg = []
+        if self.filsFrom.get() == FROM_STAR_FILE:
+            voxelSize = self.pixelSize.get()
+            msg = 'Pixel size must be greater than 0.'
+            if voxelSize:
+                if voxelSize <= 0:
+                    validationMsg.append(msg)
+            else:
+                validationMsg.append(msg)
+
+        return validationMsg
 
     # --------------------------- UTIL functions -----------------------------------
     def _getFilsStarFileName(self):
@@ -226,3 +234,18 @@ class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
     def _decodeContValue(val):
         """Decode the cont values and represent them as expected by pySeg"""
         return '+' if val == CUTTING_POINT else '-'
+
+    def _initialize(self):
+        if self.filsFrom.get() == FROM_SCIPION:
+            self.tomoSet = self.inTomoSet.get()
+        else:
+            tomoSet = SetOfTomograms()
+            tomoSet.setSamplingRate(self._getSamplingRate())
+            self.tomoSet = tomoSet
+            getTomoSetFromStar(self, self._getPickingStarFileName())
+
+    def _getSamplingRate(self):
+        if self.filsFrom.get() == FROM_SCIPION:
+            return self.inTomoSet.get().getFirstItem().getSamplingRate()
+        else:
+            return self.pixelSize.get()

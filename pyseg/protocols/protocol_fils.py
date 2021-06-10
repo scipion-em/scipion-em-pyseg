@@ -92,29 +92,23 @@ class ProtPySegFils(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         form.addSection(label=Message.LABEL_INPUT)
         form.addParam('graphsFrom', EnumParam,
                       choices=['Scipion Protocol', 'Star file'],
-                      default=0,
+                      default=FROM_SCIPION,
                       label='Choose graphs data source',
                       important=True,
                       display=EnumParam.DISPLAY_HLIST)
         form.addParam('inGraphsProt', PointerParam,
                       pointerClass='ProtPySegGraphs',
                       label='Graphs',
-                      condition='graphsFrom == 0',
+                      condition='graphsFrom == %s' % FROM_SCIPION,
                       important=True,
                       allowsNull=False,
                       help='Pointer to graphs protocol.')
         form.addParam('inStar', FileParam,
                       label='Seg particles star file',
-                      condition='graphsFrom == 1',
+                      condition='graphsFrom == %s' % FROM_STAR_FILE,
                       important=True,
                       allowsNull=False,
                       help='Star file obtained in PySeg graphs step.')
-        form.addParam('pixelSize', FloatParam,
-                      label='Pixel size (Å/voxel)',
-                      default=1,
-                      important=True,
-                      allowsNull=False,
-                      help='Input tomograms voxel size (Å/voxel)')
 
         form.addSection(label='Sources')
         self._defineFilsXMLParams(form, self._getXMLSourcesDefaultVals())
@@ -215,7 +209,7 @@ class ProtPySegFils(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
                        display=EnumParam.DISPLAY_HLIST)
 
     def _insertAllSteps(self):
-        self._insertFunctionStep('pysegFils')
+        self._insertFunctionStep(self.pysegFils.__name__)
 
     def pysegFils(self):
         # Generate output dir
