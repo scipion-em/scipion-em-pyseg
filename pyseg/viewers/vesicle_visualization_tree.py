@@ -1,8 +1,9 @@
+# -*- coding: utf-8 -*-
 # **************************************************************************
 # *
-# * Authors:     Estrella Fernandez Gimenez (me.fernandez@cnb.csic.es)
+# * Authors:     Scipion Team
 # *
-# *  BCU, Centro Nacional de Biotecnologia, CSIC
+# * your institution
 # *
 # * This program is free software; you can redistribute it and/or modify
 # * it under the terms of the GNU General Public License as published by
@@ -20,14 +21,20 @@
 # * 02111-1307  USA
 # *
 # *  All comments concerning this program package may be sent to the
-# *  e-mail address 'scipion@cnb.csic.es'
+# *  e-mail address 'you@yourinstitution.email'
 # *
 # **************************************************************************
+from os.path import join, isfile
 
-from .protocol_import_starfile import ProtPySegImportSubtomos
-from .protocol_post_rec_particles import ProtPySegPostRecParticles
-from .protocol_graphs import ProtPySegGraphs
-from .protocol_fils import ProtPySegFils
-from .protocol_picking import ProtPySegPicking
-from .protocol_pre_seg import ProtPySegPreSegParticles
-from .protocol_2d_classification import ProtPySegPlaneAlignClassification
+from pyworkflow.utils import removeBaseExt
+from tomo.viewers.views_tkinter_tree import TomogramsTreeProvider
+
+
+class VesicleViewerProvider(TomogramsTreeProvider):
+
+    def getObjectInfo(self, inVesicle):
+        vesicleName = removeBaseExt(inVesicle.getFileName())
+        return {'key': vesicleName, 'parent': None}
+
+    def getColumns(self):
+        return [('Vesicle', 400)]

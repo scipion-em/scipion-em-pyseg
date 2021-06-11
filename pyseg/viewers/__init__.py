@@ -1,8 +1,8 @@
 # **************************************************************************
 # *
-# * Authors:     Estrella Fernandez Gimenez (me.fernandez@cnb.csic.es)
+# * Authors:     Scipion Team
 # *
-# *  BCU, Centro Nacional de Biotecnologia, CSIC
+# * Unidad de  Bioinformatica of Centro Nacional de Biotecnologia , CSIC
 # *
 # * This program is free software; you can redistribute it and/or modify
 # * it under the terms of the GNU General Public License as published by
@@ -23,11 +23,8 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
+from pyseg.viewers.vesicle_graphs_fils_viewer import VesicleViewerDialog
+from pyseg.viewers.vesicle_visualization_tree import VesicleViewerProvider
+from pyseg.viewers.viewers_data import Tomo3D4PysegDataViewer
 
-from .protocol_import_starfile import ProtPySegImportSubtomos
-from .protocol_post_rec_particles import ProtPySegPostRecParticles
-from .protocol_graphs import ProtPySegGraphs
-from .protocol_fils import ProtPySegFils
-from .protocol_picking import ProtPySegPicking
-from .protocol_pre_seg import ProtPySegPreSegParticles
-from .protocol_2d_classification import ProtPySegPlaneAlignClassification
+

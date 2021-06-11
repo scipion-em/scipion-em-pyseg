@@ -1,3 +1,30 @@
+# -*- coding: utf-8 -*-
+# **************************************************************************
+# *
+# * Authors:     Scipion Team
+# *
+# * National Center of Biotechnology, CSIC, Spain
+# *
+# * This program is free software; you can redistribute it and/or modify
+# * it under the terms of the GNU General Public License as published by
+# * the Free Software Foundation; either version 2 of the License, or
+# * (at your option) any later version.
+# *
+# * This program is distributed in the hope that it will be useful,
+# * but WITHOUT ANY WARRANTY; without even the implied warranty of
+# * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# * GNU General Public License for more details.
+# *
+# * You should have received a copy of the GNU General Public License
+# * along with this program; if not, write to the Free Software
+# * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
+# * 02111-1307  USA
+# *
+# *  All comments concerning this program package may be sent to the
+# *  e-mail address 'scipion@cnb.csic.es'
+# *
+# **************************************************************************
+
 from pwem.protocols import EMProtocol
 from pyworkflow import BETA
 from pyworkflow.protocol import FloatParam, EnumParam, PointerParam, FileParam, LEVEL_ADVANCED
@@ -7,13 +34,13 @@ from tomo.protocols import ProtTomoBase
 from tomo.protocols.protocol_base import ProtTomoImportAcquisition
 
 from pyseg import Plugin
-from pyseg.constants import GRAPHS_OUT, GRAPHS_SCRIPT, FROM_SCIPION, FROM_STAR_FILE
+from pyseg.constants import GRAPHS_SCRIPT, FROM_SCIPION, FROM_STAR_FILE
 
 
 class ProtPySegGraphs(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
-    """"""
+    """analyze a GraphMCF (Mean Cumulative Function) from a segmented membrane"""
 
-    _label = 'Graphs'
+    _label = 'graphs'
     _devStatus = BETA
 
     # -------------------------- DEFINE param functions ----------------------
@@ -26,28 +53,27 @@ class ProtPySegGraphs(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         form.addSection(label=Message.LABEL_INPUT)
         form.addParam('presegFrom', EnumParam,
                       choices=['Scipion Protocol', 'Star file'],
-                      default=0,
+                      default=FROM_SCIPION,
                       label='Choose preSeg data source',
                       important=True,
                       display=EnumParam.DISPLAY_HLIST)
         form.addParam('inSegProt', PointerParam,
                       pointerClass='ProtPySegPreSegParticles',
                       label='Pre segmentation',
-                      condition='presegFrom == 0',
+                      condition='presegFrom == %s' % FROM_SCIPION,
                       important=True,
                       allowsNull=False,
                       help='Pointer to preseg protocol.')
         form.addParam('inStar', FileParam,
                       label='Seg particles star file',
-                      condition='presegFrom == 1',
+                      condition='presegFrom == %s' % FROM_STAR_FILE,
                       important=True,
                       allowsNull=False,
                       help='Star file obtained in PySeg seg step.')
         form.addParam('pixelSize', FloatParam,
                       label='Pixel size (Å/voxel)',
-                      default=1,
                       important=True,
-                      allowsNull=False,
+                      condition='presegFrom == %s' % FROM_STAR_FILE,
                       help='Input tomograms voxel size (Å/voxel)')
 
         group = form.addGroup('Graphs parameters', expertLevel=LEVEL_ADVANCED)
@@ -81,7 +107,7 @@ class ProtPySegGraphs(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         form.addParallelSection(threads=4, mpi=0)
 
     def _insertAllSteps(self):
-        self._insertFunctionStep('pysegGraphs')
+        self._insertFunctionStep(self.pysegGraphs.__name__)
 
     def pysegGraphs(self):
         # Generate output dir
@@ -93,11 +119,26 @@ class ProtPySegGraphs(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
 
     # --------------------------- INFO functions -----------------------------------
     def _summary(self):
-        pass
+        summaryMsg = []
+        if self.isFinished():
+            summaryMsg.append('Graphs were correctly generated.')
+
+    def _validate(self):
+        validationMsg = []
+        if self.presegFrom.get() == FROM_STAR_FILE:
+            voxelSize = self.pixelSize.get()
+            msg = 'Pixel size must be greater than 0.'
+            if voxelSize:
+                if voxelSize <= 0:
+                    validationMsg.append(msg)
+            else:
+                validationMsg.append(msg)
+
+        return validationMsg
 
     # --------------------------- UTIL functions -----------------------------------
     def _getGraphsCommand(self, outDir):
-        pixSize = self.pixelSize.get()/10
+        pixSize = self._getSamplingRate()/10
         graphsCmd = ' '
         graphsCmd += '%s ' % Plugin.getHome(GRAPHS_SCRIPT)
         graphsCmd += '--inStar %s ' % self._getPreSegStarFile()  # self.inStar.get()
@@ -111,8 +152,13 @@ class ProtPySegGraphs(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         return graphsCmd
 
     def _getPreSegStarFile(self):
-        source = self.presegFrom.get()
-        if source == FROM_SCIPION:
+        if self.presegFrom.get() == FROM_SCIPION:
             return self.inSegProt.get().getPresegOutputFile(self.inSegProt.get().getVesiclesCenteredStarFile())
-        elif source == FROM_STAR_FILE:
+        else:
             return self.inStar.get()
+
+    def _getSamplingRate(self):
+        if self.presegFrom.get() == FROM_SCIPION:
+            return self.inSegProt.get().outputSetofSubTomograms.getSamplingRate()
+        else:
+            return self.pixelSize.get()

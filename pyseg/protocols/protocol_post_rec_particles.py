@@ -1,3 +1,30 @@
+# -*- coding: utf-8 -*-
+# **************************************************************************
+# *
+# * Authors:     Scipion Team
+# *
+# * National Center of Biotechnology, CSIC, Spain
+# *
+# * This program is free software; you can redistribute it and/or modify
+# * it under the terms of the GNU General Public License as published by
+# * the Free Software Foundation; either version 2 of the License, or
+# * (at your option) any later version.
+# *
+# * This program is distributed in the hope that it will be useful,
+# * but WITHOUT ANY WARRANTY; without even the implied warranty of
+# * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# * GNU General Public License for more details.
+# *
+# * You should have received a copy of the GNU General Public License
+# * along with this program; if not, write to the Free Software
+# * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
+# * 02111-1307  USA
+# *
+# *  All comments concerning this program package may be sent to the
+# *  e-mail address 'scipion@cnb.csic.es'
+# *
+# **************************************************************************
+
 from pwem.protocols import EMProtocol, PointerParam
 from pyworkflow import BETA
 from pyworkflow.protocol import String
@@ -12,9 +39,9 @@ from pyseg.convert import readStarFile, RELION_SUBTOMO_STAR
 
 
 class ProtPySegPostRecParticles(EMProtocol, ProtTomoBase):
-    """"""
+    """post-process already reconstructed particles"""
 
-    _label = 'Post-process reconstructed particles'
+    _label = 'posrec'
     _devStatus = BETA
     inStarName = 'input_particles.star'
     warningMsg = None
@@ -43,16 +70,16 @@ class ProtPySegPostRecParticles(EMProtocol, ProtTomoBase):
 
     def _insertAllSteps(self):
         outStar = self._getExtraPath(POST_REC_OUT + '.star')
-        self._insertFunctionStep('convertInputStep')
-        self._insertFunctionStep('pysegPostRec', outStar)
-        self._insertFunctionStep('createOutputStep', outStar)
+        self._insertFunctionStep(self.convertInputStep.__name__)
+        self._insertFunctionStep(self.pysegPostRec.__name__)
+        self._insertFunctionStep(self.createOutputStep.__name__, outStar)
 
     def convertInputStep(self):
         """ Create the input file in STAR format as expected by Relion.
         """
         imgSet = self.inputSubtomos.get()
         imgStar = self._getExtraPath(self.inStarName)
-        writeSetOfSubtomograms(imgSet, imgStar, isPysegPosRec=True)
+        writeSetOfSubtomograms(imgSet, imgStar, isPyseg=True)
 
     def pysegPostRec(self, outStar):
         # Generate output subtomo dir
@@ -64,7 +91,6 @@ class ProtPySegPostRecParticles(EMProtocol, ProtTomoBase):
 
     def createOutputStep(self, outStar):
         # Read generated star file and create the output objects
-        self.subtomoSet = self._createSetOfSubTomograms()
         self.subtomoSet.setSamplingRate(self.inMask.get().getSamplingRate())
         warningMsg = readStarFile(self, self.subtomoSet, RELION_SUBTOMO_STAR, starFile=outStar)
         if warningMsg:

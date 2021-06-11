@@ -1,3 +1,30 @@
+# -*- coding: utf-8 -*-
+# **************************************************************************
+# *
+# * Authors:     Scipion Team
+# *
+# * National Center of Biotechnology, CSIC, Spain
+# *
+# * This program is free software; you can redistribute it and/or modify
+# * it under the terms of the GNU General Public License as published by
+# * the Free Software Foundation; either version 2 of the License, or
+# * (at your option) any later version.
+# *
+# * This program is distributed in the hope that it will be useful,
+# * but WITHOUT ANY WARRANTY; without even the implied warranty of
+# * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# * GNU General Public License for more details.
+# *
+# * You should have received a copy of the GNU General Public License
+# * along with this program; if not, write to the Free Software
+# * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
+# * 02111-1307  USA
+# *
+# *  All comments concerning this program package may be sent to the
+# *  e-mail address 'scipion@cnb.csic.es'
+# *
+# **************************************************************************
+
 from collections import OrderedDict
 from os.path import basename, join, abspath
 import xml.etree.ElementTree as ET
@@ -11,7 +38,7 @@ from tomo.protocols import ProtTomoBase
 from tomo.protocols.protocol_base import ProtTomoImportAcquisition
 
 from pyseg import Plugin
-from pyseg.constants import GRAPHS_OUT, FILS_OUT, FILS_SCRIPT, FILS_SOURCES, FILS_TARGETS, FROM_SCIPION, FROM_STAR_FILE
+from pyseg.constants import FILS_SCRIPT, FILS_SOURCES, FILS_TARGETS, FROM_SCIPION, FROM_STAR_FILE
 
 TH_MODE_IN = 0
 TH_MODE_OUT = 1
@@ -48,9 +75,9 @@ SINU_RANGE_T = 'sinurangeT'
 
 
 class ProtPySegFils(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
-    """"""
+    """filter a MbGraphMCF (Mean Cumulative Function) object by extracting a filament network"""
 
-    _label = 'Fils'
+    _label = 'fils'
     _devStatus = BETA
     _xmlSources = None
     _xmlTargets = None
@@ -65,29 +92,23 @@ class ProtPySegFils(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         form.addSection(label=Message.LABEL_INPUT)
         form.addParam('graphsFrom', EnumParam,
                       choices=['Scipion Protocol', 'Star file'],
-                      default=0,
+                      default=FROM_SCIPION,
                       label='Choose graphs data source',
                       important=True,
                       display=EnumParam.DISPLAY_HLIST)
         form.addParam('inGraphsProt', PointerParam,
                       pointerClass='ProtPySegGraphs',
                       label='Graphs',
-                      condition='graphsFrom == 0',
+                      condition='graphsFrom == %s' % FROM_SCIPION,
                       important=True,
                       allowsNull=False,
                       help='Pointer to graphs protocol.')
         form.addParam('inStar', FileParam,
                       label='Seg particles star file',
-                      condition='graphsFrom == 1',
+                      condition='graphsFrom == %s' % FROM_STAR_FILE,
                       important=True,
                       allowsNull=False,
                       help='Star file obtained in PySeg graphs step.')
-        form.addParam('pixelSize', FloatParam,
-                      label='Pixel size (Å/voxel)',
-                      default=1,
-                      important=True,
-                      allowsNull=False,
-                      help='Input tomograms voxel size (Å/voxel)')
 
         form.addSection(label='Sources')
         self._defineFilsXMLParams(form, self._getXMLSourcesDefaultVals())
@@ -98,7 +119,7 @@ class ProtPySegFils(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         form.addSection(label='Refinement')
         group = form.addGroup('Graph thresholding')
         group.addParam('thMode', EnumParam,
-                       default=0,
+                       default=TH_MODE_IN,
                        choices=['in', 'out'],
                        label='Orientation with respect to the membrane/filament',
                        display=EnumParam.DISPLAY_HLIST)
@@ -188,7 +209,7 @@ class ProtPySegFils(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
                        display=EnumParam.DISPLAY_HLIST)
 
     def _insertAllSteps(self):
-        self._insertFunctionStep('pysegFils')
+        self._insertFunctionStep(self.pysegFils.__name__)
 
     def pysegFils(self):
         # Generate output dir

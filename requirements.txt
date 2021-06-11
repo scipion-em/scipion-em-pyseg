@@ -1,3 +1,4 @@
 scipion-em-tomo
+scipion-em-tomo3D
 scipion-em-relion
 scipion-em-reliontomo

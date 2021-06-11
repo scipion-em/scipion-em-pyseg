@@ -3,7 +3,7 @@ from os.path import join, abspath, exists
 from pyworkflow.tests import BaseTest, setupTestProject, DataSet
 from pyworkflow.utils import magentaStr
 from relion.convert import Table
-from pyseg.constants import TOMOGRAM, VESICLE, PYSEG_LABEL, MASK
+from pyseg.constants import TOMOGRAM, VESICLE, PYSEG_LABEL, MASK, FROM_STAR_FILE, FROM_SCIPION
 from pyseg.protocols import *
 
 
@@ -44,6 +44,7 @@ class TestFromPresegToPicking(BaseTest):
         self._genPreSegStar()
         protPreseg = self.newProtocol(
             ProtPySegPreSegParticles,
+            segmentationFrom=FROM_STAR_FILE,
             inStar=self.preSegStar,
             spOffVoxels=30,
             sgVoxelSize=self.samplingRate,
@@ -64,17 +65,32 @@ class TestFromPresegToPicking(BaseTest):
             self.assertTrue(exists(protPreseg._getExtraPath('segs', outputVesiclesPattern % i)))
             self.assertTrue(exists(protPreseg._getExtraPath('segs', outputVesiclesSegPattern % i)))
 
+        # Check the generated outputs
+        nTomograms = 1
+        nVesicles = 3
+        vesiclesSize = (470, 454, 256)
+        tomogramSize = (1024, 1440, 300)
+        setOfVesiclesTomomasks = getattr(protPreseg, 'outputSetofTomoMasks', None)
+        setOfVesiclesSubtomograms = getattr(protPreseg, 'outputSetofSubTomograms', None)
+        setOfTomograms = getattr(protPreseg, 'outputSetofTomograms', None)
+        self.assertSetSize(setOfVesiclesTomomasks, nVesicles)
+        self.assertSetSize(setOfVesiclesSubtomograms, nVesicles)
+        self.assertSetSize(setOfTomograms, nTomograms)
+        self.assertEqual(setOfVesiclesTomomasks.getSamplingRate(), self.samplingRate)
+        self.assertEqual(setOfVesiclesSubtomograms.getSamplingRate(), self.samplingRate)
+        self.assertEqual(setOfTomograms.getSamplingRate(), self.samplingRate)
+        self.assertEqual(setOfVesiclesTomomasks.getDimensions(), vesiclesSize)
+        self.assertEqual(setOfVesiclesSubtomograms.getDimensions(), vesiclesSize)
+        self.assertEqual(setOfTomograms.getDimensions(), tomogramSize)
+
         return protPreseg
 
     def _runGraphs(self, presegProt):
         print(magentaStr("\n==> Running graphs:"))
         protGraphs = self.newProtocol(
             ProtPySegGraphs,
+            presegFrom=FROM_SCIPION,
             inSegProt=presegProt,
-            importFrom=3,  # Dynamo
-            filesPath=self.ds.getPath(),
-            filesPattern='*.tbl',
-            pixelSize=self.samplingRate,
         )
 
         protGraphs.setObjLabel('Graphs')
@@ -91,8 +107,8 @@ class TestFromPresegToPicking(BaseTest):
         print(magentaStr("\n==> Running fils:"))
         protFils = self.newProtocol(
             ProtPySegFils,
+            graphsFrom=FROM_SCIPION,
             inGraphsProt=graphsProt,
-            pixelSize=self.samplingRate,
             segLabelS=3,  # From out of the membrane (labelled as 3 for this data)
             segLabelT=2,  # To inside the vesicle (labelled as 2 for this data)
             gRgEud='1 30',
@@ -122,13 +138,16 @@ class TestFromPresegToPicking(BaseTest):
 
         return protFils
 
-    def _runPicking(self, filsProt):
+    def _runPicking(self, filsProt, inTomoSet):
         print(magentaStr("\n==> Running picking:"))
+        bSize = 30
         protPicking = self.newProtocol(
             ProtPySegPicking,
             inFilsProt=filsProt,
-            pixelSize=self.samplingRate,
+            inTomoSet=inTomoSet,
+            filsFrom=FROM_SCIPION,
             side=3,  # Pick out of the membrane, labelled as 3 for this data
+            boxSize=bSize
         )
 
         protPicking.setObjLabel('Picking')
@@ -154,6 +173,7 @@ class TestFromPresegToPicking(BaseTest):
 
         # Output coordinates must have an attribute named _pysegMembrane, which stores the corresponding
         # membrane file
+        self.assertEqual(outputCoordinates.getBoxSize(), bSize)
         for coord3d in outputCoordinates:
             self.assertTrue(exists(coord3d._pysegMembrane.get()))
         # Validate precedents
@@ -170,7 +190,7 @@ class TestFromPresegToPicking(BaseTest):
         protPreseg = self._runPreseg()
         protGraphs = self._runGraphs(protPreseg)
         protFils = self._runFils(protGraphs)
-        self._runPicking(protFils)
+        self._runPicking(protFils, protPreseg.outputSetofTomograms)
         # Remove generated star file
         if exists(self.preSegStar):
             remove(self.preSegStar)
