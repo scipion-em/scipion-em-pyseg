@@ -9,13 +9,15 @@ from pyseg.protocols import *
 
 class TestFromPresegToPicking(BaseTest):
     """ """
-    ds = DataSet.getDataSet('pyseg')
-    preSegStar = join(ds.getPath(), 'preseg.star')
+    ds = None
+    preSegStar = None
     samplingRate = 6.87
 
     @classmethod
     def setUpClass(cls):
         setupTestProject(cls)
+        cls.ds = DataSet.getDataSet('pyseg')
+        cls.preSegStar = join(cls.ds.getPath(), 'preseg.star')
 
     def _genPreSegStar(self):
         """Required because pyseg's preseg requires the absolute paths contained
