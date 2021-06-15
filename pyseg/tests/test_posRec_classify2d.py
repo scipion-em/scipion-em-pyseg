@@ -10,7 +10,7 @@ from pyseg.protocols.protocol_2d_classification import AFFINITY_PROP, CC_WITHIN_
 
 class TestPostRecAndClassify2d(BaseTest):
     """ """
-    ds = DataSet.getDataSet('pyseg')
+    ds = None
     samplingRate = 6.87
     boxSize = 88
     nSubtomos = 50
@@ -19,6 +19,7 @@ class TestPostRecAndClassify2d(BaseTest):
     @classmethod
     def setUpClass(cls):
         setupTestProject(cls)
+        cls.ds = DataSet.getDataSet('pyseg')
 
     def _importMask(self):
         print(magentaStr("\n==> Importing the mask:"))
