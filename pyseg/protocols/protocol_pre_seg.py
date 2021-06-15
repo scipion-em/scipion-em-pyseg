@@ -296,8 +296,10 @@ class ProtPySegPreSegParticles(EMProtocol):
     def _genOutputSetOfTomoMasks(self):
         tomogramSet = []
         tomoFileList = self._getTomogramsFromStar()
-        tomoMaskList = sorted(glob.glob(self._getExtraPath('segs', '*_seg.mrc')))
-        vesicleSubtomoList = [tomoMask.replace('_seg.mrc', '.mrc') for tomoMask in tomoMaskList]
+        suffix = '_mb'
+        MRC = '.mrc'
+        tomoMaskList = sorted(glob.glob(self._getExtraPath('segs', '*' + suffix + MRC)))  # '*_seg.mrc')))
+        vesicleSubtomoList = [tomoMask.replace(suffix + MRC, MRC) for tomoMask in tomoMaskList]
         tomoMaskSet = SetOfTomoMasks.create(self._getPath(), template='tomomasks%s.sqlite', suffix='segVesicles')
         subTomoSet = SetOfSubTomograms.create(self._getPath(), template='subtomograms%s.sqlite', suffix='vesicles')
         sRate = self._getSamplingRate()
