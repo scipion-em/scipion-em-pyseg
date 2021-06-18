@@ -51,30 +51,12 @@ class ProtPySegGraphs(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         """
         # You need a params to belong to a section:
         form.addSection(label=Message.LABEL_INPUT)
-        form.addParam('presegFrom', EnumParam,
-                      choices=['Scipion Protocol', 'Star file'],
-                      default=FROM_SCIPION,
-                      label='Choose preSeg data source',
-                      important=True,
-                      display=EnumParam.DISPLAY_HLIST)
         form.addParam('inSegProt', PointerParam,
                       pointerClass='ProtPySegPreSegParticles',
                       label='Pre segmentation',
-                      condition='presegFrom == %s' % FROM_SCIPION,
                       important=True,
                       allowsNull=False,
                       help='Pointer to preseg protocol.')
-        form.addParam('inStar', FileParam,
-                      label='Seg particles star file',
-                      condition='presegFrom == %s' % FROM_STAR_FILE,
-                      important=True,
-                      allowsNull=False,
-                      help='Star file obtained in PySeg seg step.')
-        form.addParam('pixelSize', FloatParam,
-                      label='Pixel size (Å/voxel)',
-                      important=True,
-                      condition='presegFrom == %s' % FROM_STAR_FILE,
-                      help='Input tomograms voxel size (Å/voxel)')
 
         group = form.addGroup('Graphs parameters', expertLevel=LEVEL_ADVANCED)
         group.addParam('sSig', FloatParam,
@@ -123,19 +105,6 @@ class ProtPySegGraphs(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         if self.isFinished():
             summaryMsg.append('Graphs were correctly generated.')
 
-    def _validate(self):
-        validationMsg = []
-        if self.presegFrom.get() == FROM_STAR_FILE:
-            voxelSize = self.pixelSize.get()
-            msg = 'Pixel size must be greater than 0.'
-            if voxelSize:
-                if voxelSize <= 0:
-                    validationMsg.append(msg)
-            else:
-                validationMsg.append(msg)
-
-        return validationMsg
-
     # --------------------------- UTIL functions -----------------------------------
     def _getGraphsCommand(self, outDir):
         pixSize = self._getSamplingRate()/10
@@ -152,13 +121,7 @@ class ProtPySegGraphs(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         return graphsCmd
 
     def _getPreSegStarFile(self):
-        if self.presegFrom.get() == FROM_SCIPION:
-            return self.inSegProt.get().getPresegOutputFile(self.inSegProt.get().getVesiclesCenteredStarFile())
-        else:
-            return self.inStar.get()
+        return self.inSegProt.get().getPresegOutputFile(self.inSegProt.get().getVesiclesCenteredStarFile())
 
     def _getSamplingRate(self):
-        if self.presegFrom.get() == FROM_SCIPION:
-            return self.inSegProt.get().outputSetofSubTomograms.getSamplingRate()
-        else:
-            return self.pixelSize.get()
+        return self.inSegProt.get().outputSetofSubTomograms.getSamplingRate()

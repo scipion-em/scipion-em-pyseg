@@ -294,11 +294,15 @@ class ProtPySegPreSegParticles(EMProtocol):
         return tomoFileList
 
     def _genOutputSetOfTomoMasks(self):
+        # TODO: check why sometimes the suffix is _mb and sometimes it is _seg
         tomogramSet = []
         tomoFileList = self._getTomogramsFromStar()
-        suffix = '_mb'
+        suffix = '_seg'
         MRC = '.mrc'
-        tomoMaskList = sorted(glob.glob(self._getExtraPath('segs', '*' + suffix + MRC)))  # '*_seg.mrc')))
+        tomoMaskList = sorted(glob.glob(self._getExtraPath('segs', '*' + suffix + MRC)))
+        if not tomoMaskList:
+            suffix = '_mb'
+            tomoMaskList = sorted(glob.glob(self._getExtraPath('segs', '*' + suffix + MRC)))
         vesicleSubtomoList = [tomoMask.replace(suffix + MRC, MRC) for tomoMask in tomoMaskList]
         tomoMaskSet = SetOfTomoMasks.create(self._getPath(), template='tomomasks%s.sqlite', suffix='segVesicles')
         subTomoSet = SetOfSubTomograms.create(self._getPath(), template='subtomograms%s.sqlite', suffix='vesicles')

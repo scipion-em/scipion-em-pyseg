@@ -130,25 +130,28 @@ def _relionTomoStar2Subtomograms(prot, outputSubTomogramsSet, tomoTable, starPat
             subtomoAbsFn = prot._getExtraPath(subtomoAbsFn)
         if not isabs(subtomoAbsFn):
             subtomoAbsFn = abspath(subtomoAbsFn)
+
+        subtomo.setVolName(volname)
+        subtomo.setTransform(transform)
+        subtomo.setAcquisition(TomoAcquisition())
+        subtomo.setClassId(row.get('rlnClassNumber', 0))
+        subtomo.setSamplingRate(samplingRate)
+        subtomo.setCoordinate3D(coordinate3d)  # Needed to get later the tomogram pointer via getCoordinate3D()
+
         x = row.get(COORD_X, 0)
         y = row.get(COORD_Y, 0)
         z = row.get(COORD_Z, 0)
         tiltPrior = row.get(TILT_PRIOR, 0)
         psiPrior = row.get(PSI_PRIOR, 0)
         ctf3d = row.get(CTF_MISSING_WEDGE, FILE_NOT_FOUND)
+        coordinate3d = subtomo.getCoordinate3D()
         coordinate3d.setX(float(x), BOTTOM_LEFT_CORNER)
         coordinate3d.setY(float(y), BOTTOM_LEFT_CORNER)
         coordinate3d.setZ(float(z), BOTTOM_LEFT_CORNER)
         coordinate3d._3dcftMrcFile = String(join(starPath, ctf3d))  # Used for the ctf3d generation in Relion
         M = _getTransformMatrix(row, invert)
         transform.setMatrix(M)
-
-        subtomo.setVolName(volname)
         subtomo.setCoordinate3D(coordinate3d)
-        subtomo.setTransform(transform)
-        subtomo.setAcquisition(TomoAcquisition())
-        subtomo.setClassId(row.get('rlnClassNumber', 0))
-        subtomo.setSamplingRate(samplingRate)
         subtomo._tiltPriorAngle = Float(tiltPrior)
         subtomo._psiPriorAngle = Float(psiPrior)
 

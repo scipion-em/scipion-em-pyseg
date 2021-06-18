@@ -31,6 +31,7 @@ from pyworkflow.protocol import String
 from pyworkflow.utils import Message, makePath
 from reliontomo.convert import writeSetOfSubtomograms
 from scipion.constants import PYTHON
+from tomo.objects import SetOfSubTomograms
 from tomo.protocols import ProtTomoBase
 
 from pyseg import Plugin
@@ -70,9 +71,9 @@ class ProtPySegPostRecParticles(EMProtocol, ProtTomoBase):
 
     def _insertAllSteps(self):
         outStar = self._getExtraPath(POST_REC_OUT + '.star')
-        self._insertFunctionStep(self.convertInputStep.__name__)
-        self._insertFunctionStep(self.pysegPostRec.__name__)
-        self._insertFunctionStep(self.createOutputStep.__name__, outStar)
+        self._insertFunctionStep(self.convertInputStep)
+        self._insertFunctionStep(self.pysegPostRec, outStar)
+        self._insertFunctionStep(self.createOutputStep, outStar)
 
     def convertInputStep(self):
         """ Create the input file in STAR format as expected by Relion.
@@ -87,11 +88,12 @@ class ProtPySegPostRecParticles(EMProtocol, ProtTomoBase):
         makePath(outDir)
 
         # Script called
-        Plugin.runPySeg(self, PYTHON, self. _getCommand(outDir, outStar))
+        Plugin.runPySeg(self, PYTHON, self._getCommand(outDir, outStar))
 
     def createOutputStep(self, outStar):
+        self.subtomoSet = SetOfSubTomograms.create(self._getPath(), template='setOfSubTomograms%s.sqlite')
+        self.subtomoSet.copyInfo(self.inputSubtomos.get())
         # Read generated star file and create the output objects
-        self.subtomoSet.setSamplingRate(self.inMask.get().getSamplingRate())
         warningMsg = readStarFile(self, self.subtomoSet, RELION_SUBTOMO_STAR, starFile=outStar)
         if warningMsg:
             self.warningMsg = String(warningMsg)

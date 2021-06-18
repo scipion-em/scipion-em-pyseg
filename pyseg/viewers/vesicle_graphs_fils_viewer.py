@@ -64,5 +64,6 @@ class VesicleViewerDialog(ToolbarListDialog):
             args['net_file'] = glob.glob(self.prot._getExtraPath(vesicleBaseName + '*_net.vtp'))[0]
         elif self.source == FROM_PICKING:
             args['peaks_file'] = glob.glob(self.prot._getExtraPath(vesicleBaseName + '*_peak.vtp'))[0]
+            args['surf_file'] = glob.glob(self.prot._getExtraPath(vesicleBaseName + '*_surf.vtp'))[0]
 
         guiThread(VtkPlot, 'initializePlot', **args)

@@ -90,25 +90,12 @@ class ProtPySegFils(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         """
         # You need a params to belong to a section:
         form.addSection(label=Message.LABEL_INPUT)
-        form.addParam('graphsFrom', EnumParam,
-                      choices=['Scipion Protocol', 'Star file'],
-                      default=FROM_SCIPION,
-                      label='Choose graphs data source',
-                      important=True,
-                      display=EnumParam.DISPLAY_HLIST)
         form.addParam('inGraphsProt', PointerParam,
                       pointerClass='ProtPySegGraphs',
                       label='Graphs',
-                      condition='graphsFrom == %s' % FROM_SCIPION,
                       important=True,
                       allowsNull=False,
                       help='Pointer to graphs protocol.')
-        form.addParam('inStar', FileParam,
-                      label='Seg particles star file',
-                      condition='graphsFrom == %s' % FROM_STAR_FILE,
-                      important=True,
-                      allowsNull=False,
-                      help='Star file obtained in PySeg graphs step.')
 
         form.addSection(label='Sources')
         self._defineFilsXMLParams(form, self._getXMLSourcesDefaultVals())
@@ -243,12 +230,8 @@ class ProtPySegFils(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         return filsCmd
 
     def _getGraphsStarFile(self):
-        source = self.graphsFrom.get()
-        if source == FROM_SCIPION:
-            prot = self.inGraphsProt.get()
-            return prot._getExtraPath(removeBaseExt(prot._getPreSegStarFile()) + '_mb_graph.star')
-        elif source == FROM_STAR_FILE:
-            return self.inStar.get()
+        prot = self.inGraphsProt.get()
+        return prot._getExtraPath(removeBaseExt(prot._getPreSegStarFile()) + '_mb_graph.star')
 
     def _parseThModeSelection(self):
         if self.thMode.get() == TH_MODE_IN:

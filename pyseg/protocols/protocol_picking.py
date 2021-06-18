@@ -73,36 +73,18 @@ class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         """
         # You need a params to belong to a section:
         form.addSection(label=Message.LABEL_INPUT)
-        form.addParam('filsFrom', EnumParam,
-                      choices=['Scipion Protocol', 'Star file'],
-                      default=FROM_SCIPION,
-                      label='Choose graphs data source',
-                      important=True,
-                      display=EnumParam.DISPLAY_HLIST)
         form.addParam('inFilsProt', PointerParam,
                       pointerClass='ProtPySegFils',
                       label='Pre segmentation',
-                      condition='filsFrom == %s' % FROM_SCIPION,
                       important=True,
                       allowsNull=False,
                       help='Pointer to fils protocol.')
-        form.addParam('inStar', FileParam,
-                      label='Seg particles star file',
-                      condition='filsFrom == %s' % FROM_STAR_FILE,
-                      important=True,
-                      allowsNull=False,
-                      help='Star file obtained in PySeg seg step.')
         form.addParam('inTomoSet', PointerParam,
                       pointerClass='SetOfTomograms',
                       label='Tomograms',
-                      condition='filsFrom == %s' % FROM_SCIPION,
                       important=True,
                       allowsNull=False,
                       help='Tomograms used for the graphs and filaments calculation.')
-        form.addParam('pixelSize', FloatParam,
-                      label='Pixel size (Å/voxel)',
-                      condition='filsFrom == %s' % FROM_STAR_FILE,
-                      help='Input tomograms voxel size (Å/voxel)')
         form.addParam('boxSize', IntParam,
                       label='Box size (pixels)',
                       default=20,
@@ -148,7 +130,6 @@ class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         return d
 
     def _insertAllSteps(self):
-        self._initialize()
         self._insertFunctionStep(self.pysegPicking.__name__)
         self._insertFunctionStep(self.createOutputStep.__name__)
 
@@ -165,7 +146,7 @@ class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
 
     def createOutputStep(self):
         suffix = self._getOutputSuffix(SetOfCoordinates3D)
-        coordsSet = self._createSetOfCoordinates3D(self.tomoSet, suffix)
+        coordsSet = self._createSetOfCoordinates3D(self.inTomoSet.get(), suffix)
         coordsSet.setSamplingRate(self._getSamplingRate())
         coordsSet.setBoxSize(self.boxSize.get())
         readStarFile(self, coordsSet, PYSEG_PICKING_STAR,
@@ -174,29 +155,12 @@ class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         self._defineOutputs(outputCoordinates=coordsSet)
 
     # --------------------------- INFO functions -----------------------------------
-    def _validate(self):
-        validationMsg = []
-        if self.filsFrom.get() == FROM_STAR_FILE:
-            voxelSize = self.pixelSize.get()
-            msg = 'Pixel size must be greater than 0.'
-            if voxelSize:
-                if voxelSize <= 0:
-                    validationMsg.append(msg)
-            else:
-                validationMsg.append(msg)
-
-        return validationMsg
 
     # --------------------------- UTIL functions -----------------------------------
     def _getFilsStarFileName(self):
-        source = self.filsFrom.get()
-        if source == FROM_SCIPION:
-            prot = self.inFilsProt.get()
-            return prot._getExtraPath('fil_' + removeBaseExt(FILS_SOURCES)
-                                      + '_to_' + removeBaseExt(FILS_TARGETS) + '_net.star')
-
-        elif source == FROM_STAR_FILE:
-            return self.inStar.get()
+        prot = self.inFilsProt.get()
+        return prot._getExtraPath('fil_' + removeBaseExt(FILS_SOURCES)
+                                  + '_to_' + removeBaseExt(FILS_TARGETS) + '_net.star')
 
     def _getPickingStarFileName(self):
         filsStar = self._getExtraPath('fil_' + removeBaseExt(FILS_SOURCES)
@@ -234,15 +198,6 @@ class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
     def _decodeContValue(val):
         """Decode the cont values and represent them as expected by pySeg"""
         return '+' if val == CUTTING_POINT else '-'
-
-    def _initialize(self):
-        if self.filsFrom.get() == FROM_SCIPION:
-            self.tomoSet = self.inTomoSet.get()
-        else:
-            tomoSet = SetOfTomograms()
-            tomoSet.setSamplingRate(self._getSamplingRate())
-            self.tomoSet = tomoSet
-            getTomoSetFromStar(self, self._getPickingStarFileName())
 
     def _getSamplingRate(self):
         if self.filsFrom.get() == FROM_SCIPION:
