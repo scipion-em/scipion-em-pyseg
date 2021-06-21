@@ -104,8 +104,6 @@ class TestPostRecAndClassify2d(BaseTest):
             clusteringAlg=AFFINITY_PROP,
             filterSize=3,
             ccMetric=CC_WITHIN_MASK,
-            apPartSizeFilter=self.minNumberOfParticles,
-            apCCRefFilter=0.4
         )
         self._runClProtAndCheckResults(protPosrec, protCl2d, outClasses, clustersPostProcessed=True)
 
