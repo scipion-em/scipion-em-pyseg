@@ -145,6 +145,7 @@ class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         Plugin.runPySeg(self, PYTHON, self._getPickingCommand(outDir))
 
     def createOutputStep(self):
+        self.tomoSet = self.inTomoSet.get()  # Required for the convert
         suffix = self._getOutputSuffix(SetOfCoordinates3D)
         coordsSet = self._createSetOfCoordinates3D(self.inTomoSet.get(), suffix)
         coordsSet.setSamplingRate(self._getSamplingRate())
