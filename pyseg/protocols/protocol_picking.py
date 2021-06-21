@@ -200,7 +200,4 @@ class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         return '+' if val == CUTTING_POINT else '-'
 
     def _getSamplingRate(self):
-        if self.filsFrom.get() == FROM_SCIPION:
-            return self.inTomoSet.get().getFirstItem().getSamplingRate()
-        else:
-            return self.pixelSize.get()
+        return self.inTomoSet.get().getFirstItem().getSamplingRate()
