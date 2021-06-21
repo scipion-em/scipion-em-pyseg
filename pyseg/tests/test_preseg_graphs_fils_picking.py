@@ -9,12 +9,12 @@ from pyseg.protocols import *
 
 class TestFromPresegToPicking(BaseTest):
     """ """
-    ds = DataSet.getDataSet('pyseg')
     preSegStar = join(ds.getPath(), 'preseg.star')
     samplingRate = 6.87
 
     @classmethod
     def setUpClass(cls):
+        cls.ds = DataSet.getDataSet('pyseg')
         setupTestProject(cls)
 
     def _genPreSegStar(self):
