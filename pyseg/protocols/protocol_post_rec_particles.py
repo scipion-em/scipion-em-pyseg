@@ -40,7 +40,7 @@ from pyseg.convert import readStarFile, RELION_SUBTOMO_STAR
 
 
 class ProtPySegPostRecParticles(EMProtocol, ProtTomoBase):
-    """post-process already reconstructed particles"""
+    """post-process already reconstructed particles: rot angle randomization and membrane suppression"""
 
     _label = 'posrec'
     _devStatus = BETA
