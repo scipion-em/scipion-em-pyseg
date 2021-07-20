@@ -52,7 +52,8 @@ FILS_SOURCES = join(FILS_XML_FILES_PATH, 'mb_sources.xml')
 FILS_TARGETS = join(FILS_XML_FILES_PATH, 'no_mb_targets.xml')
 PICKING_SCRIPT = join(EXP_SOMB, 'mbo_picking.py')
 PICKING_SLICES = join(DATA_TUTORIALS, 'exp_somb', 'mb_ext.xml')
-POST_REC_SCRIPT = join(SYNTH_SUMB, 'rln', 'post_rec_particles.py')
+POST_REC_SCRIPT_ANGLE_RND = join(SYNTH_SUMB, 'rln', 'post_rec_particles.py')  # Angle randomization only
+POST_REC_SCRIPT_MEMB_ATT = join(EXP_SOMB, 'post_rec_particles.py')  # Angle randomization and membrane attenuation
 PLANE_ALIGN_CLASS_SCRIPT = join(SYNTH_SUMB, 'class', 'plane_align_class.py')
 
 # Generated data

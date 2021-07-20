@@ -32,7 +32,7 @@ import pwem.convert.transformations as tfs
 from os.path import join
 
 from pyworkflow.object import List, Float
-from pyworkflow.utils import createAbsLink
+from pyworkflow.utils import createAbsLink, removeBaseExt
 from relion.convert import Table
 from reliontomo.convert.convert30_tomo import TOMO_NAME, SUBTOMO_NAME, COORD_X, COORD_Y, COORD_Z, ROT, TILT, PSI, \
     RELION_TOMO_LABELS, TILT_PRIOR, PSI_PRIOR, CTF_MISSING_WEDGE, SHIFTX, SHIFTY, SHIFTZ
@@ -257,7 +257,19 @@ def _pysegStar2Coords3D(prot, output3DCoordSet, tomoTable, invert):
                 coordinate3d.setY(float(y), BOTTOM_LEFT_CORNER)
                 coordinate3d.setZ(float(z), BOTTOM_LEFT_CORNER)
                 coordinate3d.setMatrix(M)
-                coordinate3d._pysegMembrane = String(row.get(SUBTOMO_NAME, FILE_NOT_FOUND))
+                coordinate3d.setGroupId(_getVesicleIdFromSubtomoName(row.get(SUBTOMO_NAME, FILE_NOT_FOUND)))
 
                 # Add current subtomogram to the output set
                 output3DCoordSet.append(coordinate3d)
+
+
+def _getVesicleIdFromSubtomoName(subtomoName):
+    """PySeg adds the vesicle index to the name of the subtomogram, with a suffix of type
+    _tid_[VesicleNumber].mrc. Example: Pertuzumab_1_defocus_25um_tomo_7_aliSIRT_EED_tid_0.mrc.
+    This function returns that vesicle number for a given """
+    pattern = '_tid_'
+    baseName = removeBaseExt(subtomoName)
+    pos = baseName.find(pattern)
+    # regexPattern = re.compile('^_tid_[0-9]{1, 3}')
+    # res = regexPattern.match(baseName)
+    return baseName[pos + len(pattern)::]

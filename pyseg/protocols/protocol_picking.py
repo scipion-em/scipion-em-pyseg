@@ -130,8 +130,8 @@ class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         return d
 
     def _insertAllSteps(self):
-        self._insertFunctionStep(self.pysegPicking.__name__)
-        self._insertFunctionStep(self.createOutputStep.__name__)
+        self._insertFunctionStep(self.pysegPicking)
+        self._insertFunctionStep(self.createOutputStep)
 
     def pysegPicking(self):
         # Generate output dir
