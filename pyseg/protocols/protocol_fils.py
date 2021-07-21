@@ -196,7 +196,7 @@ class ProtPySegFils(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
                        display=EnumParam.DISPLAY_HLIST)
 
     def _insertAllSteps(self):
-        self._insertFunctionStep(self.pysegFils.__name__)
+        self._insertFunctionStep(self.pysegFils)
 
     def pysegFils(self):
         # Generate output dir

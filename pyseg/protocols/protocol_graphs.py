@@ -89,7 +89,7 @@ class ProtPySegGraphs(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         form.addParallelSection(threads=4, mpi=0)
 
     def _insertAllSteps(self):
-        self._insertFunctionStep(self.pysegGraphs.__name__)
+        self._insertFunctionStep(self.pysegGraphs)
 
     def pysegGraphs(self):
         # Generate output dir

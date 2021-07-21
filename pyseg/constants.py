@@ -37,6 +37,8 @@ PYSEG_ENV_NAME = 'pySeg-%s' % DEFAULT_VERSION
 PYSEG_ENV_ACTIVATION = 'PYSEG_ENV_ACTIVATION'
 DEFAULT_ACTIVATION_CMD = 'conda activate %s' % PYSEG_ENV_NAME
 
+SEE_METHODS_TAB = '\n\n(*) Algorithm parameter information can be checked out in methods tab'
+
 # Required files location in pyseg-system
 PYSEG_SYSTEM_MAIN = 'pyseg_system-%s' % DEFAULT_VERSION
 DATA_TUTORIALS = join(PYSEG_SYSTEM_MAIN, 'data', 'tutorials')
