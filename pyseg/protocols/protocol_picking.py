@@ -31,7 +31,7 @@ import xml.etree.ElementTree as ET
 
 from pwem.protocols import EMProtocol
 from pyworkflow import BETA
-from pyworkflow.protocol import FloatParam, EnumParam, PointerParam, IntParam, FileParam
+from pyworkflow.protocol import FloatParam, EnumParam, PointerParam, IntParam, FileParam, LEVEL_ADVANCED
 from pyworkflow.utils import Message, makePath, removeBaseExt, copyFile
 from scipion.constants import PYTHON
 from tomo.objects import SetOfCoordinates3D, SetOfTomograms
@@ -91,7 +91,8 @@ class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
                       label='Box size (pixels)',
                       default=20,
                       important=True,
-                      allowsNull=False)
+                      allowsNull=False,
+                      expertLevel=LEVEL_ADVANCED,)
 
         form.addSection(label='Picking')
         self._defineFilsXMLParams(form, self._getSlicesXMLDefaultVals())

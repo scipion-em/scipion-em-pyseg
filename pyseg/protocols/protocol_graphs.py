@@ -79,7 +79,7 @@ class ProtPySegGraphs(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
                        default=0.0035,
                        allowsNull=False,
                        expertLevel=LEVEL_ADVANCED,
-                       help='Vertex density within membranes. It allows to adjust simplifcation '
+                       help='Vertex density within membranes. It allows to adjust simplification '
                             'adaptively for every tomogram.')
         group.addParam('vRatio', FloatParam,
                        label='Avg ratio vertex/edge of graph within membrane',
