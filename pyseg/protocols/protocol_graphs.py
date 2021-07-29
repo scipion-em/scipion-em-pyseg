@@ -24,10 +24,12 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
+import shutil
+from glob import glob
 
 from pwem.protocols import EMProtocol
 from pyworkflow import BETA
-from pyworkflow.protocol import FloatParam, EnumParam, PointerParam, FileParam, LEVEL_ADVANCED
+from pyworkflow.protocol import FloatParam, PointerParam, LEVEL_ADVANCED, BooleanParam
 from pyworkflow.utils import Message, makePath
 from scipion.constants import PYTHON
 from tomo.protocols import ProtTomoBase
@@ -57,6 +59,12 @@ class ProtPySegGraphs(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
                       important=True,
                       allowsNull=False,
                       help='Pointer to preseg protocol.')
+        form.addParam('keepOnlyreqFiles', BooleanParam,
+                      label='Keep only required files?',
+                      default=True,
+                      expertLevel=LEVEL_ADVANCED,
+                      help='If set to No, all the intermediate Disperse program resulting directories '
+                           'will be kept in the extra folder.')
 
         group = form.addGroup('Graphs parameters', expertLevel=LEVEL_ADVANCED)
         group.addParam('sSig', FloatParam,
@@ -98,6 +106,11 @@ class ProtPySegGraphs(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
 
         # Script called
         Plugin.runPySeg(self, PYTHON, self._getGraphsCommand(outDir))
+
+        # Remove Disperse program intermediate result directories if requested
+        if self.keepOnlyreqFiles.get():
+            disperseDirs = glob(self._getExtraPath('disperse_*'))
+            [shutil.rmtree(disperseDir) for disperseDir in disperseDirs]
 
     # --------------------------- INFO functions -----------------------------------
     def _summary(self):

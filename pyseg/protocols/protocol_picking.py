@@ -39,10 +39,12 @@ from tomo.protocols import ProtTomoBase
 from tomo.protocols.protocol_base import ProtTomoImportAcquisition
 
 from pyseg import Plugin
-from pyseg.constants import FILS_SOURCES, FILS_TARGETS, PICKING_SCRIPT, PICKING_SLICES, FROM_SCIPION, FROM_STAR_FILE
-from pyseg.convert import readStarFile, PYSEG_PICKING_STAR, getTomoSetFromStar
+from pyseg.constants import FILS_SOURCES, FILS_TARGETS, PICKING_SCRIPT, PICKING_SLICES, PRESEG_AREAS_LIST, MEMBRANE
+from pyseg.convert import readStarFile, PYSEG_PICKING_STAR
 
 # Fils slices xml fields
+from pyseg.utils import encodePresegArea
+
 SIDE = 'side'
 CONT = 'cont'
 
@@ -111,10 +113,13 @@ class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         """d is a disctionary with the default values"""
         paramList = list(d.keys())
         valList = list(d.values())
-        form.addParam(paramList[0], IntParam,
-                      label='Segmentation index area for picking',
+        form.addParam(paramList[0], EnumParam,
+                      label='Segmentation area for picking',
+                      choices=PRESEG_AREAS_LIST,
                       default=valList[0],
-                      allowsNull=False)
+                      allowsNull=False,
+                      help='Area in which the cutting point or cutting point + projections of the '
+                           'filament will be considered for the picking coordinates.')
         form.addParam(paramList[1], EnumParam,
                       choices=['Cutting point', 'Cutting point + projections'],
                       default=0,
@@ -125,7 +130,7 @@ class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
     @staticmethod
     def _getSlicesXMLDefaultVals():
         d = OrderedDict()
-        d[SIDE] = 1
+        d[SIDE] = MEMBRANE
         d[CONT] = CUTTING_POINT
         return d
 
@@ -156,6 +161,15 @@ class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         self._defineOutputs(outputCoordinates=coordsSet)
 
     # --------------------------- INFO functions -----------------------------------
+    def _summary(self):
+        """ Summarize what the protocol has done"""
+        summary = []
+        if self.isFinished():
+            outputCoords = getattr(self, 'outputCoordinates', None)
+            summary.append('*Picking*:\n\t- Picking area = %s\n\t- Particles picked = %i\n' %
+                           (PRESEG_AREAS_LIST[int(self.side.get())], outputCoords.getSize()))
+
+        return summary
 
     # --------------------------- UTIL functions -----------------------------------
     def _getFilsStarFileName(self):
@@ -189,7 +203,7 @@ class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         rootElement = xmlTree.getroot()
         mb_slice = rootElement.findall("mb_slice")
         mb_slice = mb_slice[0]
-        mb_slice.find(SIDE).text = str(getattr(self, SIDE).get())
+        mb_slice.find(SIDE).text = str(encodePresegArea(getattr(self, SIDE).get()))
         mb_slice.find(CONT).text = self._decodeContValue(getattr(self, CONT).get())
 
         # Write the modified xml file.

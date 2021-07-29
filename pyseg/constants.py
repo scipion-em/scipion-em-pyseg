@@ -69,9 +69,15 @@ PLANE_ALIGN_CLASS_OUT = 'plane_align_classification'
 CFITSIO = 'cfitsio'
 DISPERSE = 'disperse'
 
-# Dataata source codification
+# Data source codification
 FROM_SCIPION = 0
 FROM_STAR_FILE = 1
+
+# Preseg areas codification
+MEMBRANE = 0
+MEMBRANE_INNER_SURROUNDINGS = 1
+MEMBRANE_OUTER_SURROUNDINGS = 2
+PRESEG_AREAS_LIST = ['Membrane', 'Inner surroundings', 'Outer surroundings']
 
 # Star file fields #####################################################################################################
 NOT_FOUND = 'Not found'
