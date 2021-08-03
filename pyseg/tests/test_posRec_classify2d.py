@@ -23,6 +23,7 @@ class TestPostRecAndClassify2d(BaseTest):
     def setUpClass(cls):
         cls.ds = DataSet.getDataSet('pyseg')
         setupTestProject(cls)
+        cls.ds = DataSet.getDataSet('pyseg')
 
     def _importCylMask(self):
         print(magentaStr("\n==> Importing the cylinder mask:"))

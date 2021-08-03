@@ -18,6 +18,8 @@ class TestFromPresegToPicking(BaseTest):
         cls.ds = ds
         cls.preSegStar = join(ds.getPath(), 'preseg.star')
         setupTestProject(cls)
+        cls.ds = DataSet.getDataSet('pyseg')
+        cls.preSegStar = join(cls.ds.getPath(), 'preseg.star')
 
     def _genPreSegStar(self):
         """Required because pyseg's preseg requires the absolute paths contained
