@@ -31,7 +31,7 @@ import xml.etree.ElementTree as ET
 
 from pwem.protocols import EMProtocol
 from pyworkflow import BETA
-from pyworkflow.protocol import FloatParam, EnumParam, PointerParam, IntParam, FileParam
+from pyworkflow.protocol import FloatParam, EnumParam, PointerParam, IntParam, FileParam, LEVEL_ADVANCED
 from pyworkflow.utils import Message, makePath, removeBaseExt, copyFile
 from scipion.constants import PYTHON
 from tomo.objects import SetOfCoordinates3D, SetOfTomograms
@@ -39,10 +39,12 @@ from tomo.protocols import ProtTomoBase
 from tomo.protocols.protocol_base import ProtTomoImportAcquisition
 
 from pyseg import Plugin
-from pyseg.constants import FILS_SOURCES, FILS_TARGETS, PICKING_SCRIPT, PICKING_SLICES, FROM_SCIPION, FROM_STAR_FILE
-from pyseg.convert import readStarFile, PYSEG_PICKING_STAR, getTomoSetFromStar
+from pyseg.constants import FILS_SOURCES, FILS_TARGETS, PICKING_SCRIPT, PICKING_SLICES, PRESEG_AREAS_LIST, MEMBRANE
+from pyseg.convert import readStarFile, PYSEG_PICKING_STAR
 
 # Fils slices xml fields
+from pyseg.utils import encodePresegArea
+
 SIDE = 'side'
 CONT = 'cont'
 
@@ -73,41 +75,24 @@ class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         """
         # You need a params to belong to a section:
         form.addSection(label=Message.LABEL_INPUT)
-        form.addParam('filsFrom', EnumParam,
-                      choices=['Scipion Protocol', 'Star file'],
-                      default=FROM_SCIPION,
-                      label='Choose graphs data source',
-                      important=True,
-                      display=EnumParam.DISPLAY_HLIST)
         form.addParam('inFilsProt', PointerParam,
                       pointerClass='ProtPySegFils',
                       label='Pre segmentation',
-                      condition='filsFrom == %s' % FROM_SCIPION,
                       important=True,
                       allowsNull=False,
                       help='Pointer to fils protocol.')
-        form.addParam('inStar', FileParam,
-                      label='Seg particles star file',
-                      condition='filsFrom == %s' % FROM_STAR_FILE,
-                      important=True,
-                      allowsNull=False,
-                      help='Star file obtained in PySeg seg step.')
         form.addParam('inTomoSet', PointerParam,
                       pointerClass='SetOfTomograms',
                       label='Tomograms',
-                      condition='filsFrom == %s' % FROM_SCIPION,
                       important=True,
                       allowsNull=False,
                       help='Tomograms used for the graphs and filaments calculation.')
-        form.addParam('pixelSize', FloatParam,
-                      label='Pixel size (Å/voxel)',
-                      condition='filsFrom == %s' % FROM_STAR_FILE,
-                      help='Input tomograms voxel size (Å/voxel)')
         form.addParam('boxSize', IntParam,
                       label='Box size (pixels)',
                       default=20,
                       important=True,
-                      allowsNull=False)
+                      allowsNull=False,
+                      expertLevel=LEVEL_ADVANCED,)
 
         form.addSection(label='Picking')
         self._defineFilsXMLParams(form, self._getSlicesXMLDefaultVals())
@@ -129,10 +114,13 @@ class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         """d is a disctionary with the default values"""
         paramList = list(d.keys())
         valList = list(d.values())
-        form.addParam(paramList[0], IntParam,
-                      label='Segmentation index area for picking',
+        form.addParam(paramList[0], EnumParam,
+                      label='Segmentation area for picking',
+                      choices=PRESEG_AREAS_LIST,
                       default=valList[0],
-                      allowsNull=False)
+                      allowsNull=False,
+                      help='Area in which the cutting point or cutting point + projections of the '
+                           'filament will be considered for the picking coordinates.')
         form.addParam(paramList[1], EnumParam,
                       choices=['Cutting point', 'Cutting point + projections'],
                       default=0,
@@ -143,14 +131,13 @@ class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
     @staticmethod
     def _getSlicesXMLDefaultVals():
         d = OrderedDict()
-        d[SIDE] = 1
+        d[SIDE] = MEMBRANE
         d[CONT] = CUTTING_POINT
         return d
 
     def _insertAllSteps(self):
-        self._initialize()
-        self._insertFunctionStep(self.pysegPicking.__name__)
-        self._insertFunctionStep(self.createOutputStep.__name__)
+        self._insertFunctionStep(self.pysegPicking)
+        self._insertFunctionStep(self.createOutputStep)
 
     def pysegPicking(self):
         # Generate output dir
@@ -164,8 +151,9 @@ class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         Plugin.runPySeg(self, PYTHON, self._getPickingCommand(outDir))
 
     def createOutputStep(self):
+        self.tomoSet = self.inTomoSet.get()  # Required for the convert
         suffix = self._getOutputSuffix(SetOfCoordinates3D)
-        coordsSet = self._createSetOfCoordinates3D(self.tomoSet, suffix)
+        coordsSet = self._createSetOfCoordinates3D(self.inTomoSet.get(), suffix)
         coordsSet.setSamplingRate(self._getSamplingRate())
         coordsSet.setBoxSize(self.boxSize.get())
         readStarFile(self, coordsSet, PYSEG_PICKING_STAR,
@@ -174,29 +162,21 @@ class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         self._defineOutputs(outputCoordinates=coordsSet)
 
     # --------------------------- INFO functions -----------------------------------
-    def _validate(self):
-        validationMsg = []
-        if self.filsFrom.get() == FROM_STAR_FILE:
-            voxelSize = self.pixelSize.get()
-            msg = 'Pixel size must be greater than 0.'
-            if voxelSize:
-                if voxelSize <= 0:
-                    validationMsg.append(msg)
-            else:
-                validationMsg.append(msg)
+    def _summary(self):
+        """ Summarize what the protocol has done"""
+        summary = []
+        if self.isFinished():
+            outputCoords = getattr(self, 'outputCoordinates', None)
+            summary.append('*Picking*:\n\t- Picking area = %s\n\t- Particles picked = %i\n' %
+                           (PRESEG_AREAS_LIST[int(self.side.get())], outputCoords.getSize()))
 
-        return validationMsg
+        return summary
 
     # --------------------------- UTIL functions -----------------------------------
     def _getFilsStarFileName(self):
-        source = self.filsFrom.get()
-        if source == FROM_SCIPION:
-            prot = self.inFilsProt.get()
-            return prot._getExtraPath('fil_' + removeBaseExt(FILS_SOURCES)
-                                      + '_to_' + removeBaseExt(FILS_TARGETS) + '_net.star')
-
-        elif source == FROM_STAR_FILE:
-            return self.inStar.get()
+        prot = self.inFilsProt.get()
+        return prot._getExtraPath('fil_' + removeBaseExt(FILS_SOURCES)
+                                  + '_to_' + removeBaseExt(FILS_TARGETS) + '_net.star')
 
     def _getPickingStarFileName(self):
         filsStar = self._getExtraPath('fil_' + removeBaseExt(FILS_SOURCES)
@@ -224,7 +204,7 @@ class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         rootElement = xmlTree.getroot()
         mb_slice = rootElement.findall("mb_slice")
         mb_slice = mb_slice[0]
-        mb_slice.find(SIDE).text = str(getattr(self, SIDE).get())
+        mb_slice.find(SIDE).text = str(encodePresegArea(getattr(self, SIDE).get()))
         mb_slice.find(CONT).text = self._decodeContValue(getattr(self, CONT).get())
 
         # Write the modified xml file.
@@ -235,17 +215,5 @@ class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         """Decode the cont values and represent them as expected by pySeg"""
         return '+' if val == CUTTING_POINT else '-'
 
-    def _initialize(self):
-        if self.filsFrom.get() == FROM_SCIPION:
-            self.tomoSet = self.inTomoSet.get()
-        else:
-            tomoSet = SetOfTomograms()
-            tomoSet.setSamplingRate(self._getSamplingRate())
-            self.tomoSet = tomoSet
-            getTomoSetFromStar(self, self._getPickingStarFileName())
-
     def _getSamplingRate(self):
-        if self.filsFrom.get() == FROM_SCIPION:
-            return self.inTomoSet.get().getFirstItem().getSamplingRate()
-        else:
-            return self.pixelSize.get()
+        return self.inTomoSet.get().getFirstItem().getSamplingRate()

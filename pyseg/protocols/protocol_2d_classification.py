@@ -27,17 +27,18 @@
 from os.path import abspath, join, exists
 import glob
 from emtable import Table
+from pwem.emlib.image import ImageHandler
 from pwem.protocols import EMProtocol, PointerParam
 from pyworkflow import BETA
 from pyworkflow.object import String
-from pyworkflow.protocol import EnumParam, IntParam, LEVEL_ADVANCED, GT, FloatParam, GE, LT, BooleanParam
-from pyworkflow.utils import Message, makePath
+from pyworkflow.protocol import EnumParam, IntParam, LEVEL_ADVANCED, FloatParam, GE, LT, BooleanParam
+from pyworkflow.utils import Message, makePath, getExt, replaceExt
 from reliontomo.convert import writeSetOfSubtomograms
 from scipion.constants import PYTHON
 from tomo.objects import SetOfSubTomograms
 from tomo.protocols import ProtTomoBase
 from pyseg import Plugin
-from pyseg.constants import PLANE_ALIGN_CLASS_OUT, PLANE_ALIGN_CLASS_SCRIPT
+from pyseg.constants import PLANE_ALIGN_CLASS_OUT, PLANE_ALIGN_CLASS_SCRIPT, SEE_METHODS_TAB
 from pyseg.convert import readStarFile, RELION_SUBTOMO_STAR
 
 # Processing level choices
@@ -196,9 +197,9 @@ class ProtPySegPlaneAlignClassification(EMProtocol, ProtTomoBase):
 
     def _insertAllSteps(self):
         self._initialize()
-        self._insertFunctionStep('convertInputStep')
-        self._insertFunctionStep('pysegPlaneAlignClassification')
-        self._insertFunctionStep('createOutputStep')
+        self._insertFunctionStep(self.convertInputStep)
+        self._insertFunctionStep(self.pysegPlaneAlignClassification)
+        self._insertFunctionStep(self.createOutputStep)
 
     def convertInputStep(self):
         """ Create the input file in STAR format as expected by Relion.
@@ -231,6 +232,8 @@ class ProtPySegPlaneAlignClassification(EMProtocol, ProtTomoBase):
         self._defineSourceRelation(subtomoSet, classesSet)
 
     # --------------------------- INFO functions -----------------------------------
+    def _summary(self):
+        return SEE_METHODS_TAB
 
     def _methods(self):
         summary = []
@@ -240,7 +243,7 @@ class ProtPySegPlaneAlignClassification(EMProtocol, ProtTomoBase):
             r3dMsg = 'Radial compensation for 3D'
             r3dMsg = r3dMsg if self.doCC3d.get() else 'No ' + r3dMsg
             summary.append(
-                '\nParticles pre-processing:\n'
+                '\n*Particles pre-processing:*\n'
                 '   - Low pass Gaussian filter sigma: %i voxels.\n'
                 '   - %s' % (self.filterSize.get(), r3dMsg)
             )
@@ -250,11 +253,11 @@ class ProtPySegPlaneAlignClassification(EMProtocol, ProtTomoBase):
             else:
                 msg = '   - Number of components for PCA dimensionality reduction: %i\n' % self.pcaComps.get()
             summary.append(
-                '\nDistance metric calculation:\n'
+                '\n*Distance metric calculation:*\n'
                 '   - Distance metric: %s\n%s' % (self._decodeDistanceMetric(), msg))
 
             summary.append(
-                'Classification:\n'
+                '*Classification:*\n'
                 '   - Clustering algorithm: %s\n' % self._decodeClusteringAlg()
             )
             if sizePostPorcessing or ccPostProcessing:
@@ -296,7 +299,7 @@ class ProtPySegPlaneAlignClassification(EMProtocol, ProtTomoBase):
         classCmd += '%s ' % Plugin.getHome(PLANE_ALIGN_CLASS_SCRIPT)
         classCmd += '--inRootDir scipion '
         classCmd += '--inStar %s ' % self._getExtraPath(self.inStarName)
-        classCmd += '--inMask %s ' % abspath(self.inMask.get().getFileName())
+        classCmd += '--inMask %s ' % self._getMaskFileName()
         classCmd += '--outDir %s ' % self._outDir
         classCmd += '--filterSize %s ' % self.filterSize.get()
         classCmd += '--procLevel %s ' % (FULL_CLASSIFICATION + 1)  # Numbered from 1 in pyseg
@@ -393,4 +396,13 @@ class ProtPySegPlaneAlignClassification(EMProtocol, ProtTomoBase):
 
         return pcaComps
 
-
+    def _getMaskFileName(self):
+        maskName = self.inMask.get().getFileName()
+        # Pyseg valid mask extensions are mrc, em or rec
+        if getExt(maskName) in ['.mrc', '.em', '.rec']:
+            return abspath(maskName)
+        else:
+            newMaskName = replaceExt(maskName, 'mrc')
+            ih = ImageHandler()
+            ih.convert(maskName, newMaskName)
+            return abspath(newMaskName)

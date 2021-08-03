@@ -31,14 +31,16 @@ import xml.etree.ElementTree as ET
 
 from pwem.protocols import EMProtocol
 from pyworkflow import BETA
-from pyworkflow.protocol import FloatParam, NumericListParam, EnumParam, PointerParam, IntParam, FileParam
+from pyworkflow.protocol import FloatParam, NumericListParam, EnumParam, PointerParam
 from pyworkflow.utils import Message, makePath, removeBaseExt, copyFile
 from scipion.constants import PYTHON
 from tomo.protocols import ProtTomoBase
 from tomo.protocols.protocol_base import ProtTomoImportAcquisition
 
 from pyseg import Plugin
-from pyseg.constants import FILS_SCRIPT, FILS_SOURCES, FILS_TARGETS, FROM_SCIPION, FROM_STAR_FILE
+from pyseg.constants import FILS_SCRIPT, FILS_SOURCES, FILS_TARGETS, MEMBRANE, \
+    MEMBRANE_OUTER_SURROUNDINGS, PRESEG_AREAS_LIST
+from pyseg.utils import encodePresegArea
 
 TH_MODE_IN = 0
 TH_MODE_OUT = 1
@@ -90,25 +92,12 @@ class ProtPySegFils(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         """
         # You need a params to belong to a section:
         form.addSection(label=Message.LABEL_INPUT)
-        form.addParam('graphsFrom', EnumParam,
-                      choices=['Scipion Protocol', 'Star file'],
-                      default=FROM_SCIPION,
-                      label='Choose graphs data source',
-                      important=True,
-                      display=EnumParam.DISPLAY_HLIST)
         form.addParam('inGraphsProt', PointerParam,
                       pointerClass='ProtPySegGraphs',
                       label='Graphs',
-                      condition='graphsFrom == %s' % FROM_SCIPION,
                       important=True,
                       allowsNull=False,
                       help='Pointer to graphs protocol.')
-        form.addParam('inStar', FileParam,
-                      label='Seg particles star file',
-                      condition='graphsFrom == %s' % FROM_STAR_FILE,
-                      important=True,
-                      allowsNull=False,
-                      help='Star file obtained in PySeg graphs step.')
 
         form.addSection(label='Sources')
         self._defineFilsXMLParams(form, self._getXMLSourcesDefaultVals())
@@ -146,11 +135,13 @@ class ProtPySegFils(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         sectionName = 'Sources - ' if isSources else 'Targets - '
         paramList = list(d.keys())
         valList = list(d.values())
-        form.addParam(paramList[0], IntParam,
-                      label='Segmentation label',
+        form.addParam(paramList[0], EnumParam,
+                      choices=PRESEG_AREAS_LIST,
+                      label='Filament area',
                       default=valList[0],
                       allowsNull=False,
-                      help='Value of vertex property membrane segmentation (mb_seg).')
+                      help='Source or destination (depending if you are in the Sources or Targets tab) '
+                           'area for the filament calculation.')
         group = form.addGroup('%sEuclidean distance to membrane (nm)' % sectionName)
         group.addParam(paramList[1], FloatParam,
                        label='Min',
@@ -209,7 +200,7 @@ class ProtPySegFils(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
                        display=EnumParam.DISPLAY_HLIST)
 
     def _insertAllSteps(self):
-        self._insertFunctionStep(self.pysegFils.__name__)
+        self._insertFunctionStep(self.pysegFils)
 
     def pysegFils(self):
         # Generate output dir
@@ -226,7 +217,13 @@ class ProtPySegFils(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
 
     # --------------------------- INFO functions -----------------------------------
     def _summary(self):
-        pass
+        """ Summarize what the protocol has done"""
+        summary = []
+        if self.isFinished():
+            summary.append('*Filaments calculation*:\n\t- Source = %s\n\t- Target = %s\n' %
+                           (PRESEG_AREAS_LIST[int(self.segLabelS.get())], PRESEG_AREAS_LIST[int(self.segLabelT.get())]))
+
+        return summary
 
     # --------------------------- UTIL functions -----------------------------------
     def _getFilsCommand(self, outDir):
@@ -243,12 +240,8 @@ class ProtPySegFils(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         return filsCmd
 
     def _getGraphsStarFile(self):
-        source = self.graphsFrom.get()
-        if source == FROM_SCIPION:
-            prot = self.inGraphsProt.get()
-            return prot._getExtraPath(removeBaseExt(prot._getPreSegStarFile()) + '_mb_graph.star')
-        elif source == FROM_STAR_FILE:
-            return self.inStar.get()
+        prot = self.inGraphsProt.get()
+        return prot._getExtraPath(removeBaseExt(prot._getPreSegStarFile()) + '_mb_graph.star')
 
     def _parseThModeSelection(self):
         if self.thMode.get() == TH_MODE_IN:
@@ -259,7 +252,7 @@ class ProtPySegFils(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
     @staticmethod
     def _getXMLSourcesDefaultVals():
         d = OrderedDict()
-        d[SEG_LABEL_S] = 1
+        d[SEG_LABEL_S] = MEMBRANE
         d[MIN_EUC_DIST_S] = 0
         d[MAX_EUC_DIST_S] = 15
         d[EUC_RANGE_S] = 0
@@ -277,7 +270,7 @@ class ProtPySegFils(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
     @staticmethod
     def _getXMLTargetsDefaultVals():
         d = OrderedDict()
-        d[SEG_LABEL_T] = 1
+        d[SEG_LABEL_T] = MEMBRANE_OUTER_SURROUNDINGS
         d[MIN_EUC_DIST_T] = 0
         d[MAX_EUC_DIST_T] = 15
         d[EUC_RANGE_T] = 0
@@ -306,14 +299,14 @@ class ProtPySegFils(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         geomDict = OrderedDict()
         if isSource:
             self._xmlSources = filename
-            segLabel = SEG_LABEL_S
+            segLabel = encodePresegArea(self.segLabelS.get())
             geomDict[EUCLIDEAN_DIST] = [MIN_EUC_DIST_S, MAX_EUC_DIST_S, EUC_RANGE_S]
             geomDict[GEODESIC_DIST] = [MIN_GEO_DIST_S, MAX_GEO_DIST_S, GEO_RANGE_S]
             geomDict[GEODESIC_LEN] = [MIN_GEO_LEN_S, MAX_GEO_LEN_S, GEO_LEN_RANGE_S]
             geomDict[FIL_SINU] = [MIN_FIL_SINU_S, MAX_FIL_SINU_S, SINU_RANGE_S]
         else:
             self._xmlTargets = filename
-            segLabel = SEG_LABEL_T
+            segLabel = encodePresegArea(self.segLabelT.get())
             geomDict[EUCLIDEAN_DIST] = [MIN_EUC_DIST_T, MAX_EUC_DIST_T, EUC_RANGE_T]
             geomDict[GEODESIC_DIST] = [MIN_GEO_DIST_T, MAX_GEO_DIST_T, GEO_RANGE_T]
             geomDict[GEODESIC_LEN] = [MIN_GEO_LEN_T, MAX_GEO_LEN_T, GEO_LEN_RANGE_T]

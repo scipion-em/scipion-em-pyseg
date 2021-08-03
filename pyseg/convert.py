@@ -32,7 +32,7 @@ import pwem.convert.transformations as tfs
 from os.path import join
 
 from pyworkflow.object import List, Float
-from pyworkflow.utils import createAbsLink
+from pyworkflow.utils import createAbsLink, removeBaseExt
 from relion.convert import Table
 from reliontomo.convert.convert30_tomo import TOMO_NAME, SUBTOMO_NAME, COORD_X, COORD_Y, COORD_Z, ROT, TILT, PSI, \
     RELION_TOMO_LABELS, TILT_PRIOR, PSI_PRIOR, CTF_MISSING_WEDGE, SHIFTX, SHIFTY, SHIFTZ
@@ -130,25 +130,28 @@ def _relionTomoStar2Subtomograms(prot, outputSubTomogramsSet, tomoTable, starPat
             subtomoAbsFn = prot._getExtraPath(subtomoAbsFn)
         if not isabs(subtomoAbsFn):
             subtomoAbsFn = abspath(subtomoAbsFn)
+
+        subtomo.setVolName(volname)
+        subtomo.setTransform(transform)
+        subtomo.setAcquisition(TomoAcquisition())
+        subtomo.setClassId(row.get('rlnClassNumber', 0))
+        subtomo.setSamplingRate(samplingRate)
+        subtomo.setCoordinate3D(coordinate3d)  # Needed to get later the tomogram pointer via getCoordinate3D()
+
         x = row.get(COORD_X, 0)
         y = row.get(COORD_Y, 0)
         z = row.get(COORD_Z, 0)
         tiltPrior = row.get(TILT_PRIOR, 0)
         psiPrior = row.get(PSI_PRIOR, 0)
         ctf3d = row.get(CTF_MISSING_WEDGE, FILE_NOT_FOUND)
+        coordinate3d = subtomo.getCoordinate3D()
         coordinate3d.setX(float(x), BOTTOM_LEFT_CORNER)
         coordinate3d.setY(float(y), BOTTOM_LEFT_CORNER)
         coordinate3d.setZ(float(z), BOTTOM_LEFT_CORNER)
         coordinate3d._3dcftMrcFile = String(join(starPath, ctf3d))  # Used for the ctf3d generation in Relion
         M = _getTransformMatrix(row, invert)
         transform.setMatrix(M)
-
-        subtomo.setVolName(volname)
         subtomo.setCoordinate3D(coordinate3d)
-        subtomo.setTransform(transform)
-        subtomo.setAcquisition(TomoAcquisition())
-        subtomo.setClassId(row.get('rlnClassNumber', 0))
-        subtomo.setSamplingRate(samplingRate)
         subtomo._tiltPriorAngle = Float(tiltPrior)
         subtomo._psiPriorAngle = Float(psiPrior)
 
@@ -254,7 +257,19 @@ def _pysegStar2Coords3D(prot, output3DCoordSet, tomoTable, invert):
                 coordinate3d.setY(float(y), BOTTOM_LEFT_CORNER)
                 coordinate3d.setZ(float(z), BOTTOM_LEFT_CORNER)
                 coordinate3d.setMatrix(M)
-                coordinate3d._pysegMembrane = String(row.get(SUBTOMO_NAME, FILE_NOT_FOUND))
+                coordinate3d.setGroupId(_getVesicleIdFromSubtomoName(row.get(SUBTOMO_NAME, FILE_NOT_FOUND)))
 
                 # Add current subtomogram to the output set
                 output3DCoordSet.append(coordinate3d)
+
+
+def _getVesicleIdFromSubtomoName(subtomoName):
+    """PySeg adds the vesicle index to the name of the subtomogram, with a suffix of type
+    _tid_[VesicleNumber].mrc. Example: Pertuzumab_1_defocus_25um_tomo_7_aliSIRT_EED_tid_0.mrc.
+    This function returns that vesicle number for a given """
+    pattern = '_tid_'
+    baseName = removeBaseExt(subtomoName)
+    pos = baseName.find(pattern)
+    # regexPattern = re.compile('^_tid_[0-9]{1, 3}')
+    # res = regexPattern.match(baseName)
+    return baseName[pos + len(pattern)::]

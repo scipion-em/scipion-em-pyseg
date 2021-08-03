@@ -41,6 +41,8 @@ from pyseg.constants import PRESEG_SCRIPT, TOMOGRAM, PYSEG_LABEL, VESICLE, NOT_F
     PYSEG_OFFSET_X, PYSEG_OFFSET_Y, PYSEG_OFFSET_Z, MASK, RLN_ORIGIN_X, RLN_ORIGIN_Y, \
     RLN_ORIGIN_Z, FROM_SCIPION, FROM_STAR_FILE
 from relion.convert import Table
+import numpy as np
+from pyseg.convert import _getVesicleIdFromSubtomoName
 
 
 class ProtPySegPreSegParticles(EMProtocol):
@@ -118,10 +120,10 @@ class ProtPySegPreSegParticles(EMProtocol):
 
     def _insertAllSteps(self):
         self._initialize()
-        self._insertFunctionStep(self.pysegPreSegStep.__name__)
-        self._insertFunctionStep(self.getMembraneCenterStep.__name__)
-        self._insertFunctionStep(self.pysegPreSegCenteredStep.__name__)
-        self._insertFunctionStep(self.createOutputStep.__name__)
+        self._insertFunctionStep(self.pysegPreSegStep)
+        self._insertFunctionStep(self.getMembraneCenterStep)
+        self._insertFunctionStep(self.pysegPreSegCenteredStep)
+        self._insertFunctionStep(self.createOutputStep)
 
     def _initialize(self):
         if self.segmentationFrom.get() == FROM_SCIPION:
@@ -294,10 +296,17 @@ class ProtPySegPreSegParticles(EMProtocol):
         return tomoFileList
 
     def _genOutputSetOfTomoMasks(self):
+        # TODO: check why sometimes the suffix is _mb and sometimes it is _seg
         tomogramSet = []
         tomoFileList = self._getTomogramsFromStar()
-        tomoMaskList = sorted(glob.glob(self._getExtraPath('segs', '*_seg.mrc')))
-        vesicleSubtomoList = [tomoMask.replace('_seg.mrc', '.mrc') for tomoMask in tomoMaskList]
+        suffix = '_seg'
+        MRC = '.mrc'
+        tomoMaskList = glob.glob(self._getExtraPath('segs', '*' + suffix + MRC))
+        if not tomoMaskList:
+            suffix = '_mb'
+            tomoMaskList = glob.glob(self._getExtraPath('segs', '*' + suffix + MRC))
+        vesicleSubtomoList = [tomoMask.replace(suffix + MRC, MRC) for tomoMask in tomoMaskList]
+        ind = np.argsort([int(_getVesicleIdFromSubtomoName(vesicleName)) for vesicleName in vesicleSubtomoList])
         tomoMaskSet = SetOfTomoMasks.create(self._getPath(), template='tomomasks%s.sqlite', suffix='segVesicles')
         subTomoSet = SetOfSubTomograms.create(self._getPath(), template='subtomograms%s.sqlite', suffix='vesicles')
         sRate = self._getSamplingRate()
@@ -320,11 +329,12 @@ class ProtPySegPreSegParticles(EMProtocol):
                 counter += 1
 
         counter = 1
-        for tomoMaskFile, vesicleFile in zip(tomoMaskList, vesicleSubtomoList):
+        for i in ind:
             # TomoMask
             tomoMask = TomoMask()
+            vesicleFile = vesicleSubtomoList[i]
             tomoMask.setSamplingRate(sRate)
-            tomoMask.setLocation((counter, tomoMaskFile))
+            tomoMask.setLocation((counter, tomoMaskList[i]))
             tomoMask.setVolName(vesicleFile)
             tomoMaskSet.append(tomoMask)
             # Subtomogram

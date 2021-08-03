@@ -1,3 +1,4 @@
+from glob import glob
 from os import remove
 from os.path import join, abspath, exists
 from pyworkflow.tests import BaseTest, setupTestProject, DataSet
@@ -9,12 +10,13 @@ from pyseg.protocols import *
 
 class TestFromPresegToPicking(BaseTest):
     """ """
-    ds = None
-    preSegStar = None
     samplingRate = 6.87
 
     @classmethod
     def setUpClass(cls):
+        ds = DataSet.getDataSet('pyseg')
+        cls.ds = ds
+        cls.preSegStar = join(ds.getPath(), 'preseg.star')
         setupTestProject(cls)
         cls.ds = DataSet.getDataSet('pyseg')
         cls.preSegStar = join(cls.ds.getPath(), 'preseg.star')
@@ -99,10 +101,10 @@ class TestFromPresegToPicking(BaseTest):
         protGraphs = self.launchProtocol(protGraphs)
 
         # Check that resulting files are created as expected
-        # TODO: check with Antonio which of the generated files (a lot) should be kept and add them to the test checkings
         outputStar = 'presegVesiclesCentered_pre_mb_graph.star'
         self.assertTrue(exists(protGraphs._getExtraPath(outputStar)))
-
+        # By default, the Disperse program intermediate results directories aren't kept
+        self.assertTrue(not glob(protGraphs._getExtraPath('disperse_*')))
         return protGraphs
 
     def _runFils(self, graphsProt):

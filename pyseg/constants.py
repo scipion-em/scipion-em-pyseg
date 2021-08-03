@@ -37,6 +37,8 @@ PYSEG_ENV_NAME = 'pySeg-%s' % DEFAULT_VERSION
 PYSEG_ENV_ACTIVATION = 'PYSEG_ENV_ACTIVATION'
 DEFAULT_ACTIVATION_CMD = 'conda activate %s' % PYSEG_ENV_NAME
 
+SEE_METHODS_TAB = '\n\n(*) Algorithm parameter information can be checked out in methods tab'
+
 # Required files location in pyseg-system
 PYSEG_SYSTEM_MAIN = 'pyseg_system-%s' % DEFAULT_VERSION
 DATA_TUTORIALS = join(PYSEG_SYSTEM_MAIN, 'data', 'tutorials')
@@ -52,7 +54,8 @@ FILS_SOURCES = join(FILS_XML_FILES_PATH, 'mb_sources.xml')
 FILS_TARGETS = join(FILS_XML_FILES_PATH, 'no_mb_targets.xml')
 PICKING_SCRIPT = join(EXP_SOMB, 'mbo_picking.py')
 PICKING_SLICES = join(DATA_TUTORIALS, 'exp_somb', 'mb_ext.xml')
-POST_REC_SCRIPT = join(SYNTH_SUMB, 'rln', 'post_rec_particles.py')
+POST_REC_SCRIPT_ANGLE_RND = join(SYNTH_SUMB, 'rln', 'post_rec_particles.py')  # Angle randomization only
+POST_REC_SCRIPT_MEMB_ATT = join(EXP_SOMB, 'post_rec_particles.py')  # Angle randomization and membrane attenuation
 PLANE_ALIGN_CLASS_SCRIPT = join(SYNTH_SUMB, 'class', 'plane_align_class.py')
 
 # Generated data
@@ -66,9 +69,15 @@ PLANE_ALIGN_CLASS_OUT = 'plane_align_classification'
 CFITSIO = 'cfitsio'
 DISPERSE = 'disperse'
 
-# Dataata source codification
+# Data source codification
 FROM_SCIPION = 0
 FROM_STAR_FILE = 1
+
+# Preseg areas codification
+MEMBRANE = 0
+MEMBRANE_INNER_SURROUNDINGS = 1
+MEMBRANE_OUTER_SURROUNDINGS = 2
+PRESEG_AREAS_LIST = ['Membrane', 'Inner surroundings', 'Outer surroundings']
 
 # Star file fields #####################################################################################################
 NOT_FOUND = 'Not found'
