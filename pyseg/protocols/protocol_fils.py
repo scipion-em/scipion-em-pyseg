@@ -317,7 +317,7 @@ class ProtPySegFils(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         rootElement = xmlTree.getroot()
         mb_slice = rootElement.findall("mb_slice")
         mb_slice = mb_slice[0]
-        mb_slice.find('side').text = str(getattr(self, segLabel).get())
+        mb_slice.find('side').text = str(segLabel)
 
         for key, valList in geomDict.items():
             for el in mb_slice.findall(key):
