@@ -28,10 +28,10 @@ from os.path import join
 
 PYSEG = 'pySeg'
 PYSEG_HOME = 'PYSEG_HOME'
-# DEFAULT_VERSION = '1.1.0'
-# PYSEG_SOURCE_URL = 'https://github.com/anmartinezs/pyseg_system/archive/refs/tags/v%s.tar.gz' % DEFAULT_VERSION
-DEFAULT_VERSION = 'jj_py3'
-PYSEG_SOURCE_URL = 'https://github.com/anmartinezs/pyseg_system/archive/refs/heads/%s.zip' % DEFAULT_VERSION
+DEFAULT_VERSION = '1.1.0'
+PYSEG_SOURCE_URL = 'https://github.com/anmartinezs/pyseg_system/archive/refs/tags/v%s.tar.gz' % DEFAULT_VERSION
+# DEFAULT_VERSION = 'jj_py3'
+# PYSEG_SOURCE_URL = 'https://github.com/anmartinezs/pyseg_system/archive/refs/heads/%s.zip' % DEFAULT_VERSION
 
 PYSEG_ENV_NAME = 'pySeg-%s' % DEFAULT_VERSION
 PYSEG_ENV_ACTIVATION = 'PYSEG_ENV_ACTIVATION'
