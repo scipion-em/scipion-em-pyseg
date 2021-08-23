@@ -4,7 +4,8 @@ from os.path import join, abspath, exists
 from pyworkflow.tests import BaseTest, setupTestProject, DataSet
 from pyworkflow.utils import magentaStr
 from relion.convert import Table
-from pyseg.constants import TOMOGRAM, VESICLE, PYSEG_LABEL, MASK, FROM_STAR_FILE, FROM_SCIPION
+from pyseg.constants import TOMOGRAM, VESICLE, PYSEG_LABEL, MASK, FROM_STAR_FILE, FROM_SCIPION, \
+    MEMBRANE_OUTER_SURROUNDINGS, MEMBRANE
 from pyseg.protocols import *
 
 
@@ -113,8 +114,8 @@ class TestFromPresegToPicking(BaseTest):
             ProtPySegFils,
             graphsFrom=FROM_SCIPION,
             inGraphsProt=graphsProt,
-            segLabelS=3,  # From out of the membrane (labelled as 3 for this data)
-            segLabelT=2,  # To inside the vesicle (labelled as 2 for this data)
+            segLabelS=MEMBRANE_OUTER_SURROUNDINGS,
+            segLabelT=MEMBRANE,
             gRgEud='1 30',
             gRgLen='1 60',
             gRgSin='0 2'
@@ -150,7 +151,7 @@ class TestFromPresegToPicking(BaseTest):
             inFilsProt=filsProt,
             inTomoSet=inTomoSet,
             filsFrom=FROM_SCIPION,
-            side=3,  # Pick out of the membrane, labelled as 3 for this data
+            side=MEMBRANE,
             boxSize=bSize
         )
 
