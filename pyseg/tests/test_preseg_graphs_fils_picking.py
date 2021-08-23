@@ -176,11 +176,12 @@ class TestFromPresegToPicking(BaseTest):
             for file in graphsFilesPerVesicle:
                 self.assertTrue(exists(protPicking._getExtraPath(file % i)))
 
-        # Output coordinates must have an attribute named _pysegMembrane, which stores the corresponding
-        # membrane file
+        # Output coordinates must have an attribute named _groupId, which stores the corresponding
+        # vesicles index. In this case there are 3 vesicles, so it should be contained in range(2)
+        testVesicleInd = [0, 1, 2]
         self.assertEqual(outputCoordinates.getBoxSize(), bSize)
         for coord3d in outputCoordinates:
-            self.assertTrue(exists(coord3d._pysegMembrane.get()))
+            self.assertTrue(int(coord3d.getGroupId().get()) in testVesicleInd)
         # Validate precedents
         self.assertEqual(outputCoordinates.getPrecedents(), outputTomograms)
 
