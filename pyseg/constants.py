@@ -39,11 +39,12 @@ SEE_METHODS_TAB = '\n\n(*) Algorithm parameter information can be checked out in
 
 # Required files location in pyseg-system
 PYSEG_SYSTEM_MAIN = 'pyseg_system-%s' % DEFAULT_VERSION
+DATA_TUTORIALS = join(PYSEG_SYSTEM_MAIN, 'data', 'tutorials')
 CODE_TUTORIALS = join(PYSEG_SYSTEM_MAIN, 'code', 'tutorials')
 EXP_SOMB = join(CODE_TUTORIALS, 'exp_somb')
 SYNTH_SUMB = join(CODE_TUTORIALS, 'synth_sumb')
 TRACING = join(SYNTH_SUMB, 'tracing')
-FILS_XML_DIR = join(SYNTH_SUMB, 'fils', 'in')
+FILS_XML_DIR = join(DATA_TUTORIALS, 'synth_sumb', 'tracing', 'fils', 'in')
 
 PRESEG_SCRIPT = join(EXP_SOMB, 'pre_tomos_seg.py')
 GRAPHS_SCRIPT = join(TRACING, 'mb_graph_mp.py')
@@ -51,7 +52,7 @@ FILS_SCRIPT = join(TRACING, 'mb_fils_network.py')
 FILS_SOURCES = join(FILS_XML_DIR, 'mb_sources.xml')
 FILS_TARGETS = join(FILS_XML_DIR, 'no_mb_targets.xml')
 PICKING_SCRIPT = join(EXP_SOMB, 'mbo_picking.py')
-PICKING_SLICES = join(EXP_SOMB, 'mb_ext.xml')
+PICKING_SLICES = join(DATA_TUTORIALS, 'exp_somb', 'mb_ext.xml')
 POST_REC_SCRIPT_ANGLE_RND = join(SYNTH_SUMB, 'rln', 'post_rec_particles.py')  # Angle randomization only
 POST_REC_SCRIPT_MEMB_ATT = join(EXP_SOMB, 'post_rec_particles.py')  # Angle randomization and membrane attenuation
 PLANE_ALIGN_CLASS_SCRIPT = join(SYNTH_SUMB, 'class', 'plane_align_class.py')
