@@ -158,7 +158,6 @@ class TestFromPresegToPicking(BaseTest):
         protPicking.setObjLabel('Picking')
         protPicking = self.launchProtocol(protPicking)
         outputCoordinates = getattr(protPicking, 'outputCoordinates', None)
-        outputTomograms = getattr(protPicking, 'outputTomograms', None)
 
         # Check that resulting files are created as expected
         xmlFile = 'mb_ext.xml'
@@ -181,14 +180,7 @@ class TestFromPresegToPicking(BaseTest):
         testVesicleInd = [0, 1, 2]
         self.assertEqual(outputCoordinates.getBoxSize(), bSize)
         for coord3d in outputCoordinates:
-            self.assertTrue(int(coord3d.getGroupId().get()) in testVesicleInd)
-        # Validate precedents
-        self.assertEqual(outputCoordinates.getPrecedents(), outputTomograms)
-
-        # Validate output tomograms
-        self.assertSetSize(outputTomograms, size=1)
-        self.assertEqual(outputTomograms.getSamplingRate(), self.samplingRate)
-        self.assertEqual(outputTomograms.getDim(), (1024, 1440, 300))
+            self.assertTrue(int(coord3d.getGroupId()) in testVesicleInd)
 
         return protPicking
 
