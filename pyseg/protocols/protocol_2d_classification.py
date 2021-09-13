@@ -233,7 +233,7 @@ class ProtPySegPlaneAlignClassification(EMProtocol, ProtTomoBase):
 
     # --------------------------- INFO functions -----------------------------------
     def _summary(self):
-        return SEE_METHODS_TAB
+        return [SEE_METHODS_TAB]
 
     def _methods(self):
         summary = []
