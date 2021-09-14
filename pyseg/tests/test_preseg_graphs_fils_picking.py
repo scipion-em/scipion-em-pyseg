@@ -1,20 +1,23 @@
+from glob import glob
 from os import remove
 from os.path import join, abspath, exists
 from pyworkflow.tests import BaseTest, setupTestProject, DataSet
 from pyworkflow.utils import magentaStr
 from relion.convert import Table
-from pyseg.constants import TOMOGRAM, VESICLE, PYSEG_LABEL, MASK, FROM_STAR_FILE, FROM_SCIPION
+from pyseg.constants import TOMOGRAM, VESICLE, PYSEG_LABEL, MASK, FROM_STAR_FILE, FROM_SCIPION, \
+    MEMBRANE_OUTER_SURROUNDINGS, MEMBRANE
 from pyseg.protocols import *
 
 
 class TestFromPresegToPicking(BaseTest):
     """ """
-    ds = None
-    preSegStar = None
     samplingRate = 6.87
 
     @classmethod
     def setUpClass(cls):
+        ds = DataSet.getDataSet('pyseg')
+        cls.ds = ds
+        cls.preSegStar = join(ds.getPath(), 'preseg.star')
         setupTestProject(cls)
         cls.ds = DataSet.getDataSet('pyseg')
         cls.preSegStar = join(cls.ds.getPath(), 'preseg.star')
@@ -99,10 +102,10 @@ class TestFromPresegToPicking(BaseTest):
         protGraphs = self.launchProtocol(protGraphs)
 
         # Check that resulting files are created as expected
-        # TODO: check with Antonio which of the generated files (a lot) should be kept and add them to the test checkings
         outputStar = 'presegVesiclesCentered_pre_mb_graph.star'
         self.assertTrue(exists(protGraphs._getExtraPath(outputStar)))
-
+        # By default, the Disperse program intermediate results directories aren't kept
+        self.assertTrue(not glob(protGraphs._getExtraPath('disperse_*')))
         return protGraphs
 
     def _runFils(self, graphsProt):
@@ -111,8 +114,8 @@ class TestFromPresegToPicking(BaseTest):
             ProtPySegFils,
             graphsFrom=FROM_SCIPION,
             inGraphsProt=graphsProt,
-            segLabelS=3,  # From out of the membrane (labelled as 3 for this data)
-            segLabelT=2,  # To inside the vesicle (labelled as 2 for this data)
+            segLabelS=MEMBRANE_OUTER_SURROUNDINGS,
+            segLabelT=MEMBRANE,
             gRgEud='1 30',
             gRgLen='1 60',
             gRgSin='0 2'
@@ -148,14 +151,13 @@ class TestFromPresegToPicking(BaseTest):
             inFilsProt=filsProt,
             inTomoSet=inTomoSet,
             filsFrom=FROM_SCIPION,
-            side=3,  # Pick out of the membrane, labelled as 3 for this data
+            side=MEMBRANE,
             boxSize=bSize
         )
 
         protPicking.setObjLabel('Picking')
         protPicking = self.launchProtocol(protPicking)
         outputCoordinates = getattr(protPicking, 'outputCoordinates', None)
-        outputTomograms = getattr(protPicking, 'outputTomograms', None)
 
         # Check that resulting files are created as expected
         xmlFile = 'mb_ext.xml'
@@ -173,18 +175,12 @@ class TestFromPresegToPicking(BaseTest):
             for file in graphsFilesPerVesicle:
                 self.assertTrue(exists(protPicking._getExtraPath(file % i)))
 
-        # Output coordinates must have an attribute named _pysegMembrane, which stores the corresponding
-        # membrane file
+        # Output coordinates must have an attribute named _groupId, which stores the corresponding
+        # vesicles index. In this case there are 3 vesicles, so it should be contained in range(2)
+        testVesicleInd = [0, 1, 2]
         self.assertEqual(outputCoordinates.getBoxSize(), bSize)
         for coord3d in outputCoordinates:
-            self.assertTrue(exists(coord3d._pysegMembrane.get()))
-        # Validate precedents
-        self.assertEqual(outputCoordinates.getPrecedents(), outputTomograms)
-
-        # Validate output tomograms
-        self.assertSetSize(outputTomograms, size=1)
-        self.assertEqual(outputTomograms.getSamplingRate(), self.samplingRate)
-        self.assertEqual(outputTomograms.getDim(), (1024, 1440, 300))
+            self.assertTrue(int(coord3d.getGroupId()) in testVesicleInd)
 
         return protPicking
 

@@ -24,10 +24,12 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
+import shutil
+from glob import glob
 
 from pwem.protocols import EMProtocol
 from pyworkflow import BETA
-from pyworkflow.protocol import FloatParam, EnumParam, PointerParam, FileParam, LEVEL_ADVANCED
+from pyworkflow.protocol import FloatParam, PointerParam, LEVEL_ADVANCED, BooleanParam
 from pyworkflow.utils import Message, makePath
 from scipion.constants import PYTHON
 from tomo.protocols import ProtTomoBase
@@ -51,30 +53,18 @@ class ProtPySegGraphs(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         """
         # You need a params to belong to a section:
         form.addSection(label=Message.LABEL_INPUT)
-        form.addParam('presegFrom', EnumParam,
-                      choices=['Scipion Protocol', 'Star file'],
-                      default=FROM_SCIPION,
-                      label='Choose preSeg data source',
-                      important=True,
-                      display=EnumParam.DISPLAY_HLIST)
         form.addParam('inSegProt', PointerParam,
                       pointerClass='ProtPySegPreSegParticles',
                       label='Pre segmentation',
-                      condition='presegFrom == %s' % FROM_SCIPION,
                       important=True,
                       allowsNull=False,
                       help='Pointer to preseg protocol.')
-        form.addParam('inStar', FileParam,
-                      label='Seg particles star file',
-                      condition='presegFrom == %s' % FROM_STAR_FILE,
-                      important=True,
-                      allowsNull=False,
-                      help='Star file obtained in PySeg seg step.')
-        form.addParam('pixelSize', FloatParam,
-                      label='Pixel size (Å/voxel)',
-                      important=True,
-                      condition='presegFrom == %s' % FROM_STAR_FILE,
-                      help='Input tomograms voxel size (Å/voxel)')
+        form.addParam('keepOnlyreqFiles', BooleanParam,
+                      label='Keep only required files?',
+                      default=True,
+                      expertLevel=LEVEL_ADVANCED,
+                      help='If set to No, all the intermediate Disperse program resulting directories '
+                           'will be kept in the extra folder.')
 
         group = form.addGroup('Graphs parameters', expertLevel=LEVEL_ADVANCED)
         group.addParam('sSig', FloatParam,
@@ -89,7 +79,7 @@ class ProtPySegGraphs(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
                        default=0.0035,
                        allowsNull=False,
                        expertLevel=LEVEL_ADVANCED,
-                       help='Vertex density within membranes. It allows to adjust simplifcation '
+                       help='Vertex density within membranes. It allows to adjust simplification '
                             'adaptively for every tomogram.')
         group.addParam('vRatio', FloatParam,
                        label='Avg ratio vertex/edge of graph within membrane',
@@ -107,7 +97,7 @@ class ProtPySegGraphs(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         form.addParallelSection(threads=4, mpi=0)
 
     def _insertAllSteps(self):
-        self._insertFunctionStep(self.pysegGraphs.__name__)
+        self._insertFunctionStep(self.pysegGraphs)
 
     def pysegGraphs(self):
         # Generate output dir
@@ -117,24 +107,16 @@ class ProtPySegGraphs(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         # Script called
         Plugin.runPySeg(self, PYTHON, self._getGraphsCommand(outDir))
 
+        # Remove Disperse program intermediate result directories if requested
+        if self.keepOnlyreqFiles.get():
+            disperseDirs = glob(self._getExtraPath('disperse_*'))
+            [shutil.rmtree(disperseDir) for disperseDir in disperseDirs]
+
     # --------------------------- INFO functions -----------------------------------
     def _summary(self):
         summaryMsg = []
         if self.isFinished():
             summaryMsg.append('Graphs were correctly generated.')
-
-    def _validate(self):
-        validationMsg = []
-        if self.presegFrom.get() == FROM_STAR_FILE:
-            voxelSize = self.pixelSize.get()
-            msg = 'Pixel size must be greater than 0.'
-            if voxelSize:
-                if voxelSize <= 0:
-                    validationMsg.append(msg)
-            else:
-                validationMsg.append(msg)
-
-        return validationMsg
 
     # --------------------------- UTIL functions -----------------------------------
     def _getGraphsCommand(self, outDir):
@@ -152,13 +134,7 @@ class ProtPySegGraphs(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         return graphsCmd
 
     def _getPreSegStarFile(self):
-        if self.presegFrom.get() == FROM_SCIPION:
-            return self.inSegProt.get().getPresegOutputFile(self.inSegProt.get().getVesiclesCenteredStarFile())
-        else:
-            return self.inStar.get()
+        return self.inSegProt.get().getPresegOutputFile(self.inSegProt.get().getVesiclesCenteredStarFile())
 
     def _getSamplingRate(self):
-        if self.presegFrom.get() == FROM_SCIPION:
-            return self.inSegProt.get().outputSetofSubTomograms.getSamplingRate()
-        else:
-            return self.pixelSize.get()
+        return self.inSegProt.get().outputSetofSubTomograms.getSamplingRate()

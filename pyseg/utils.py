@@ -1,8 +1,9 @@
+# -*- coding: utf-8 -*-
 # **************************************************************************
 # *
-# * Authors:     Estrella Fernandez Gimenez (me.fernandez@cnb.csic.es)
+# * Authors:     Scipion Team
 # *
-# *  BCU, Centro Nacional de Biotecnologia, CSIC
+# * National Center of Biotechnology, CSIC, Spain
 # *
 # * This program is free software; you can redistribute it and/or modify
 # * it under the terms of the GNU General Public License as published by
@@ -24,9 +25,7 @@
 # *
 # **************************************************************************
 
-from .protocol_post_rec_particles import ProtPySegPostRecParticles
-from .protocol_graphs import ProtPySegGraphs
-from .protocol_fils import ProtPySegFils
-from .protocol_picking import ProtPySegPicking
-from .protocol_pre_seg import ProtPySegPreSegParticles
-from .protocol_2d_classification import ProtPySegPlaneAlignClassification
+def encodePresegArea(areaIndex):
+    """EnumParam in form goes from 0 to 2 for the preseg areas codification, while
+    Pyseg expects values higher or equal to 1, because 0 is used for the backgrounf"""
+    return int(areaIndex) + 1
