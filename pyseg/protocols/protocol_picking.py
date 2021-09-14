@@ -77,7 +77,7 @@ class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         form.addSection(label=Message.LABEL_INPUT)
         form.addParam('inFilsProt', PointerParam,
                       pointerClass='ProtPySegFils',
-                      label='Pre segmentation',
+                      label='Fils protocol',
                       important=True,
                       allowsNull=False,
                       help='Pointer to fils protocol.')

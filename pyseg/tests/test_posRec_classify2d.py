@@ -88,6 +88,8 @@ class TestPostRecAndClassify2d(BaseTest):
             voltage=300,
             magnification=10000,
             samplingRate=self.samplingRate,
+            tiltAxisAngle=85.2,
+            dosePerFrame=2.1
         )
         protImportTS.setObjLabel('import tilt series')
         protImportTS = self.launchProtocol(protImportTS)
