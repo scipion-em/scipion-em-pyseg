@@ -23,7 +23,7 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
-from os.path import dirname, abspath, isabs
+from os.path import dirname
 
 import numpy as np
 from pwem.emlib.image import ImageHandler
@@ -32,7 +32,7 @@ import pwem.convert.transformations as tfs
 from os.path import join
 
 from pyworkflow.object import List, Float
-from pyworkflow.utils import createAbsLink, removeBaseExt
+from pyworkflow.utils import removeBaseExt
 from relion.convert import Table
 from reliontomo.convert.convert30_tomo import TOMO_NAME, SUBTOMO_NAME, COORD_X, COORD_Y, COORD_Z, ROT, TILT, PSI, \
     RELION_TOMO_LABELS, TILT_PRIOR, PSI_PRIOR, CTF_MISSING_WEDGE, SHIFTX, SHIFTY, SHIFTZ
@@ -60,25 +60,23 @@ PYSEG_PICKING_STAR = 1
 
 def readStarFile(prot, outputSetObject, fileType, starFile=None, invert=True, returnTable=False):
     warningMsg = None
-    # Star file can be provided by the user or not, depending on the protocol invoking this method
-    if not starFile:
-        starFile = prot.starFile.get()
-
-    # If the star file is currently in the extra folder of another protocol execution, the paths
-    # generated with method _getExtraPath() will become wrong, but it doesn't have to be located there
-    if 'extra' in starFile:
-        starPath = ''
-        isExtra = True
-    else:
-        starPath = dirname(starFile) + '/'
-        isExtra = False
+    # # Star file can be provided by the user or not, depending on the protocol invoking this method
+    # if not starFile:
+    #     starFile = prot.starFile.get()
+    #
+    # # If the star file is currently in the extra folder of another protocol execution, the paths
+    # # generated with method _getExtraPath() will become wrong, but it doesn't have to be located there
+    # if 'extra' in starFile:
+    #     starPath = ''
+    # else:
+    #     starPath = dirname(starFile) + '/'
 
     tomoTable = Table()
     tomoTable.read(starFile)
 
     if fileType == RELION_SUBTOMO_STAR:
         labels = RELION_TOMO_LABELS
-        _relionTomoStar2Subtomograms(prot, outputSetObject, tomoTable, starPath, isExtra, invert)
+        _relionTomoStar2Subtomograms(prot,outputSetObject, tomoTable, invert)
     else:  # fileType == PYSEG_PICKING_STAR:
         labels = PYSEG_PICKING_LABELS
         _pysegStar2Coords3D(prot, outputSetObject, tomoTable, invert)
@@ -97,7 +95,7 @@ def readStarFile(prot, outputSetObject, fileType, starFile=None, invert=True, re
 
 def manageIhDims(fileName, z, n):
     if fileName.endswith('.mrc') or fileName.endswith('.map'):
-        fileName += ':mrc'
+        # fileName += ':mrc'
         if z == 1 and n != 1:
             zDim = n
         else:
@@ -108,30 +106,19 @@ def manageIhDims(fileName, z, n):
     return zDim, fileName
 
 
-def genAbsLink(fileName, newFileName):
-    if fileName.endswith(':mrc'):
-        fileName = fileName[:-4]
-    createAbsLink(fileName, newFileName)
-
-
-def _relionTomoStar2Subtomograms(prot, outputSubTomogramsSet, tomoTable, starPath, isExtra, invert):
+def _relionTomoStar2Subtomograms(prot, outputSubTomogramsSet, tomoTable, invert):
     ih = ImageHandler()
     samplingRate = outputSubTomogramsSet.getSamplingRate()
-    for counter, row in enumerate(tomoTable):
+    for row, inSubtomo in zip(tomoTable, prot.inputSubtomos.get()):
         subtomo = SubTomogram()
         coordinate3d = Coordinate3D()
         transform = Transform()
         origin = Transform()
 
-        volname = join(starPath, row.get(TOMO_NAME, FILE_NOT_FOUND))
+        volname = row.get(TOMO_NAME, FILE_NOT_FOUND)
         subtomoFn = row.get(SUBTOMO_NAME, FILE_NOT_FOUND)
-        subtomoAbsFn = join(starPath, subtomoFn)
-        if not isExtra:
-            subtomoAbsFn = prot._getExtraPath(subtomoAbsFn)
-        if not isabs(subtomoAbsFn):
-            subtomoAbsFn = abspath(subtomoAbsFn)
 
-        subtomo.setVolName(volname)
+        subtomo.setVolName(managePath4Sqlite(volname))
         subtomo.setTransform(transform)
         subtomo.setAcquisition(TomoAcquisition())
         subtomo.setClassId(row.get('rlnClassNumber', 0))
@@ -143,31 +130,25 @@ def _relionTomoStar2Subtomograms(prot, outputSubTomogramsSet, tomoTable, starPat
         z = row.get(COORD_Z, 0)
         tiltPrior = row.get(TILT_PRIOR, 0)
         psiPrior = row.get(PSI_PRIOR, 0)
-        ctf3d = row.get(CTF_MISSING_WEDGE, FILE_NOT_FOUND)
+        # ctf3d = row.get(CTF_MISSING_WEDGE, FILE_NOT_FOUND)
         coordinate3d = subtomo.getCoordinate3D()
         coordinate3d.setX(float(x), BOTTOM_LEFT_CORNER)
         coordinate3d.setY(float(y), BOTTOM_LEFT_CORNER)
         coordinate3d.setZ(float(z), BOTTOM_LEFT_CORNER)
-        coordinate3d._3dcftMrcFile = String(join(starPath, ctf3d))  # Used for the ctf3d generation in Relion
+        coordinate3d._3dcftMrcFile = inSubtomo.getCoordinate3D()._3dcftMrcFile  # Used for the ctf3d in Relion 3.0 (tomo)
         M = _getTransformMatrix(row, invert)
         transform.setMatrix(M)
         subtomo.setCoordinate3D(coordinate3d)
         subtomo._tiltPriorAngle = Float(tiltPrior)
         subtomo._psiPriorAngle = Float(psiPrior)
 
-        # Make link if necessary (only when the star file is out of a Scipion results dir)
-        uniqueSubtomoFn = subtomoAbsFn
-        if not isExtra:
-            uniqueSubtomoFn = subtomoFn.replace("/", "_").replace("..", "")
-            genAbsLink(subtomoAbsFn, prot._getExtraPath(uniqueSubtomoFn))
-
         # Set the origin and the dimensions of the current subtomogram
-        x, y, z, n = ih.getDimensions(subtomoAbsFn)
-        zDim, filename = manageIhDims(uniqueSubtomoFn, z, n)
+        x, y, z, n = ih.getDimensions(subtomoFn)
+        zDim, _ = manageIhDims(subtomoFn, z, n)
         origin.setShifts(x / -2. * samplingRate, y / -2. * samplingRate, zDim / -2. * samplingRate)
         subtomo.setOrigin(origin)
 
-        subtomo.setFileName(prot._getExtraPath(filename))
+        subtomo.setFileName(managePath4Sqlite(subtomoFn))
         # if subtomo is in a vesicle
         if 'tid_' in subtomoFn:
             vesicleId = subtomoFn.split('tid_')[1]
@@ -202,6 +183,10 @@ def _getTransformMatrix(row, invert):
         M[2, 3] = shifts[2]
 
     return M
+
+
+def managePath4Sqlite(fpath):
+    return fpath if fpath != FILE_NOT_FOUND else fpath
 
 
 def getTomoSetFromStar(prot, starFile):

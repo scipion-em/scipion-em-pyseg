@@ -73,7 +73,7 @@ class Plugin(pwem.Plugin):
         pysegHome = join(pwem.Config.EM_ROOT, PYSEG + '-' + DEFAULT_VERSION)
 
         PYSEG_INSTALLED = '%s_installed' % PYSEG
-        thirdPartyPath = join(pysegHome, 'pyseg_system-%s' % DEFAULT_VERSION, 'sys', 'install',
+        thirdPartyPath = join(pysegHome, ('pyseg_system-%s' % DEFAULT_VERSION).replace('v', ''), 'sys', 'install',
                               DISPERSE, '0.9.24_pyseg_gcc7', 'sources')
 
         # PySeg Conda environment

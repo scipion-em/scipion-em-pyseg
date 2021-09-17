@@ -164,15 +164,23 @@ class ProtPySegPostRecParticles(EMProtocol, ProtTomoBase):
 
     def _validate(self):
         validationMsg = []
-        tol = 0.001
+        tol = 0.01
+        volExt = '.vol'
+        volErrMsg = '.vol files are not admitted. Please provide a .mrc'
         subTomosRes = self.inputSubtomos.get().getSamplingRate()
-        maskRes = self.inMask.get().getSamplingRate()
-        mbMaskRes = self.mbMask.get()
+        inMask = self.inMask.get()
+        maskRes = inMask.getSamplingRate()
+        mbMask = self.mbMask.get()
+        if maskRes.getFileName().endswith(volExt):
+            validationMsg.append('Reference mask --> %s' % volErrMsg)
         if abs(maskRes - subTomosRes) > tol:
             validationMsg.append('Sampling rate of the input subtomograms and the input mask should be the same\n'
                                  '%2.3f != %2.3f' % (subTomosRes, maskRes))
-        if mbMaskRes:
-            if abs(mbMaskRes.getSamplingRate() - subTomosRes) > tol:
+        if mbMask:
+            if mbMask.getFileName().endswith(volExt):
+                validationMsg.append('Membrane mask --> %s' % volErrMsg)
+            mbMaskRes = mbMask.getSamplingRate()
+            if abs(mbMaskRes - subTomosRes) > tol:
                 validationMsg.append('Sampling rate of the input subtomograms and the input membrane suppression mask '
                                      'should be the same\n'
                                      '%2.3f != %2.3f' % (subTomosRes, mbMaskRes))
