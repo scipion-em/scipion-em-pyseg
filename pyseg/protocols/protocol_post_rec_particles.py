@@ -27,6 +27,7 @@
 from os.path import exists, abspath
 
 from pwem.protocols import EMProtocol, PointerParam
+from pyseg.utils import getFinalMaskFileName, checkMaskFormat
 from pyworkflow import BETA
 from pyworkflow.protocol import String, FloatParam, LEVEL_ADVANCED, BooleanParam, GT, LE, GE
 from pyworkflow.utils import Message, makePath
@@ -108,6 +109,11 @@ class ProtPySegPostRecParticles(EMProtocol, ProtTomoBase):
     def convertInputStep(self):
         """ Create the input file in STAR format as expected by Relion.
         """
+        # Check masks format and convert if necessary
+        checkMaskFormat(self.inMask.get())  # Subtomogram mask
+        if self.mbMask.get():
+            checkMaskFormat(self.mbMask.get())  # Membrane mask for attenuation (optional)
+        # Write star from set of subtomograms
         imgSet = self.inputSubtomos.get()
         imgStar = self._getExtraPath(self.inStarName)
         writeSetOfSubtomograms(imgSet, imgStar, isPyseg=True)
@@ -165,20 +171,14 @@ class ProtPySegPostRecParticles(EMProtocol, ProtTomoBase):
     def _validate(self):
         validationMsg = []
         tol = 0.01
-        volExt = '.vol'
-        volErrMsg = '.vol files are not admitted. Please provide a .mrc'
         subTomosRes = self.inputSubtomos.get().getSamplingRate()
         inMask = self.inMask.get()
         maskRes = inMask.getSamplingRate()
         mbMask = self.mbMask.get()
-        if maskRes.getFileName().endswith(volExt):
-            validationMsg.append('Reference mask --> %s' % volErrMsg)
         if abs(maskRes - subTomosRes) > tol:
             validationMsg.append('Sampling rate of the input subtomograms and the input mask should be the same\n'
                                  '%2.3f != %2.3f' % (subTomosRes, maskRes))
         if mbMask:
-            if mbMask.getFileName().endswith(volExt):
-                validationMsg.append('Membrane mask --> %s' % volErrMsg)
             mbMaskRes = mbMask.getSamplingRate()
             if abs(mbMaskRes - subTomosRes) > tol:
                 validationMsg.append('Sampling rate of the input subtomograms and the input membrane suppression mask '
@@ -219,8 +219,8 @@ class ProtPySegPostRecParticles(EMProtocol, ProtTomoBase):
         posRecCmd = ' '
         posRecCmd += '%s ' % Plugin.getHome(POST_REC_SCRIPT_MEMB_ATT)
         posRecCmd += '--inStar %s ' % self._getExtraPath(self.inStarName)
-        posRecCmd += '--inMask %s ' % self.inMask.get().getFileName()
-        posRecCmd += '--inMaskMbSup %s ' % (self.mbMask.get().getFileName() if self.mbMask.get() else 'None')
+        posRecCmd += '--inMask %s ' % getFinalMaskFileName(self.inMask.get())
+        posRecCmd += '--inMaskMbSup %s ' % (getFinalMaskFileName(self.mbMask.get()) if self.mbMask.get() else 'None')
         posRecCmd += '--mbSupFactor %s ' % (self.mbSupFactor.get() if self.mbSupFactor.get() else '0')
         posRecCmd += '--doGaussLowPass %s ' % doGaussianLPFilter
         posRecCmd += '--resolution %s ' % (float(self.inputSubtomos.get().getSamplingRate()) / 10)  # in nm
@@ -231,3 +231,4 @@ class ProtPySegPostRecParticles(EMProtocol, ProtTomoBase):
         posRecCmd += '--outStar %s ' % outStar
         posRecCmd += '-j %s ' % self.numberOfThreads.get()
         return posRecCmd
+
