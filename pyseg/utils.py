@@ -24,8 +24,28 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
+from os.path import abspath
+
+from pwem.emlib.image import ImageHandler
+from pyworkflow.utils import replaceExt, getExt
+
+COMP_EXT_MASK_LIST = ['.mrc', '.em', '.rec']
+
 
 def encodePresegArea(areaIndex):
     """EnumParam in form goes from 0 to 2 for the preseg areas codification, while
     Pyseg expects values higher or equal to 1, because 0 is used for the backgrounf"""
     return int(areaIndex) + 1
+
+
+def getFinalMaskFileName(inMask):
+    if getExt(inMask.getFileName()) in COMP_EXT_MASK_LIST:
+        return abspath(inMask.getFileName())
+    else:
+        return abspath(replaceExt(inMask.getFileName(), '.mrc'))
+
+
+def checkMaskFormat(inMask):
+    if getExt(inMask.getFileName()) not in COMP_EXT_MASK_LIST:
+        ih = ImageHandler()
+        ih.convert(inMask.getFileName(), getFinalMaskFileName(inMask))

@@ -36,7 +36,7 @@ from pyseg.constants import PYSEG_HOME, PYSEG, PYSEG_SOURCE_URL, PYSEG_ENV_ACTIV
 
 _logo = "icon.png"
 _references = ['MartinezSanchez2020']
-__version__ = '3.0.2'
+__version__ = '3.0.3'
 
 
 class Plugin(pwem.Plugin):
@@ -62,7 +62,7 @@ class Plugin(pwem.Plugin):
 
         # Add required disperse path to PATH and pyto path to PYTHONPATH
         environ.update({'PATH': join(pySegDir, '%s_build' % DISPERSE, 'bin'),
-                        'PYTHONPATH': join(pySegDir, 'pyseg_system-%s' % DEFAULT_VERSION, 'code')
+                        'PYTHONPATH': join(pySegDir, 'pyseg_system-%s' % DEFAULT_VERSION.replace('v', ''), 'code')
                         })
 
         return environ
@@ -73,7 +73,7 @@ class Plugin(pwem.Plugin):
         pysegHome = join(pwem.Config.EM_ROOT, PYSEG + '-' + DEFAULT_VERSION)
 
         PYSEG_INSTALLED = '%s_installed' % PYSEG
-        thirdPartyPath = join(pysegHome, 'pyseg_system-%s' % DEFAULT_VERSION, 'sys', 'install',
+        thirdPartyPath = join(pysegHome, ('pyseg_system-%s' % DEFAULT_VERSION).replace('v', ''), 'sys', 'install',
                               DISPERSE, '0.9.24_pyseg_gcc7', 'sources')
 
         # PySeg Conda environment

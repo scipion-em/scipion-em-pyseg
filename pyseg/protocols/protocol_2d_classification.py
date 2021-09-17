@@ -27,12 +27,12 @@
 from os.path import abspath, join, exists
 import glob
 from emtable import Table
-from pwem.emlib.image import ImageHandler
 from pwem.protocols import EMProtocol, PointerParam
+from pyseg.utils import checkMaskFormat, getFinalMaskFileName
 from pyworkflow import BETA
 from pyworkflow.object import String
 from pyworkflow.protocol import EnumParam, IntParam, LEVEL_ADVANCED, FloatParam, GE, LT, BooleanParam
-from pyworkflow.utils import Message, makePath, getExt, replaceExt
+from pyworkflow.utils import Message, makePath
 from reliontomo.convert import writeSetOfSubtomograms
 from scipion.constants import PYTHON
 from tomo.objects import SetOfSubTomograms
@@ -207,6 +207,8 @@ class ProtPySegPlaneAlignClassification(EMProtocol, ProtTomoBase):
         subtomoSet = self.inputSubtomos.get()
         subTomoStar = self._getExtraPath(self.inStarName)
         writeSetOfSubtomograms(subtomoSet, subTomoStar, isPyseg=True)
+        # Convert the mask format if necessary
+        checkMaskFormat(self.inMask.get())
 
     def pysegPlaneAlignClassification(self):
         # Script called
@@ -299,7 +301,7 @@ class ProtPySegPlaneAlignClassification(EMProtocol, ProtTomoBase):
         classCmd += '%s ' % Plugin.getHome(PLANE_ALIGN_CLASS_SCRIPT)
         classCmd += '--inRootDir scipion '
         classCmd += '--inStar %s ' % self._getExtraPath(self.inStarName)
-        classCmd += '--inMask %s ' % self._getMaskFileName()
+        classCmd += '--inMask %s ' % getFinalMaskFileName(self.inMask.get())
         classCmd += '--outDir %s ' % self._outDir
         classCmd += '--filterSize %s ' % self.filterSize.get()
         classCmd += '--procLevel %s ' % (FULL_CLASSIFICATION + 1)  # Numbered from 1 in pyseg
@@ -396,13 +398,3 @@ class ProtPySegPlaneAlignClassification(EMProtocol, ProtTomoBase):
 
         return pcaComps
 
-    def _getMaskFileName(self):
-        maskName = self.inMask.get().getFileName()
-        # Pyseg valid mask extensions are mrc, em or rec
-        if getExt(maskName) in ['.mrc', '.em', '.rec']:
-            return abspath(maskName)
-        else:
-            newMaskName = replaceExt(maskName, 'mrc')
-            ih = ImageHandler()
-            ih.convert(maskName, newMaskName)
-            return abspath(newMaskName)
