@@ -130,12 +130,15 @@ def _relionTomoStar2Subtomograms(prot, outputSubTomogramsSet, tomoTable, invert)
         z = row.get(COORD_Z, 0)
         tiltPrior = row.get(TILT_PRIOR, 0)
         psiPrior = row.get(PSI_PRIOR, 0)
-        # ctf3d = row.get(CTF_MISSING_WEDGE, FILE_NOT_FOUND)
         coordinate3d = subtomo.getCoordinate3D()
         coordinate3d.setX(float(x), BOTTOM_LEFT_CORNER)
         coordinate3d.setY(float(y), BOTTOM_LEFT_CORNER)
         coordinate3d.setZ(float(z), BOTTOM_LEFT_CORNER)
-        coordinate3d._3dcftMrcFile = inSubtomo.getCoordinate3D()._3dcftMrcFile  # Used for the ctf3d in Relion 3.0 (tomo)
+        coordinate3d.setVolume(inSubtomo.getCoordinate3D().getVolume())  # Volume pointer should keep the same
+        if hasattr(inSubtomo.getCoordinate3D(), '_3dcftMrcFile'):  # Used for the ctf3d in Relion 3.0 (tomo)
+            coordinate3d._3dcftMrcFile = inSubtomo.getCoordinate3D()._3dcftMrcFile
+        else:
+            coordinate3d._3dcftMrcFile = String()
         M = _getTransformMatrix(row, invert)
         transform.setMatrix(M)
         subtomo.setCoordinate3D(coordinate3d)
