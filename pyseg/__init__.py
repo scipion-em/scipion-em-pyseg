@@ -140,6 +140,7 @@ class Plugin(pwem.Plugin):
         installationCmd += 'conda activate %s && ' % PYSEG_ENV_NAME
 
         # Install non-conda required packages
+        installationCmd += 'pip install "setuptools<58" && '
         installationCmd += 'pip install beautifulsoup4==4.9.3 && '
         installationCmd += 'pip install lxml==4.6.3 && '
         installationCmd += 'pip install pillow==6.2.2 &&'
