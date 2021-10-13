@@ -158,7 +158,8 @@ class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         coordsSet.setBoxSize(self.boxSize.get())
         readStarFile(self, coordsSet, PYSEG_PICKING_STAR,
                      starFile=self._getPickingStarFileName(), invert=True)
-
+        if not coordsSet:
+            raise Exception('ERROR! No coordinates were picked.')
         self._defineOutputs(outputCoordinates=coordsSet)
 
     # --------------------------- INFO functions -----------------------------------

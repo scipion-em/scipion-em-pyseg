@@ -1,2 +1,2 @@
 scipion-em-tomo
-scipion-em-reliontomo==3.0.3
+scipion-em-reliontomo
