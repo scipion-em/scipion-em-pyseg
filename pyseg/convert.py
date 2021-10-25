@@ -57,17 +57,6 @@ PYSEG_PICKING_STAR = 1
 
 def readStarFile(prot, outputSetObject, fileType, starFile=None, invert=True, returnTable=False):
     warningMsg = None
-    # # Star file can be provided by the user or not, depending on the protocol invoking this method
-    # if not starFile:
-    #     starFile = prot.starFile.get()
-    #
-    # # If the star file is currently in the extra folder of another protocol execution, the paths
-    # # generated with method _getExtraPath() will become wrong, but it doesn't have to be located there
-    # if 'extra' in starFile:
-    #     starPath = ''
-    # else:
-    #     starPath = dirname(starFile) + '/'
-
     tomoTable = Table()
     tomoTable.read(starFile)
 
@@ -250,11 +239,17 @@ def _pysegStar2Coords3D(prot, output3DCoordSet, tomoTable, invert):
 
 def _getVesicleIdFromSubtomoName(subtomoName):
     """PySeg adds the vesicle index to the name of the subtomogram, with a suffix of type
-    _tid_[VesicleNumber].mrc. Example: Pertuzumab_1_defocus_25um_tomo_7_aliSIRT_EED_tid_0.mrc.
-    This function returns that vesicle number for a given """
-    pattern = '_tid_'
+    _tid_[VesicleNumber].mrc. Example: Pertuzumab_1_defocus_25um_tomo_7_aliSIRT_EED_tid_0.mrc. In case of splitting
+    into slices, the name is slightly different: Pertuzumab_1_defocus_25um_tomo_7_aliSIRT_EED_id_2_split_2.mrc.
+    This function returns that vesicle number for a given subtomogram name."""
+    splitPattern = '_split_'
+    tidPatten = '_tid_'
+    idPattern = '_id_'
     baseName = removeBaseExt(subtomoName)
-    pos = baseName.find(pattern)
-    # regexPattern = re.compile('^_tid_[0-9]{1, 3}')
-    # res = regexPattern.match(baseName)
-    return baseName[pos + len(pattern)::]
+    if splitPattern in baseName:
+        posIni = baseName.find(idPattern) + len(idPattern)
+        posEnd = baseName.find(splitPattern)
+        return baseName[posIni:posEnd]
+    else:
+        posIni = baseName.find(tidPatten) + len(tidPatten)
+        return baseName[posIni::]

@@ -306,7 +306,8 @@ class ProtPySegPreSegParticles(EMProtocol):
             suffix = '_mb'
             tomoMaskList = glob.glob(self._getExtraPath('segs', '*' + suffix + MRC))
         vesicleSubtomoList = [tomoMask.replace(suffix + MRC, MRC) for tomoMask in tomoMaskList]
-        ind = np.argsort([int(_getVesicleIdFromSubtomoName(vesicleName)) for vesicleName in vesicleSubtomoList])
+        indSorting = np.argsort([removeBaseExt(vesicleName) for vesicleName in vesicleSubtomoList])
+        vesicleIds = [int(_getVesicleIdFromSubtomoName(vesicleName)) for vesicleName in vesicleSubtomoList]
         tomoMaskSet = SetOfTomoMasks.create(self._getPath(), template='tomomasks%s.sqlite', suffix='segVesicles')
         subTomoSet = SetOfSubTomograms.create(self._getPath(), template='subtomograms%s.sqlite', suffix='vesicles')
         sRate = self._getSamplingRate()
@@ -329,20 +330,22 @@ class ProtPySegPreSegParticles(EMProtocol):
                 counter += 1
 
         counter = 1
-        for i in ind:
+        uniqueTomoBaseNameList = [removeBaseExt(tomoFile) for tomoFile in set(tomoFileList)]
+        for i in indSorting:
             # TomoMask
             tomoMask = TomoMask()
             vesicleFile = vesicleSubtomoList[i]
             tomoMask.setSamplingRate(sRate)
             tomoMask.setLocation((counter, tomoMaskList[i]))
             tomoMask.setVolName(vesicleFile)
+            tomoMask.setClassId(vesicleIds[i])
             tomoMaskSet.append(tomoMask)
             # Subtomogram
             subtomo = SubTomogram()
             subtomo.setFileName(vesicleFile)
             subtomo.setSamplingRate(sRate)
-            subtomo.setClassId(counter - 1)
-            subtomo.setVolName(tomoFileList[counter - 1])
+            subtomo.setClassId(vesicleIds[i])
+            subtomo.setVolName(self._getPrecedent(tomoFileList, uniqueTomoBaseNameList, removeBaseExt(vesicleFile)))
             subTomoSet.append(subtomo)
 
             counter += 1
@@ -354,3 +357,9 @@ class ProtPySegPreSegParticles(EMProtocol):
             return self.inTomoMasks.get().getFirstItem().getSamplingRate()
         else:
             return self.sgVoxelSize.get()
+
+    @staticmethod
+    def _getPrecedent(tomoFileList, uniqueTomoBaseNameList, vesicleBaseName):
+        for i, tomoBaseName in enumerate(uniqueTomoBaseNameList):
+            if tomoBaseName in vesicleBaseName:
+                return tomoFileList[i]
