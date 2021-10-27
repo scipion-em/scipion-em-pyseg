@@ -31,7 +31,7 @@ from pwem.emlib.image import ImageHandler
 from pwem.protocols import EMProtocol
 from pyworkflow import BETA
 from pyworkflow.protocol import FileParam, NumericListParam, IntParam, FloatParam, GT, LEVEL_ADVANCED, EnumParam, \
-    PointerParam
+    PointerParam, GE
 from pyworkflow.utils import Message, removeBaseExt, removeExt
 from scipion.constants import PYTHON
 from tomo.objects import SetOfTomoMasks, TomoMask, SetOfSubTomograms, SubTomogram, SetOfTomograms, Tomogram
@@ -88,7 +88,7 @@ class ProtPySegPreSegParticles(EMProtocol):
                             'is used to indicate no splitting.')
         group.addParam('spOffVoxels', IntParam,
                        label='Offset voxels',
-                       allowsNull=False,
+                       default=1,
                        validators=[GT(0)],
                        help='Margin to ensure that the desired entities, e. g. membranes, proteins, are included.')
         group = form.addGroup('Membrane segmentation')
