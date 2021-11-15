@@ -24,13 +24,14 @@
 # *
 # **************************************************************************
 import numpy as np
+from emtable import Table
+
 from pwem.emlib.image import ImageHandler
 from pwem.objects.data import Transform, String
 import pwem.convert.transformations as tfs
 
 from pyworkflow.object import List, Float
 from pyworkflow.utils import removeBaseExt
-from relion.convert import Table
 from reliontomo.convert.convert30_tomo import TOMO_NAME, SUBTOMO_NAME, COORD_X, COORD_Y, COORD_Z, ROT, TILT, PSI, \
     RELION_TOMO_LABELS, TILT_PRIOR, PSI_PRIOR, SHIFTX, SHIFTY, SHIFTZ
 from tomo.constants import BOTTOM_LEFT_CORNER

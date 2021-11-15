@@ -215,8 +215,9 @@ class ProtPySegPreSegParticles(EMProtocol):
             materialsList = matFile.read()
 
         # Expected format is a string like 'ind1,ind2,...,indn\n, so it's necessary to transform it into a list of
-        # material indices
-        return materialsList.replace('\n', '').split(',')
+        # material indices, which may have been annotated more than once (incomplete membranes that were annotated part
+        # by part)
+        return set(materialsList.replace('\n', '').split(','))
 
     def _findVesicleCenter(self, starFileInit, starFilePreseg1):
         ih = ImageHandler()

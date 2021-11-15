@@ -33,7 +33,7 @@ from pyworkflow import BETA
 from pyworkflow.object import String
 from pyworkflow.protocol import EnumParam, IntParam, LEVEL_ADVANCED, FloatParam, GE, LT, BooleanParam
 from pyworkflow.utils import Message, makePath
-from reliontomo.convert import writeSetOfSubtomograms
+from reliontomo.convert import convert30_tomo
 from scipion.constants import PYTHON
 from tomo.objects import SetOfSubTomograms
 from tomo.protocols import ProtTomoBase
@@ -206,7 +206,8 @@ class ProtPySegPlaneAlignClassification(EMProtocol, ProtTomoBase):
         """
         subtomoSet = self.inputSubtomos.get()
         subTomoStar = self._getExtraPath(self.inStarName)
-        writeSetOfSubtomograms(subtomoSet, subTomoStar, isPyseg=True)
+        writer = convert30_tomo.Writer()
+        writer.writeSetOfSubtomograms(subtomoSet, subTomoStar, isPyseg=True)
         # Convert the mask format if necessary
         checkMaskFormat(self.inMask.get())
 
