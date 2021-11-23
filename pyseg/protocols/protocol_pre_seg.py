@@ -116,7 +116,7 @@ class ProtPySegPreSegParticles(EMProtocol):
                        help='Value introduced will be divided by 2 internally, because it is expected like that '
                             'by PySeg.')
         group.addParam('sgMembNeigh', FloatParam,
-                       label='Segmented mebmrane neighbours (Å)',
+                       label='Segmented membrane neighbours (Å)',
                        allowsNull=False,
                        validators=[GT(0)],
                        help='Thickness around the membrane to represent the in-membrane and out-membrane surroundings '
