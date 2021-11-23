@@ -47,9 +47,9 @@ from pyseg.convert import _getVesicleIdFromSubtomoName
 
 
 class ProtPySegPreSegParticles(EMProtocol):
-    """pre-process segmented circular membranes"""
+    """Segment membranes into membranes, inner surroundings and outer surroundings"""
 
-    _label = 'preseg circular membranes'
+    _label = 'preseg membranes'
     _devStatus = BETA
     _starFile = None
 
