@@ -36,7 +36,7 @@ from pyseg.constants import PYSEG_HOME, PYSEG, PYSEG_SOURCE_URL, PYSEG_ENV_ACTIV
 
 _logo = "icon.png"
 _references = ['MartinezSanchez2020']
-__version__ = '3.0.3'
+__version__ = '3.0.4'
 
 
 class Plugin(pwem.Plugin):
@@ -140,6 +140,7 @@ class Plugin(pwem.Plugin):
         installationCmd += 'conda activate %s && ' % PYSEG_ENV_NAME
 
         # Install non-conda required packages
+        installationCmd += 'pip install "setuptools<58" && '
         installationCmd += 'pip install beautifulsoup4==4.9.3 && '
         installationCmd += 'pip install lxml==4.6.3 && '
         installationCmd += 'pip install pillow==6.2.2 &&'

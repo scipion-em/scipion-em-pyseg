@@ -23,19 +23,19 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
-from os.path import dirname
+from os.path import basename
 
 import numpy as np
+from emtable import Table
+
 from pwem.emlib.image import ImageHandler
 from pwem.objects.data import Transform, String
 import pwem.convert.transformations as tfs
-from os.path import join
 
 from pyworkflow.object import List, Float
 from pyworkflow.utils import removeBaseExt
-from relion.convert import Table
 from reliontomo.convert.convert30_tomo import TOMO_NAME, SUBTOMO_NAME, COORD_X, COORD_Y, COORD_Z, ROT, TILT, PSI, \
-    RELION_TOMO_LABELS, TILT_PRIOR, PSI_PRIOR, CTF_MISSING_WEDGE, SHIFTX, SHIFTY, SHIFTZ
+    RELION_TOMO_LABELS, TILT_PRIOR, PSI_PRIOR, SHIFTX, SHIFTY, SHIFTZ
 from tomo.constants import BOTTOM_LEFT_CORNER
 from tomo.objects import SubTomogram, Coordinate3D, TomoAcquisition, Tomogram
 
@@ -60,17 +60,6 @@ PYSEG_PICKING_STAR = 1
 
 def readStarFile(prot, outputSetObject, fileType, starFile=None, invert=True, returnTable=False):
     warningMsg = None
-    # # Star file can be provided by the user or not, depending on the protocol invoking this method
-    # if not starFile:
-    #     starFile = prot.starFile.get()
-    #
-    # # If the star file is currently in the extra folder of another protocol execution, the paths
-    # # generated with method _getExtraPath() will become wrong, but it doesn't have to be located there
-    # if 'extra' in starFile:
-    #     starPath = ''
-    # else:
-    #     starPath = dirname(starFile) + '/'
-
     tomoTable = Table()
     tomoTable.read(starFile)
 
@@ -130,12 +119,15 @@ def _relionTomoStar2Subtomograms(prot, outputSubTomogramsSet, tomoTable, invert)
         z = row.get(COORD_Z, 0)
         tiltPrior = row.get(TILT_PRIOR, 0)
         psiPrior = row.get(PSI_PRIOR, 0)
-        # ctf3d = row.get(CTF_MISSING_WEDGE, FILE_NOT_FOUND)
         coordinate3d = subtomo.getCoordinate3D()
         coordinate3d.setX(float(x), BOTTOM_LEFT_CORNER)
         coordinate3d.setY(float(y), BOTTOM_LEFT_CORNER)
         coordinate3d.setZ(float(z), BOTTOM_LEFT_CORNER)
-        coordinate3d._3dcftMrcFile = inSubtomo.getCoordinate3D()._3dcftMrcFile  # Used for the ctf3d in Relion 3.0 (tomo)
+        coordinate3d.setVolume(inSubtomo.getCoordinate3D().getVolume())  # Volume pointer should keep the same
+        if hasattr(inSubtomo.getCoordinate3D(), '_3dcftMrcFile'):  # Used for the ctf3d in Relion 3.0 (tomo)
+            coordinate3d._3dcftMrcFile = inSubtomo.getCoordinate3D()._3dcftMrcFile
+        else:
+            coordinate3d._3dcftMrcFile = String()
         M = _getTransformMatrix(row, invert)
         transform.setMatrix(M)
         subtomo.setCoordinate3D(coordinate3d)
@@ -230,7 +222,7 @@ def _pysegStar2Coords3D(prot, output3DCoordSet, tomoTable, invert):
         tomoName = tomo.getFileName().replace(':mrc', '')
         for row in tomoTable:
             # Create the set of coordinates referring each of them to its corresponding tomogram (ancestor)
-            if row.get(TOMO_NAME) == tomoName:
+            if basename(row.get(TOMO_NAME)) == basename(tomoName):
                 coordinate3d = Coordinate3D()
                 coordinate3d.setVolId(tomoNum)
                 coordinate3d.setVolume(tomo)
@@ -250,11 +242,17 @@ def _pysegStar2Coords3D(prot, output3DCoordSet, tomoTable, invert):
 
 def _getVesicleIdFromSubtomoName(subtomoName):
     """PySeg adds the vesicle index to the name of the subtomogram, with a suffix of type
-    _tid_[VesicleNumber].mrc. Example: Pertuzumab_1_defocus_25um_tomo_7_aliSIRT_EED_tid_0.mrc.
-    This function returns that vesicle number for a given """
-    pattern = '_tid_'
+    _tid_[VesicleNumber].mrc. Example: Pertuzumab_1_defocus_25um_tomo_7_aliSIRT_EED_tid_0.mrc. In case of splitting
+    into slices, the name is slightly different: Pertuzumab_1_defocus_25um_tomo_7_aliSIRT_EED_id_2_split_2.mrc.
+    This function returns that vesicle number for a given subtomogram name."""
+    splitPattern = '_split_'
+    tidPatten = '_tid_'
+    idPattern = '_id_'
     baseName = removeBaseExt(subtomoName)
-    pos = baseName.find(pattern)
-    # regexPattern = re.compile('^_tid_[0-9]{1, 3}')
-    # res = regexPattern.match(baseName)
-    return baseName[pos + len(pattern)::]
+    if splitPattern in baseName:
+        posIni = baseName.find(idPattern) + len(idPattern)
+        posEnd = baseName.find(splitPattern)
+        return baseName[posIni:posEnd]
+    else:
+        posIni = baseName.find(tidPatten) + len(tidPatten)
+        return baseName[posIni::]
