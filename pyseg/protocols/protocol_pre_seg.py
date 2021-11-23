@@ -110,6 +110,7 @@ class ProtPySegPreSegParticles(EMProtocol):
                        help='It sets the minimal size for a component to be considered as membrane.')
         group.addParam('sgMembThk', FloatParam,
                        label='Segmented membrane thickness (Å)',
+                       default=40,
                        allowsNull=False,
                        validators=[GT(0)])
         group.addParam('sgMembNeigh', FloatParam,
@@ -182,7 +183,7 @@ class ProtPySegPreSegParticles(EMProtocol):
         preSegCmd += '--sgVoxelSize %s ' % (float(self._getSamplingRate())/10)  # required in nm
         preSegCmd += '--sgThreshold %s ' % self.sgThreshold.get()
         preSegCmd += '--sgSizeThreshold %s ' % self.sgSizeThreshold.get()
-        preSegCmd += '--sgMembThk %s ' % self._checkValue4PySeg(self.sgMembThk.get())  # required in nm
+        preSegCmd += '--sgMembThk %s ' % self._checkValue4PySeg(self.sgMembThk.get()/2)  # half of the thickness in nm
         preSegCmd += '--sgMembNeigh %s ' % self._checkValue4PySeg(self.sgMembNeigh.get())  # required in nm
 
         return preSegCmd
