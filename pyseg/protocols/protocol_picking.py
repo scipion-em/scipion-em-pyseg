@@ -122,7 +122,7 @@ class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
                       help='Area in which the cutting point or cutting point + projections of the '
                            'filament will be considered for the picking coordinates.')
         form.addParam(paramList[1], EnumParam,
-                      choices=['Cutting point', 'Cutting point + projections'],
+                      choices=['Cutting point', 'Projected local minima'],
                       default=0,
                       label='Find on two surfaces',
                       display=EnumParam.DISPLAY_HLIST,

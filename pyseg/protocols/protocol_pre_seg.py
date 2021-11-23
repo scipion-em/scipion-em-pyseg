@@ -27,6 +27,7 @@
 import glob
 from os.path import abspath
 
+from pwem.convert.headers import fixVolume
 from pwem.emlib.image import ImageHandler
 from pwem.protocols import EMProtocol
 from pyworkflow import BETA
@@ -336,8 +337,11 @@ class ProtPySegPreSegParticles(EMProtocol):
             # TomoMask
             tomoMask = TomoMask()
             vesicleFile = vesicleSubtomoList[i]
+            fixVolume(vesicleFile)
             tomoMask.setSamplingRate(sRate)
-            tomoMask.setLocation((counter, tomoMaskList[i]))
+            maskFile = tomoMaskList[i]
+            fixVolume(maskFile)
+            tomoMask.setLocation((counter, maskFile))
             tomoMask.setVolName(vesicleFile)
             tomoMask.setClassId(vesicleIds[i])
             tomoMaskSet.append(tomoMask)
@@ -348,6 +352,8 @@ class ProtPySegPreSegParticles(EMProtocol):
             subtomo.setClassId(vesicleIds[i])
             subtomo.setVolName(self._getPrecedent(tomoFileList, uniqueTomoBaseNameList, removeBaseExt(vesicleFile)))
             subTomoSet.append(subtomo)
+
+
 
             counter += 1
 

@@ -23,6 +23,8 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
+from os.path import basename
+
 import numpy as np
 from emtable import Table
 
@@ -220,7 +222,7 @@ def _pysegStar2Coords3D(prot, output3DCoordSet, tomoTable, invert):
         tomoName = tomo.getFileName().replace(':mrc', '')
         for row in tomoTable:
             # Create the set of coordinates referring each of them to its corresponding tomogram (ancestor)
-            if row.get(TOMO_NAME) == tomoName:
+            if basename(row.get(TOMO_NAME)) == basename(tomoName):
                 coordinate3d = Coordinate3D()
                 coordinate3d.setVolId(tomoNum)
                 coordinate3d.setVolume(tomo)
