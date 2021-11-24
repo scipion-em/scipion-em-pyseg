@@ -31,10 +31,10 @@ import xml.etree.ElementTree as ET
 
 from pwem.protocols import EMProtocol
 from pyworkflow import BETA
-from pyworkflow.protocol import FloatParam, EnumParam, PointerParam, IntParam, FileParam, LEVEL_ADVANCED
+from pyworkflow.protocol import FloatParam, EnumParam, PointerParam, IntParam, LEVEL_ADVANCED
 from pyworkflow.utils import Message, makePath, removeBaseExt, copyFile
 from scipion.constants import PYTHON
-from tomo.objects import SetOfCoordinates3D, SetOfTomograms
+from tomo.objects import SetOfCoordinates3D
 from tomo.protocols import ProtTomoBase
 from tomo.protocols.protocol_base import ProtTomoImportAcquisition
 
@@ -122,7 +122,7 @@ class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
                       help='Area in which the cutting point or cutting point + projections of the '
                            'filament will be considered for the picking coordinates.')
         form.addParam(paramList[1], EnumParam,
-                      choices=['Cutting point', 'Cutting point + projections'],
+                      choices=['Cutting point', 'Projected local minima'],
                       default=0,
                       label='Find on two surfaces',
                       display=EnumParam.DISPLAY_HLIST,
@@ -158,7 +158,8 @@ class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         coordsSet.setBoxSize(self.boxSize.get())
         readStarFile(self, coordsSet, PYSEG_PICKING_STAR,
                      starFile=self._getPickingStarFileName(), invert=True)
-
+        if not coordsSet:
+            raise Exception('ERROR! No coordinates were picked.')
         self._defineOutputs(outputCoordinates=coordsSet)
 
     # --------------------------- INFO functions -----------------------------------

@@ -27,11 +27,12 @@
 import glob
 from os.path import abspath
 
+from pwem.convert.headers import fixVolume
 from pwem.emlib.image import ImageHandler
 from pwem.protocols import EMProtocol
 from pyworkflow import BETA
 from pyworkflow.protocol import FileParam, NumericListParam, IntParam, FloatParam, GT, LEVEL_ADVANCED, EnumParam, \
-    PointerParam
+    PointerParam, GE
 from pyworkflow.utils import Message, removeBaseExt, removeExt
 from scipion.constants import PYTHON
 from tomo.objects import SetOfTomoMasks, TomoMask, SetOfSubTomograms, SubTomogram, SetOfTomograms, Tomogram
@@ -46,9 +47,9 @@ from pyseg.convert import _getVesicleIdFromSubtomoName
 
 
 class ProtPySegPreSegParticles(EMProtocol):
-    """pre-process segmented circular membranes"""
+    """Segment membranes into membranes, inner surroundings and outer surroundings"""
 
-    _label = 'preseg circular membranes'
+    _label = 'preseg membranes'
     _devStatus = BETA
     _starFile = None
 
@@ -88,7 +89,7 @@ class ProtPySegPreSegParticles(EMProtocol):
                             'is used to indicate no splitting.')
         group.addParam('spOffVoxels', IntParam,
                        label='Offset voxels',
-                       allowsNull=False,
+                       default=1,
                        validators=[GT(0)],
                        help='Margin to ensure that the desired entities, e. g. membranes, proteins, are included.')
         group = form.addGroup('Membrane segmentation')
@@ -109,8 +110,11 @@ class ProtPySegPreSegParticles(EMProtocol):
                        help='It sets the minimal size for a component to be considered as membrane.')
         group.addParam('sgMembThk', FloatParam,
                        label='Segmented membrane thickness (Å)',
+                       default=40,
                        allowsNull=False,
-                       validators=[GT(0)])
+                       validators=[GT(0)],
+                       help='Value introduced will be divided by 2 internally, because it is expected like that '
+                            'by PySeg.')
         group.addParam('sgMembNeigh', FloatParam,
                        label='Segmented mebmrane neighbours (Å)',
                        allowsNull=False,
@@ -181,7 +185,7 @@ class ProtPySegPreSegParticles(EMProtocol):
         preSegCmd += '--sgVoxelSize %s ' % (float(self._getSamplingRate())/10)  # required in nm
         preSegCmd += '--sgThreshold %s ' % self.sgThreshold.get()
         preSegCmd += '--sgSizeThreshold %s ' % self.sgSizeThreshold.get()
-        preSegCmd += '--sgMembThk %s ' % self._checkValue4PySeg(self.sgMembThk.get())  # required in nm
+        preSegCmd += '--sgMembThk %s ' % self._checkValue4PySeg(self.sgMembThk.get()/2)  # half of the thickness in nm
         preSegCmd += '--sgMembNeigh %s ' % self._checkValue4PySeg(self.sgMembNeigh.get())  # required in nm
 
         return preSegCmd
@@ -215,8 +219,9 @@ class ProtPySegPreSegParticles(EMProtocol):
             materialsList = matFile.read()
 
         # Expected format is a string like 'ind1,ind2,...,indn\n, so it's necessary to transform it into a list of
-        # material indices
-        return materialsList.replace('\n', '').split(',')
+        # material indices, which may have been annotated more than once (incomplete membranes that were annotated part
+        # by part)
+        return set(materialsList.replace('\n', '').split(','))
 
     def _findVesicleCenter(self, starFileInit, starFilePreseg1):
         ih = ImageHandler()
@@ -306,7 +311,8 @@ class ProtPySegPreSegParticles(EMProtocol):
             suffix = '_mb'
             tomoMaskList = glob.glob(self._getExtraPath('segs', '*' + suffix + MRC))
         vesicleSubtomoList = [tomoMask.replace(suffix + MRC, MRC) for tomoMask in tomoMaskList]
-        ind = np.argsort([int(_getVesicleIdFromSubtomoName(vesicleName)) for vesicleName in vesicleSubtomoList])
+        indSorting = np.argsort([removeBaseExt(vesicleName) for vesicleName in vesicleSubtomoList])
+        vesicleIds = [int(_getVesicleIdFromSubtomoName(vesicleName)) for vesicleName in vesicleSubtomoList]
         tomoMaskSet = SetOfTomoMasks.create(self._getPath(), template='tomomasks%s.sqlite', suffix='segVesicles')
         subTomoSet = SetOfSubTomograms.create(self._getPath(), template='subtomograms%s.sqlite', suffix='vesicles')
         sRate = self._getSamplingRate()
@@ -329,21 +335,28 @@ class ProtPySegPreSegParticles(EMProtocol):
                 counter += 1
 
         counter = 1
-        for i in ind:
+        uniqueTomoBaseNameList = [removeBaseExt(tomoFile) for tomoFile in set(tomoFileList)]
+        for i in indSorting:
             # TomoMask
             tomoMask = TomoMask()
             vesicleFile = vesicleSubtomoList[i]
+            fixVolume(vesicleFile)
             tomoMask.setSamplingRate(sRate)
-            tomoMask.setLocation((counter, tomoMaskList[i]))
+            maskFile = tomoMaskList[i]
+            fixVolume(maskFile)
+            tomoMask.setLocation((counter, maskFile))
             tomoMask.setVolName(vesicleFile)
+            tomoMask.setClassId(vesicleIds[i])
             tomoMaskSet.append(tomoMask)
             # Subtomogram
             subtomo = SubTomogram()
             subtomo.setFileName(vesicleFile)
             subtomo.setSamplingRate(sRate)
-            subtomo.setClassId(counter - 1)
-            subtomo.setVolName(tomoFileList[counter - 1])
+            subtomo.setClassId(vesicleIds[i])
+            subtomo.setVolName(self._getPrecedent(tomoFileList, uniqueTomoBaseNameList, removeBaseExt(vesicleFile)))
             subTomoSet.append(subtomo)
+
+
 
             counter += 1
 
@@ -354,3 +367,9 @@ class ProtPySegPreSegParticles(EMProtocol):
             return self.inTomoMasks.get().getFirstItem().getSamplingRate()
         else:
             return self.sgVoxelSize.get()
+
+    @staticmethod
+    def _getPrecedent(tomoFileList, uniqueTomoBaseNameList, vesicleBaseName):
+        for i, tomoBaseName in enumerate(uniqueTomoBaseNameList):
+            if tomoBaseName in vesicleBaseName:
+                return tomoFileList[i]
