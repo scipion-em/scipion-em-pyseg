@@ -24,10 +24,11 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
-from os.path import abspath
+from os.path import abspath, join, basename
 
 from pwem.emlib.image import ImageHandler
-from pyworkflow.utils import replaceExt, getExt
+from pyseg.constants import IN_STARS_DIR, OUT_STARS_DIRS
+from pyworkflow.utils import replaceExt, getExt, makePath
 
 COMP_EXT_MASK_LIST = ['.mrc', '.em', '.rec']
 
@@ -49,3 +50,20 @@ def checkMaskFormat(inMask):
     if getExt(inMask.getFileName()) not in COMP_EXT_MASK_LIST:
         ih = ImageHandler()
         ih.convert(inMask.getFileName(), getFinalMaskFileName(inMask))
+
+
+def createStarDirectories(extraPath):
+    """Create a folder in extra directory to store the star files (one per vesicle) in which the input one will
+    # be split and the same for the output star files"""
+    splitStarDir = join(extraPath, IN_STARS_DIR)
+    # The same for the output star files
+    outStarDir = join(extraPath, OUT_STARS_DIRS)
+    makePath(splitStarDir, outStarDir)
+    return outStarDir, splitStarDir
+
+
+def genOutSplitStarFileName(outDir, starFile):
+    return join(outDir, basename(starFile))
+
+
+

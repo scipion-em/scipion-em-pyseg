@@ -41,53 +41,55 @@ from reliontomo.convert.convert30_tomo import TOMO_NAME, SUBTOMO_NAME, COORD_X, 
 from tomo.constants import BOTTOM_LEFT_CORNER
 from tomo.objects import SubTomogram, Coordinate3D, TomoAcquisition, Tomogram
 
-PYSEG_PICKING_LABELS = [TOMO_NAME,
-                        VESICLE,
-                        SEGMENTATION,
-                        COORD_X,
-                        COORD_Y,
-                        COORD_Z,
-                        ROT,
-                        TILT,
-                        PSI,
-                        ]
 
-GRAPHS_LABELS = [TOMO_NAME,
-                 VESICLE,
-                 SEGMENTATION,
-                 PYSEG_ROT,
-                 PYSEG_TILT,
-                 PYSEG_PSI,
-                 PYSEG_OFFSET_X,
-                 PYSEG_OFFSET_Y,
-                 PYSEG_OFFSET_Z,
-                 GRAPHS_PICKLE_FILE]
+# PRESEG_LABELS = [TOMO_NAME,
+#                  VESICLE,
+#                  SEGMENTATION,
+#                  PYSEG_ROT,
+#                  PYSEG_TILT,
+#                  PYSEG_PSI,
+#                  PYSEG_OFFSET_X,
+#                  PYSEG_OFFSET_Y,
+#                  PYSEG_OFFSET_Z]
 
+# GRAPHS_LABELS = [TOMO_NAME,
+#                  VESICLE,
+#                  SEGMENTATION,
+#                  PYSEG_ROT,
+#                  PYSEG_TILT,
+#                  PYSEG_PSI,
+#                  PYSEG_OFFSET_X,
+#                  PYSEG_OFFSET_Y,
+#                  PYSEG_OFFSET_Z,
+#                  GRAPHS_PICKLE_FILE]
+
+PICKING_LABELS = [TOMO_NAME,
+                  VESICLE,
+                  SEGMENTATION,
+                  COORD_X,
+                  COORD_Y,
+                  COORD_Z,
+                  ROT,
+                  TILT,
+                  PSI]
 
 # Star files coding
 RELION_SUBTOMO_STAR = 0
 PYSEG_PICKING_STAR = 1
 
 
-def splitGraphsStarFile(inStar, outDir):
+def splitPysegStarFile(inStar, outDir):
     """Split a star file which one line for each membrane into n files of one membrane, in order to make the
     filament protocol runs faster"""
     outStarFiles = []
     tomoTable = Table()
     tomoTable.read(inStar)
-    outTable = Table(columns=GRAPHS_LABELS)
+    labels = tomoTable.getColumnNames()
+    outTable = Table(columns=labels)
     for vesicleRow in tomoTable:
         outTable.clearRows()
-        outTable.addRow(vesicleRow.get(TOMO_NAME, NOT_FOUND),
-                        vesicleRow.get(VESICLE, NOT_FOUND),
-                        vesicleRow.get(SEGMENTATION, NOT_FOUND),
-                        vesicleRow.get(PYSEG_ROT, NOT_FOUND),
-                        vesicleRow.get(PYSEG_TILT, NOT_FOUND),
-                        vesicleRow.get(PYSEG_PSI, NOT_FOUND),
-                        vesicleRow.get(PYSEG_OFFSET_X, NOT_FOUND),
-                        vesicleRow.get(PYSEG_OFFSET_Y, NOT_FOUND),
-                        vesicleRow.get(PYSEG_OFFSET_Z, NOT_FOUND),
-                        vesicleRow.get(GRAPHS_PICKLE_FILE, NOT_FOUND))
+        values = [vesicleRow.get(label, NOT_FOUND) for label in labels]
+        outTable.addRow(*values)
         outStarFile = join(outDir, removeBaseExt(vesicleRow.get(VESICLE)) + '.star')
         outStarFiles.append(outStarFile)
         outTable.write(outStarFile)
@@ -104,7 +106,7 @@ def readParticlesStarFile(prot, outputSetObject, fileType, starFile=None, invert
         labels = RELION_TOMO_LABELS
         _relionTomoStar2Subtomograms(prot,outputSetObject, tomoTable, invert)
     else:  # fileType == PYSEG_PICKING_STAR:
-        labels = PYSEG_PICKING_LABELS
+        labels = PICKING_LABELS
         _pysegStar2Coords3D(prot, outputSetObject, tomoTable, invert)
 
     if not tomoTable.hasAllColumns(labels):

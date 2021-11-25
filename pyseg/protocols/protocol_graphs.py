@@ -28,9 +28,11 @@ import shutil
 from glob import glob
 
 from pwem.protocols import EMProtocol
+from pyseg.convert import splitPysegStarFile
+from pyseg.utils import createStarDirectories, genOutSplitStarFileName
 from pyworkflow import BETA
 from pyworkflow.protocol import FloatParam, PointerParam, LEVEL_ADVANCED, BooleanParam
-from pyworkflow.utils import Message, makePath
+from pyworkflow.utils import Message, makePath, moveFile
 from scipion.constants import PYTHON
 from tomo.protocols import ProtTomoBase
 from tomo.protocols.protocol_base import ProtTomoImportAcquisition
@@ -46,6 +48,13 @@ class ProtPySegGraphs(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
     _devStatus = BETA
 
     # -------------------------- DEFINE param functions ----------------------
+    def __init__(self):
+        EMProtocol.__init__(self)
+        ProtTomoBase.__init__(self)
+        ProtTomoImportAcquisition.__init__(self)
+        self._outStarDir = None
+        self._inStarDir = None
+
     def _defineParams(self, form):
         """ Define the input parameters that will be used.
         Params:
@@ -59,7 +68,7 @@ class ProtPySegGraphs(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
                       important=True,
                       allowsNull=False,
                       help='Pointer to preseg protocol.')
-        form.addParam('keepOnlyreqFiles', BooleanParam,
+        form.addParam('keepOnlyReqFiles', BooleanParam,
                       label='Keep only required files?',
                       default=True,
                       expertLevel=LEVEL_ADVANCED,
@@ -97,18 +106,27 @@ class ProtPySegGraphs(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         form.addParallelSection(threads=4, mpi=0)
 
     def _insertAllSteps(self):
-        self._insertFunctionStep(self.pysegGraphs)
+        starFileList = self._insertFunctionStep(self.convertInputStep)
+        for starFile in starFileList:
+            self._insertFunctionStep(self.pysegGraphs, starFile)
+        self._insertFunctionStep(self.removeUnusedFilesStep)
 
-    def pysegGraphs(self):
-        # Generate output dir
-        outDir = self._getExtraPath()
-        makePath(outDir)
+    def convertInputStep(self):
+        # Generate directories for input and output star files
+        # Split the input file into n files, one per vesicle
+        self._outStarDir, self._inStarDir = createStarDirectories(self._getExtraPath())
+        return splitPysegStarFile(self._getPreSegStarFile(), self._inStarDir)
 
+    def pysegGraphs(self, starFile):
         # Script called
-        Plugin.runPySeg(self, PYTHON, self._getGraphsCommand(outDir))
+        Plugin.runPySeg(self, PYTHON, self._getGraphsCommand(starFile))
+        # Fils returns the same star file name, so it will be renamed to avoid overwriting
+        moveFile(self._getExtraPath('fil_mb_sources_to_no_mb_targets_net.star'),
+                 genOutSplitStarFileName(self._outStarDir, starFile))
 
+    def removeUnusedFilesStep(self):
         # Remove Disperse program intermediate result directories if requested
-        if self.keepOnlyreqFiles.get():
+        if self.keepOnlyReqFiles.get():
             disperseDirs = glob(self._getExtraPath('disperse_*'))
             [shutil.rmtree(disperseDir) for disperseDir in disperseDirs]
 
@@ -119,12 +137,12 @@ class ProtPySegGraphs(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
             summaryMsg.append('Graphs were correctly generated.')
 
     # --------------------------- UTIL functions -----------------------------------
-    def _getGraphsCommand(self, outDir):
+    def _getGraphsCommand(self, starFile):
         pixSize = self._getSamplingRate()/10
         graphsCmd = ' '
         graphsCmd += '%s ' % Plugin.getHome(GRAPHS_SCRIPT)
-        graphsCmd += '--inStar %s ' % self._getPreSegStarFile()  # self.inStar.get()
-        graphsCmd += '--outDir %s ' % outDir
+        graphsCmd += '--inStar %s ' % starFile
+        graphsCmd += '--outDir %s ' % self._outStarDir
         graphsCmd += '--pixelSize %s ' % pixSize  # PySeg requires it in nm
         graphsCmd += '--sSig %s ' % self.sSig.get()
         graphsCmd += '--vDen %s ' % self.vDen.get()

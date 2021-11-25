@@ -30,10 +30,10 @@ from os.path import basename, join, abspath
 import xml.etree.ElementTree as ET
 
 from pwem.protocols import EMProtocol
-from pyseg.convert import splitGraphsStarFile
+from pyseg.convert import splitPysegStarFile
 from pyworkflow import BETA
 from pyworkflow.protocol import FloatParam, NumericListParam, EnumParam, PointerParam
-from pyworkflow.utils import Message, makePath, removeBaseExt, copyFile, moveFile
+from pyworkflow.utils import Message, removeBaseExt, copyFile, moveFile
 from scipion.constants import PYTHON
 from tomo.protocols import ProtTomoBase
 from tomo.protocols.protocol_base import ProtTomoImportAcquisition
@@ -41,7 +41,7 @@ from tomo.protocols.protocol_base import ProtTomoImportAcquisition
 from pyseg import Plugin
 from pyseg.constants import FILS_SCRIPT, FILS_SOURCES, FILS_TARGETS, MEMBRANE, \
     MEMBRANE_OUTER_SURROUNDINGS, PRESEG_AREAS_LIST
-from pyseg.utils import encodePresegArea
+from pyseg.utils import encodePresegArea, createStarDirectories, genOutSplitStarFileName
 
 TH_MODE_IN = 0
 TH_MODE_OUT = 1
@@ -82,8 +82,15 @@ class ProtPySegFils(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
 
     _label = 'fils'
     _devStatus = BETA
-    _xmlSources = None
-    _xmlTargets = None
+
+    def __init__(self):
+        EMProtocol.__init__(self)
+        ProtTomoBase.__init__(self)
+        ProtTomoImportAcquisition.__init__(self)
+        self._xmlSources = None
+        self._xmlTargets = None
+        self._inStarDir = None
+        self._outStarDir = None
 
     # -------------------------- DEFINE param functions ----------------------
     def _defineParams(self, form):
@@ -211,21 +218,17 @@ class ProtPySegFils(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         self._createFilsXmlFile(Plugin.getHome(FILS_SOURCES), outDir)
         # Generate targets xml
         self._createFilsXmlFile(Plugin.getHome(FILS_TARGETS), outDir, isSource=False)
-        # Create a folder in extra directory to store the star files (one per vesicle) in which the input one will
-        # be split
-        splitStarFir = self._getExtraPath('inStarFiles')
-        # The same for the output star files
-        self.outStarFir = self._getExtraPath('outStarFiles')
-        makePath(splitStarFir, self.outStarFir)
-
-        return splitGraphsStarFile(self._getGraphsStarFile(), splitStarFir)
+        # Generate directories for input and output star files
+        self._outStarDir, self._inStarDir = createStarDirectories(self._getExtraPath())
+        # Split the input file into n files, one per vesicle
+        return splitPysegStarFile(self._getGraphsStarFile(), self._inStarDir)
 
     def pysegFils(self, starFile):
         # Script called
         Plugin.runPySeg(self, PYTHON, self._getFilsCommand(self._getExtraPath(), starFile))
         # Fils returns the same star file name, so it will be renamed to avoid overwriting
         moveFile(self._getExtraPath('fil_mb_sources_to_no_mb_targets_net.star'),
-                 join(self.outStarFir, basename(starFile)))
+                 genOutSplitStarFileName(self._outStarDir, starFile))
 
     # --------------------------- INFO functions -----------------------------------
     def _summary(self):

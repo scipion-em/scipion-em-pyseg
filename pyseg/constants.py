@@ -78,6 +78,10 @@ MEMBRANE_INNER_SURROUNDINGS = 1
 MEMBRANE_OUTER_SURROUNDINGS = 2
 PRESEG_AREAS_LIST = ['Membrane', 'Inner surroundings', 'Outer surroundings']
 
+# Star file splitting
+IN_STARS_DIR = 'inStarFiles'
+OUT_STARS_DIRS = 'outStarFiles'
+
 # Star file fields #####################################################################################################
 NOT_FOUND = 'Not_found'
 GRAPHS_PICKLE_FILE = 'psGhMCFPickle'
