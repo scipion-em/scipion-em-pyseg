@@ -26,19 +26,19 @@
 # **************************************************************************
 import shutil
 from glob import glob
-
+from os.path import basename
 from pwem.protocols import EMProtocol
 from pyseg.convert import splitPysegStarFile
 from pyseg.utils import createStarDirectories, genOutSplitStarFileName
 from pyworkflow import BETA
 from pyworkflow.protocol import FloatParam, PointerParam, LEVEL_ADVANCED, BooleanParam
-from pyworkflow.utils import Message, makePath, moveFile
+from pyworkflow.utils import Message, moveFile
 from scipion.constants import PYTHON
 from tomo.protocols import ProtTomoBase
 from tomo.protocols.protocol_base import ProtTomoImportAcquisition
 
 from pyseg import Plugin
-from pyseg.constants import GRAPHS_SCRIPT, FROM_SCIPION, FROM_STAR_FILE
+from pyseg.constants import GRAPHS_SCRIPT
 
 
 class ProtPySegGraphs(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
@@ -120,7 +120,7 @@ class ProtPySegGraphs(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         # Script called
         Plugin.runPySeg(self, PYTHON, self._getGraphsCommand(starFile))
         # Fils returns the same star file name, so it will be renamed to avoid overwriting
-        moveFile(self._getExtraPath('presegVesiclesCentered_pre_mb_graph.star'),
+        moveFile(self._getExtraPath(basename(starFile)).replace('.star', '_mb_graph.star'),
                  genOutSplitStarFileName(self._outStarDir, starFile))
 
     def removeUnusedFilesStep(self):
