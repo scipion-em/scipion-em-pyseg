@@ -48,12 +48,11 @@ class ProtPySegGraphs(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
     _devStatus = BETA
 
     # -------------------------- DEFINE param functions ----------------------
-    def __init__(self):
-        EMProtocol.__init__(self)
-        ProtTomoBase.__init__(self)
-        ProtTomoImportAcquisition.__init__(self)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         self._outStarDir = None
         self._inStarDir = None
+        self.starFileList = None
 
     def _defineParams(self, form):
         """ Define the input parameters that will be used.
@@ -106,22 +105,22 @@ class ProtPySegGraphs(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         form.addParallelSection(threads=4, mpi=0)
 
     def _insertAllSteps(self):
-        starFileList = self._insertFunctionStep(self.convertInputStep)
-        for starFile in starFileList:
+        self._initialize()
+        for starFile in self.starFileList:
             self._insertFunctionStep(self.pysegGraphs, starFile)
         self._insertFunctionStep(self.removeUnusedFilesStep)
 
-    def convertInputStep(self):
+    def _initialize(self):
         # Generate directories for input and output star files
         # Split the input file into n files, one per vesicle
         self._outStarDir, self._inStarDir = createStarDirectories(self._getExtraPath())
-        return splitPysegStarFile(self._getPreSegStarFile(), self._inStarDir)
+        self.starFileList = splitPysegStarFile(self._getPreSegStarFile(), self._inStarDir)
 
     def pysegGraphs(self, starFile):
         # Script called
         Plugin.runPySeg(self, PYTHON, self._getGraphsCommand(starFile))
         # Fils returns the same star file name, so it will be renamed to avoid overwriting
-        moveFile(self._getExtraPath('fil_mb_sources_to_no_mb_targets_net.star'),
+        moveFile(self._getExtraPath('presegVesiclesCentered_pre_mb_graph.star'),
                  genOutSplitStarFileName(self._outStarDir, starFile))
 
     def removeUnusedFilesStep(self):
@@ -142,7 +141,7 @@ class ProtPySegGraphs(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         graphsCmd = ' '
         graphsCmd += '%s ' % Plugin.getHome(GRAPHS_SCRIPT)
         graphsCmd += '--inStar %s ' % starFile
-        graphsCmd += '--outDir %s ' % self._outStarDir
+        graphsCmd += '--outDir %s ' % self._getExtraPath()
         graphsCmd += '--pixelSize %s ' % pixSize  # PySeg requires it in nm
         graphsCmd += '--sSig %s ' % self.sSig.get()
         graphsCmd += '--vDen %s ' % self.vDen.get()
