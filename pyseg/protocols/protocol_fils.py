@@ -30,9 +30,10 @@ from os.path import basename, join, abspath
 import xml.etree.ElementTree as ET
 
 from pwem.protocols import EMProtocol
+from pyseg.convert import splitGraphsStarFile
 from pyworkflow import BETA
 from pyworkflow.protocol import FloatParam, NumericListParam, EnumParam, PointerParam
-from pyworkflow.utils import Message, makePath, removeBaseExt, copyFile
+from pyworkflow.utils import Message, makePath, removeBaseExt, copyFile, moveFile
 from scipion.constants import PYTHON
 from tomo.protocols import ProtTomoBase
 from tomo.protocols.protocol_base import ProtTomoImportAcquisition
@@ -200,20 +201,31 @@ class ProtPySegFils(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
                        display=EnumParam.DISPLAY_HLIST)
 
     def _insertAllSteps(self):
-        self._insertFunctionStep(self.pysegFils)
+        starFileList = self._convertInputStep()
+        for starFile in starFileList:
+            self._insertFunctionStep(self.pysegFils, starFile)
 
-    def pysegFils(self):
-        # Generate output dir
+    def _convertInputStep(self):
         outDir = self._getExtraPath()
-        makePath(outDir)
-
         # Generate sources xml
         self._createFilsXmlFile(Plugin.getHome(FILS_SOURCES), outDir)
         # Generate targets xml
         self._createFilsXmlFile(Plugin.getHome(FILS_TARGETS), outDir, isSource=False)
+        # Create a folder in extra directory to store the star files (one per vesicle) in which the input one will
+        # be split
+        splitStarFir = self._getExtraPath('inStarFiles')
+        # The same for the output star files
+        self.outStarFir = self._getExtraPath('outStarFiles')
+        makePath(splitStarFir, self.outStarFir)
 
+        return splitGraphsStarFile(self._getGraphsStarFile(), splitStarFir)
+
+    def pysegFils(self, starFile):
         # Script called
-        Plugin.runPySeg(self, PYTHON, self._getFilsCommand(outDir))
+        Plugin.runPySeg(self, PYTHON, self._getFilsCommand(self._getExtraPath(), starFile))
+        # Fils returns the same star file name, so it will be renamed to avoid overwriting
+        moveFile(self._getExtraPath('fil_mb_sources_to_no_mb_targets_net.star'),
+                 join(self.outStarFir, basename(starFile)))
 
     # --------------------------- INFO functions -----------------------------------
     def _summary(self):
@@ -226,10 +238,10 @@ class ProtPySegFils(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         return summary
 
     # --------------------------- UTIL functions -----------------------------------
-    def _getFilsCommand(self, outDir):
+    def _getFilsCommand(self, outDir, starFile):
         filsCmd = ' '
         filsCmd += '%s ' % Plugin.getHome(FILS_SCRIPT)
-        filsCmd += '--inStar %s ' % self._getGraphsStarFile()
+        filsCmd += '--inStar %s ' % starFile
         filsCmd += '--outDir %s ' % outDir
         filsCmd += '--inSources %s ' % abspath(self._xmlSources)
         filsCmd += '--inTargets %s ' % abspath(self._xmlTargets)

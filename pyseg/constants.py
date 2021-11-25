@@ -79,12 +79,13 @@ MEMBRANE_OUTER_SURROUNDINGS = 2
 PRESEG_AREAS_LIST = ['Membrane', 'Inner surroundings', 'Outer surroundings']
 
 # Star file fields #####################################################################################################
-NOT_FOUND = 'Not found'
+NOT_FOUND = 'Not_found'
+GRAPHS_PICKLE_FILE = 'psGhMCFPickle'
 
 # Preseg_pre_centered
 TOMOGRAM = 'rlnMicrographName'
 VESICLE = 'rlnImageName'
-MASK = 'psSegImage'
+SEGMENTATION = 'psSegImage'
 PYSEG_ROT = 'psSegRot'
 PYSEG_TILT = 'psSegTilt'
 PYSEG_PSI = 'psSegPsi'

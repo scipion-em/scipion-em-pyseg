@@ -40,7 +40,7 @@ from tomo.protocols.protocol_base import ProtTomoImportAcquisition
 
 from pyseg import Plugin
 from pyseg.constants import FILS_SOURCES, FILS_TARGETS, PICKING_SCRIPT, PICKING_SLICES, PRESEG_AREAS_LIST, MEMBRANE
-from pyseg.convert import readStarFile, PYSEG_PICKING_STAR
+from pyseg.convert import readParticlesStarFile, PYSEG_PICKING_STAR
 
 # Fils slices xml fields
 from pyseg.utils import encodePresegArea
@@ -156,8 +156,8 @@ class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         coordsSet = self._createSetOfCoordinates3D(self.inTomoSet.get(), suffix)
         coordsSet.setSamplingRate(self._getSamplingRate())
         coordsSet.setBoxSize(self.boxSize.get())
-        readStarFile(self, coordsSet, PYSEG_PICKING_STAR,
-                     starFile=self._getPickingStarFileName(), invert=True)
+        readParticlesStarFile(self, coordsSet, PYSEG_PICKING_STAR,
+                              starFile=self._getPickingStarFileName(), invert=True)
         if not coordsSet:
             raise Exception('ERROR! No coordinates were picked.')
         self._defineOutputs(outputCoordinates=coordsSet)

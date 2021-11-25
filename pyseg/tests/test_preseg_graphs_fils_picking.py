@@ -4,7 +4,7 @@ from os.path import join, abspath, exists
 from pyworkflow.tests import BaseTest, setupTestProject, DataSet
 from pyworkflow.utils import magentaStr
 from relion.convert import Table
-from pyseg.constants import TOMOGRAM, VESICLE, PYSEG_LABEL, MASK, FROM_STAR_FILE, FROM_SCIPION, \
+from pyseg.constants import TOMOGRAM, VESICLE, PYSEG_LABEL, SEGMENTATION, FROM_STAR_FILE, FROM_SCIPION, \
     MEMBRANE_OUTER_SURROUNDINGS, MEMBRANE
 from pyseg.protocols import *
 
@@ -30,7 +30,7 @@ class TestFromPresegToPicking(BaseTest):
         preSegTable = Table(columns=[TOMOGRAM,
                                      VESICLE,
                                      PYSEG_LABEL,
-                                     MASK])
+                                     SEGMENTATION])
 
         # Write star file fot 1 tomogram with 3 vesicles
         nVesicles = 3

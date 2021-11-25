@@ -23,7 +23,7 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
-from os.path import basename
+from os.path import basename, join
 
 import numpy as np
 from emtable import Table
@@ -31,6 +31,8 @@ from emtable import Table
 from pwem.emlib.image import ImageHandler
 from pwem.objects.data import Transform, String
 import pwem.convert.transformations as tfs
+from pyseg.constants import PYSEG_ROT, PYSEG_TILT, PYSEG_PSI, PYSEG_OFFSET_X, PYSEG_OFFSET_Y, PYSEG_OFFSET_Z, \
+    NOT_FOUND, GRAPHS_PICKLE_FILE, VESICLE, SEGMENTATION
 
 from pyworkflow.object import List, Float
 from pyworkflow.utils import removeBaseExt
@@ -39,12 +41,9 @@ from reliontomo.convert.convert30_tomo import TOMO_NAME, SUBTOMO_NAME, COORD_X, 
 from tomo.constants import BOTTOM_LEFT_CORNER
 from tomo.objects import SubTomogram, Coordinate3D, TomoAcquisition, Tomogram
 
-FILE_NOT_FOUND = 'file_not_found'
-PS_SEG_IMAGE = '_psSegImage'
-
 PYSEG_PICKING_LABELS = [TOMO_NAME,
-                        SUBTOMO_NAME,
-                        PS_SEG_IMAGE,
+                        VESICLE,
+                        SEGMENTATION,
                         COORD_X,
                         COORD_Y,
                         COORD_Z,
@@ -53,12 +52,50 @@ PYSEG_PICKING_LABELS = [TOMO_NAME,
                         PSI,
                         ]
 
+GRAPHS_LABELS = [TOMO_NAME,
+                 VESICLE,
+                 SEGMENTATION,
+                 PYSEG_ROT,
+                 PYSEG_TILT,
+                 PYSEG_PSI,
+                 PYSEG_OFFSET_X,
+                 PYSEG_OFFSET_Y,
+                 PYSEG_OFFSET_Z,
+                 GRAPHS_PICKLE_FILE]
+
+
 # Star files coding
 RELION_SUBTOMO_STAR = 0
 PYSEG_PICKING_STAR = 1
 
 
-def readStarFile(prot, outputSetObject, fileType, starFile=None, invert=True, returnTable=False):
+def splitGraphsStarFile(inStar, outDir):
+    """Split a star file which one line for each membrane into n files of one membrane, in order to make the
+    filament protocol runs faster"""
+    outStarFiles = []
+    tomoTable = Table()
+    tomoTable.read(inStar)
+    outTable = Table(columns=GRAPHS_LABELS)
+    for vesicleRow in tomoTable:
+        outTable.clearRows()
+        outTable.addRow(vesicleRow.get(TOMO_NAME, NOT_FOUND),
+                        vesicleRow.get(VESICLE, NOT_FOUND),
+                        vesicleRow.get(SEGMENTATION, NOT_FOUND),
+                        vesicleRow.get(PYSEG_ROT, NOT_FOUND),
+                        vesicleRow.get(PYSEG_TILT, NOT_FOUND),
+                        vesicleRow.get(PYSEG_PSI, NOT_FOUND),
+                        vesicleRow.get(PYSEG_OFFSET_X, NOT_FOUND),
+                        vesicleRow.get(PYSEG_OFFSET_Y, NOT_FOUND),
+                        vesicleRow.get(PYSEG_OFFSET_Z, NOT_FOUND),
+                        vesicleRow.get(GRAPHS_PICKLE_FILE, NOT_FOUND))
+        outStarFile = join(outDir, removeBaseExt(vesicleRow.get(VESICLE)) + '.star')
+        outStarFiles.append(outStarFile)
+        outTable.write(outStarFile)
+
+    return outStarFiles
+
+
+def readParticlesStarFile(prot, outputSetObject, fileType, starFile=None, invert=True, returnTable=False):
     warningMsg = None
     tomoTable = Table()
     tomoTable.read(starFile)
@@ -104,8 +141,8 @@ def _relionTomoStar2Subtomograms(prot, outputSubTomogramsSet, tomoTable, invert)
         transform = Transform()
         origin = Transform()
 
-        volname = row.get(TOMO_NAME, FILE_NOT_FOUND)
-        subtomoFn = row.get(SUBTOMO_NAME, FILE_NOT_FOUND)
+        volname = row.get(TOMO_NAME, NOT_FOUND)
+        subtomoFn = row.get(SUBTOMO_NAME, NOT_FOUND)
 
         subtomo.setVolName(managePath4Sqlite(volname))
         subtomo.setTransform(transform)
@@ -178,7 +215,7 @@ def _getTransformMatrix(row, invert):
 
 
 def managePath4Sqlite(fpath):
-    return fpath if fpath != FILE_NOT_FOUND else fpath
+    return fpath if fpath != NOT_FOUND else fpath
 
 
 def getTomoSetFromStar(prot, starFile):
@@ -186,7 +223,7 @@ def getTomoSetFromStar(prot, starFile):
     imgh = ImageHandler()
     tomoTable = Table()
     tomoTable.read(starFile)
-    tomoList = [row.get(TOMO_NAME, FILE_NOT_FOUND) for row in tomoTable]
+    tomoList = [row.get(TOMO_NAME, NOT_FOUND) for row in tomoTable]
     prot.tomoList = List(tomoList)
     tomoNamesUnique = list(set(tomoList))
 
@@ -234,7 +271,7 @@ def _pysegStar2Coords3D(prot, output3DCoordSet, tomoTable, invert):
                 coordinate3d.setY(float(y), BOTTOM_LEFT_CORNER)
                 coordinate3d.setZ(float(z), BOTTOM_LEFT_CORNER)
                 coordinate3d.setMatrix(M)
-                coordinate3d.setGroupId(_getVesicleIdFromSubtomoName(row.get(SUBTOMO_NAME, FILE_NOT_FOUND)))
+                coordinate3d.setGroupId(_getVesicleIdFromSubtomoName(row.get(SUBTOMO_NAME, NOT_FOUND)))
 
                 # Add current subtomogram to the output set
                 output3DCoordSet.append(coordinate3d)
