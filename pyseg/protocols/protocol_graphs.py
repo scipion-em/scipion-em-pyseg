@@ -114,7 +114,7 @@ class ProtPySegGraphs(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         # Generate directories for input and output star files
         # Split the input file into n files, one per vesicle
         self._outStarDir, self._inStarDir = createStarDirectories(self._getExtraPath())
-        self.starFileList = splitPysegStarFile(self._getPreSegStarFile(), self._inStarDir)
+        self.starFileList = splitPysegStarFile(self._getPreSegStarFile(), self._inStarDir, j=self.numberOfThreads.get())
 
     def pysegGraphs(self, starFile):
         # Script called

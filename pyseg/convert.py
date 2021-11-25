@@ -41,7 +41,6 @@ from reliontomo.convert.convert30_tomo import TOMO_NAME, SUBTOMO_NAME, COORD_X, 
 from tomo.constants import BOTTOM_LEFT_CORNER
 from tomo.objects import SubTomogram, Coordinate3D, TomoAcquisition, Tomogram
 
-
 # PRESEG_LABELS = [TOMO_NAME,
 #                  VESICLE,
 #                  SEGMENTATION,
@@ -78,21 +77,39 @@ RELION_SUBTOMO_STAR = 0
 PYSEG_PICKING_STAR = 1
 
 
-def splitPysegStarFile(inStar, outDir):
+def splitPysegStarFile(inStar, outDir, j=1):
     """Split a star file which one line for each membrane into n files of one membrane, in order to make the
     filament protocol runs faster"""
+    # TODO: JORGE --> refactor here pending to be done
     outStarFiles = []
     tomoTable = Table()
     tomoTable.read(inStar)
+    nVesicles = tomoTable.size()
     labels = tomoTable.getColumnNames()
     outTable = Table(columns=labels)
+    counter = 1
+    fileCounter = 1
     for vesicleRow in tomoTable:
-        outTable.clearRows()
         values = [vesicleRow.get(label, NOT_FOUND) for label in labels]
         outTable.addRow(*values)
-        outStarFile = join(outDir, removeBaseExt(vesicleRow.get(VESICLE)) + '.star')
+        if counter > 1 and counter % j == 0:
+            outStarFile = join(outDir, 'inGraphs_%03d.star' % fileCounter)
+            outStarFiles.append(outStarFile)
+            outTable.write(outStarFile)
+            outTable.clearRows()
+            fileCounter += 1
+        counter += 1
+
+    rem = nVesicles % j
+    if rem > 0:
+        for vesicleRow in tomoTable[-rem:-1]:
+            values = [vesicleRow.get(label, NOT_FOUND) for label in labels]
+            outTable.addRow(*values)
+
+        outStarFile = join(outDir, 'inGraphs_%03d.star' % fileCounter)
         outStarFiles.append(outStarFile)
         outTable.write(outStarFile)
+        outTable.clearRows()
 
     return outStarFiles
 
@@ -104,7 +121,7 @@ def readParticlesStarFile(prot, outputSetObject, fileType, starFile=None, invert
 
     if fileType == RELION_SUBTOMO_STAR:
         labels = RELION_TOMO_LABELS
-        _relionTomoStar2Subtomograms(prot,outputSetObject, tomoTable, invert)
+        _relionTomoStar2Subtomograms(prot, outputSetObject, tomoTable, invert)
     else:  # fileType == PYSEG_PICKING_STAR:
         labels = PICKING_LABELS
         _pysegStar2Coords3D(prot, outputSetObject, tomoTable, invert)
