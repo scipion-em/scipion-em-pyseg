@@ -24,6 +24,8 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
+import glob
+from os import symlink
 from os.path import abspath, join, basename
 
 from pwem.emlib.image import ImageHandler
@@ -60,6 +62,19 @@ def createStarDirectories(extraPath):
     outStarDir = join(extraPath, OUT_STARS_DIR)
     makePath(splitStarDir, outStarDir)
     return outStarDir, splitStarDir
+
+
+def getPrevPysegProtOutStarFiles(inDir, outDir):
+    """inDir is the directory of the previous protocol output star files directory, while outDir is the input star
+    files directory of the current protocol"""
+    inStarList = glob.glob(join(inDir, '*.star'))
+    outStarFiles = []
+    for inStarFile in inStarList:
+        outStarFile = join(outDir, basename(inStarFile))
+        symlink(abspath(inStarFile), abspath(outStarFile))
+        outStarFiles.append(outStarFile)
+
+    return outStarFiles
 
 
 def genOutSplitStarFileName(outDir, starFile):

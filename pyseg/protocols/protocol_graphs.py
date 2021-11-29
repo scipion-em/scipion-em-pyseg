@@ -74,14 +74,15 @@ class ProtPySegGraphs(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
                       help='If set to No, all the intermediate Disperse program resulting directories '
                            'will be kept in the extra folder.')
 
-        group = form.addGroup('Graphs parameters', expertLevel=LEVEL_ADVANCED)
+        group = form.addGroup('Graphs parameters')
         group.addParam('sSig', FloatParam,
                        label='Sigma for gaussian filtering',
                        default=1,
                        allowsNull=False,
-                       expertLevel=LEVEL_ADVANCED,
-                       help='Sigma for Gaussian fltering input tomograms. It allows to smooth '
-                            'small and irrelevant features and increases SNR.')
+                       help='Sigma for Gaussian foltering input tomograms. It allows to smooth '
+                            'small and irrelevant features and increases teh signal noise ratio (SNR). '
+                            'Higher values will provide less dense graphs (lower execution time), so they should be '
+                            'used when picking large particles, like ribosomes.')
         group.addParam('vDen', FloatParam,
                        label='Vertex density within membranes (nm³)',
                        default=0.0035,
@@ -96,11 +97,9 @@ class ProtPySegGraphs(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
                        expertLevel=LEVEL_ADVANCED,
                        help='Averaged ratio vertex/edge in the graph within membrane.')
         group.addParam('maxLen', FloatParam,
-                       label='Shortest distance to membrane (nm)',
-                       default=10,
+                       label='Maximum distance to membrane (Å)',
                        allowsNull=False,
-                       expertLevel=LEVEL_ADVANCED,
-                       help='Maximum euclidean distance to membrane in nm.')
+                       help='Maximum euclidean distance to membrane in Å.')
 
         form.addParallelSection(threads=4, mpi=0)
 
@@ -112,7 +111,7 @@ class ProtPySegGraphs(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
 
     def _initialize(self):
         # Generate directories for input and output star files
-        # Split the input file into n files, one per vesicle
+        # Split the input file into n (threads) files
         self._outStarDir, self._inStarDir = createStarDirectories(self._getExtraPath())
         self.starFileList = splitPysegStarFile(self._getPreSegStarFile(), self._inStarDir, j=self.numberOfThreads.get())
 
@@ -137,16 +136,15 @@ class ProtPySegGraphs(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
 
     # --------------------------- UTIL functions -----------------------------------
     def _getGraphsCommand(self, starFile):
-        pixSize = self._getSamplingRate()/10
         graphsCmd = ' '
         graphsCmd += '%s ' % Plugin.getHome(GRAPHS_SCRIPT)
         graphsCmd += '--inStar %s ' % starFile
         graphsCmd += '--outDir %s ' % self._getExtraPath()
-        graphsCmd += '--pixelSize %s ' % pixSize  # PySeg requires it in nm
+        graphsCmd += '--pixelSize %s ' % (self._getSamplingRate()/10)  # PySeg requires it in nm
         graphsCmd += '--sSig %s ' % self.sSig.get()
         graphsCmd += '--vDen %s ' % self.vDen.get()
         graphsCmd += '--veRatio %s ' % self.vRatio.get()
-        graphsCmd += '--maxLen %s ' % self.maxLen.get()
+        graphsCmd += '--maxLen %s ' % (self.maxLen.get()/10)  # PySeg requires it in nm
         graphsCmd += '-j %s ' % self.numberOfThreads.get()
         return graphsCmd
 
