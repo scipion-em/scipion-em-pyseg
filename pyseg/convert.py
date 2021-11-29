@@ -24,43 +24,18 @@
 # *
 # **************************************************************************
 from os.path import basename, join
-
 import numpy as np
 from emtable import Table
-
 from pwem.emlib.image import ImageHandler
 from pwem.objects.data import Transform, String
 import pwem.convert.transformations as tfs
-from pyseg.constants import PYSEG_ROT, PYSEG_TILT, PYSEG_PSI, PYSEG_OFFSET_X, PYSEG_OFFSET_Y, PYSEG_OFFSET_Z, \
-    NOT_FOUND, GRAPHS_PICKLE_FILE, VESICLE, SEGMENTATION
-
+from pyseg.constants import NOT_FOUND, VESICLE, SEGMENTATION, GRAPHS_OUT
 from pyworkflow.object import List, Float
 from pyworkflow.utils import removeBaseExt
 from reliontomo.convert.convert30_tomo import TOMO_NAME, SUBTOMO_NAME, COORD_X, COORD_Y, COORD_Z, ROT, TILT, PSI, \
     RELION_TOMO_LABELS, TILT_PRIOR, PSI_PRIOR, SHIFTX, SHIFTY, SHIFTZ
 from tomo.constants import BOTTOM_LEFT_CORNER
 from tomo.objects import SubTomogram, Coordinate3D, TomoAcquisition, Tomogram
-
-# PRESEG_LABELS = [TOMO_NAME,
-#                  VESICLE,
-#                  SEGMENTATION,
-#                  PYSEG_ROT,
-#                  PYSEG_TILT,
-#                  PYSEG_PSI,
-#                  PYSEG_OFFSET_X,
-#                  PYSEG_OFFSET_Y,
-#                  PYSEG_OFFSET_Z]
-
-# GRAPHS_LABELS = [TOMO_NAME,
-#                  VESICLE,
-#                  SEGMENTATION,
-#                  PYSEG_ROT,
-#                  PYSEG_TILT,
-#                  PYSEG_PSI,
-#                  PYSEG_OFFSET_X,
-#                  PYSEG_OFFSET_Y,
-#                  PYSEG_OFFSET_Z,
-#                  GRAPHS_PICKLE_FILE]
 
 PICKING_LABELS = [TOMO_NAME,
                   VESICLE,
@@ -77,12 +52,22 @@ RELION_SUBTOMO_STAR = 0
 PYSEG_PICKING_STAR = 1
 
 
-def splitPysegStarFile(inStar, outDir, j=1):
+def splitPysegStarFile(inStar, outDir, j=1, prefix=GRAPHS_OUT + '_'):
     """Split a star file which one line for each membrane into n files of one membrane, in order to make the
     filament protocol runs faster"""
-    # TODO: JORGE --> refactor here pending to be done
     outStarFiles = []
     tomoTable = Table()
+
+    def _addRow():
+        values = [vesicleRow.get(label, NOT_FOUND) for label in labels]
+        outTable.addRow(*values)
+
+    def _writeStarFile():
+        outStarFile = join(outDir, '%s%03d.star' % (prefix, fileCounter))
+        outStarFiles.append(outStarFile)
+        outTable.write(outStarFile)
+        outTable.clearRows()
+
     tomoTable.read(inStar)
     nVesicles = tomoTable.size()
     labels = tomoTable.getColumnNames()
@@ -90,26 +75,17 @@ def splitPysegStarFile(inStar, outDir, j=1):
     counter = 1
     fileCounter = 1
     for vesicleRow in tomoTable:
-        values = [vesicleRow.get(label, NOT_FOUND) for label in labels]
-        outTable.addRow(*values)
+        _addRow()
         if counter > 1 and counter % j == 0:
-            outStarFile = join(outDir, 'inGraphs_%03d.star' % fileCounter)
-            outStarFiles.append(outStarFile)
-            outTable.write(outStarFile)
-            outTable.clearRows()
+            _writeStarFile()
             fileCounter += 1
         counter += 1
 
     rem = nVesicles % j
     if rem > 0:
         for vesicleRow in tomoTable[-rem:-1]:
-            values = [vesicleRow.get(label, NOT_FOUND) for label in labels]
-            outTable.addRow(*values)
-
-        outStarFile = join(outDir, 'inGraphs_%03d.star' % fileCounter)
-        outStarFiles.append(outStarFile)
-        outTable.write(outStarFile)
-        outTable.clearRows()
+            _addRow()
+        _writeStarFile()
 
     return outStarFiles
 

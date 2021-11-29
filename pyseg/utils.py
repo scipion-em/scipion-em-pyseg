@@ -27,7 +27,7 @@
 from os.path import abspath, join, basename
 
 from pwem.emlib.image import ImageHandler
-from pyseg.constants import IN_STARS_DIR, OUT_STARS_DIRS
+from pyseg.constants import IN_STARS_DIR, OUT_STARS_DIR
 from pyworkflow.utils import replaceExt, getExt, makePath
 
 COMP_EXT_MASK_LIST = ['.mrc', '.em', '.rec']
@@ -57,7 +57,7 @@ def createStarDirectories(extraPath):
     # be split and the same for the output star files"""
     splitStarDir = join(extraPath, IN_STARS_DIR)
     # The same for the output star files
-    outStarDir = join(extraPath, OUT_STARS_DIRS)
+    outStarDir = join(extraPath, OUT_STARS_DIR)
     makePath(splitStarDir, outStarDir)
     return outStarDir, splitStarDir
 

@@ -80,7 +80,7 @@ PRESEG_AREAS_LIST = ['Membrane', 'Inner surroundings', 'Outer surroundings']
 
 # Star file splitting
 IN_STARS_DIR = 'inStarFiles'
-OUT_STARS_DIRS = 'outStarFiles'
+OUT_STARS_DIR = 'outStarFiles'
 
 # Star file fields #####################################################################################################
 NOT_FOUND = 'Not_found'

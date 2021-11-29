@@ -100,9 +100,9 @@ class ProtPySegGraphs(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
                        default=10,
                        allowsNull=False,
                        expertLevel=LEVEL_ADVANCED,
-                       help='Maximum euclidean shortest distance to membrane in nm.')
+                       help='Maximum euclidean distance to membrane in nm.')
 
-        form.addParallelSection(threads=4, mpi=0)
+        form.addParallelSection(threads=0, mpi=4)
 
     def _insertAllSteps(self):
         self._initialize()
@@ -114,7 +114,7 @@ class ProtPySegGraphs(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         # Generate directories for input and output star files
         # Split the input file into n files, one per vesicle
         self._outStarDir, self._inStarDir = createStarDirectories(self._getExtraPath())
-        self.starFileList = splitPysegStarFile(self._getPreSegStarFile(), self._inStarDir, j=self.numberOfThreads.get())
+        self.starFileList = splitPysegStarFile(self._getPreSegStarFile(), self._inStarDir, j=self.numberOfMpi.get())
 
     def pysegGraphs(self, starFile):
         # Script called

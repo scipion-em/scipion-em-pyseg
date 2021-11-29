@@ -24,8 +24,9 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
-
+import glob
 from collections import OrderedDict
+from os import symlink
 from os.path import basename, join, abspath
 import xml.etree.ElementTree as ET
 
@@ -40,7 +41,7 @@ from tomo.protocols.protocol_base import ProtTomoImportAcquisition
 
 from pyseg import Plugin
 from pyseg.constants import FILS_SCRIPT, FILS_SOURCES, FILS_TARGETS, MEMBRANE, \
-    MEMBRANE_OUTER_SURROUNDINGS, PRESEG_AREAS_LIST
+    MEMBRANE_OUTER_SURROUNDINGS, PRESEG_AREAS_LIST, IN_STARS_DIR, OUT_STARS_DIR, FILS_OUT, GRAPHS_OUT
 from pyseg.utils import encodePresegArea, createStarDirectories, genOutSplitStarFileName
 
 TH_MODE_IN = 0
@@ -83,10 +84,8 @@ class ProtPySegFils(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
     _label = 'fils'
     _devStatus = BETA
 
-    def __init__(self):
-        EMProtocol.__init__(self)
-        ProtTomoBase.__init__(self)
-        ProtTomoImportAcquisition.__init__(self)
+    def __init__(self,  **kwargs):
+        super().__init__(**kwargs)
         self._xmlSources = None
         self._xmlTargets = None
         self._inStarDir = None
@@ -220,15 +219,15 @@ class ProtPySegFils(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         self._createFilsXmlFile(Plugin.getHome(FILS_TARGETS), outDir, isSource=False)
         # Generate directories for input and output star files
         self._outStarDir, self._inStarDir = createStarDirectories(self._getExtraPath())
-        # Split the input file into n files, one per vesicle
-        return splitPysegStarFile(self._getGraphsStarFile(), self._inStarDir)
+        # Get the star files generated in the graphs protocol
+        return self._getGraphsOutStarFiles()
 
     def pysegFils(self, starFile):
         # Script called
         Plugin.runPySeg(self, PYTHON, self._getFilsCommand(self._getExtraPath(), starFile))
         # Fils returns the same star file name, so it will be renamed to avoid overwriting
         moveFile(self._getExtraPath('fil_mb_sources_to_no_mb_targets_net.star'),
-                 genOutSplitStarFileName(self._outStarDir, starFile))
+                 genOutSplitStarFileName(self._outStarDir, starFile.replace(GRAPHS_OUT, FILS_OUT)))
 
     # --------------------------- INFO functions -----------------------------------
     def _summary(self):
@@ -353,3 +352,13 @@ class ProtPySegFils(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         #   0 --> [min, max], expected as '+'
         #   1 --> [-inf, min] U [max, +inf]'], expected as any other thing
         return '+' if val == 0 else '-'
+
+    def _getGraphsOutStarFiles(self):
+        inStarList = glob.glob(self.inGraphsProt.get()._getExtraPath(join(OUT_STARS_DIR, '*.star')))
+        outStarFiles = []
+        for inStarFile in inStarList:
+            outStarFile = self._getExtraPath(IN_STARS_DIR, basename(inStarFile))
+            symlink(abspath(inStarFile), abspath(outStarFile))
+            outStarFiles.append(outStarFile)
+
+        return outStarFiles
