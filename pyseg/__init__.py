@@ -91,7 +91,8 @@ class Plugin(pwem.Plugin):
                        version=DEFAULT_VERSION,
                        tar='void.tgz',
                        commands=[(installationCmd, PYSEG_INSTALLED)],
-                       neededProgs=["wget", "make", "cmake", "tar", "libgsl-dev"],
+                       neededProgs=["wget", "make", "cmake", "tar"],
+                       libChecks = ["libgsl-dev"],
                        default=True)
 
     @classmethod
