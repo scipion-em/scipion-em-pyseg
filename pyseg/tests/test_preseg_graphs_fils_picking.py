@@ -96,6 +96,7 @@ class TestFromPresegToPicking(BaseTest):
             ProtPySegGraphs,
             presegFrom=FROM_SCIPION,
             inSegProt=presegProt,
+            maxLen=200
         )
 
         protGraphs.setObjLabel('Graphs')
