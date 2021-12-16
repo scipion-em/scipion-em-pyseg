@@ -39,7 +39,7 @@ from tomo.objects import SetOfTomoMasks, TomoMask, SetOfSubTomograms, SubTomogra
 
 from pyseg import Plugin
 from pyseg.constants import PRESEG_SCRIPT, TOMOGRAM, PYSEG_LABEL, VESICLE, NOT_FOUND, \
-    PYSEG_OFFSET_X, PYSEG_OFFSET_Y, PYSEG_OFFSET_Z, MASK, RLN_ORIGIN_X, RLN_ORIGIN_Y, \
+    PYSEG_OFFSET_X, PYSEG_OFFSET_Y, PYSEG_OFFSET_Z, SEGMENTATION, RLN_ORIGIN_X, RLN_ORIGIN_Y, \
     RLN_ORIGIN_Z, FROM_SCIPION, FROM_STAR_FILE
 from relion.convert import Table
 import numpy as np
@@ -247,7 +247,7 @@ class ProtPySegPreSegParticles(EMProtocol):
 
             # Get the box dimensions, be sure that the Dimensions format is Dimensions: 239 x 1 x 298 x 298
             # ((N)Objects x (Z)Slices x (Y)Rows x (X)Columns)
-            x, y, z, _ = ih.getDimensions(rowp.get(MASK, NOT_FOUND))
+            x, y, z, _ = ih.getDimensions(rowp.get(SEGMENTATION, NOT_FOUND))
 
             # Add row to output table
             outputTable.addRow(tomo,
@@ -274,13 +274,13 @@ class ProtPySegPreSegParticles(EMProtocol):
             return Table(columns=[TOMOGRAM,
                                   VESICLE,
                                   PYSEG_LABEL,
-                                  MASK])
+                                  SEGMENTATION])
         else:
             # Headers for pySeg pre_seg centered star file
             return Table(columns=[TOMOGRAM,
                                   VESICLE,
                                   PYSEG_LABEL,
-                                  MASK,
+                                  SEGMENTATION,
                                   RLN_ORIGIN_X,
                                   RLN_ORIGIN_Y,
                                   RLN_ORIGIN_Z

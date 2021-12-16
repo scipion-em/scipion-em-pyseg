@@ -28,8 +28,8 @@ from os.path import join
 
 PYSEG = 'pySeg'
 PYSEG_HOME = 'PYSEG_HOME'
-DEFAULT_VERSION = 'v2.0.0'  # TODO: update to 2.0.1
-PYSEG_SOURCE_URL = 'https://github.com/anmartinezs/pyseg_system/archive/refs/tags/%s.zip' % DEFAULT_VERSION
+DEFAULT_VERSION = 'jj_fix_preseg_oriented'  # TODO: update to 2.0.1
+PYSEG_SOURCE_URL = 'https://github.com/anmartinezs/pyseg_system/archive/refs/heads/%s.zip' % DEFAULT_VERSION
 
 PYSEG_ENV_NAME = 'pySeg-%s' % DEFAULT_VERSION
 PYSEG_ENV_ACTIVATION = 'PYSEG_ENV_ACTIVATION'
@@ -78,13 +78,18 @@ MEMBRANE_INNER_SURROUNDINGS = 1
 MEMBRANE_OUTER_SURROUNDINGS = 2
 PRESEG_AREAS_LIST = ['Membrane', 'Inner surroundings', 'Outer surroundings']
 
+# Star file splitting
+IN_STARS_DIR = 'inStarFiles'
+OUT_STARS_DIR = 'outStarFiles'
+
 # Star file fields #####################################################################################################
-NOT_FOUND = 'Not found'
+NOT_FOUND = 'Not_found'
+GRAPHS_PICKLE_FILE = 'psGhMCFPickle'
 
 # Preseg_pre_centered
 TOMOGRAM = 'rlnMicrographName'
 VESICLE = 'rlnImageName'
-MASK = 'psSegImage'
+SEGMENTATION = 'psSegImage'
 PYSEG_ROT = 'psSegRot'
 PYSEG_TILT = 'psSegTilt'
 PYSEG_PSI = 'psSegPsi'

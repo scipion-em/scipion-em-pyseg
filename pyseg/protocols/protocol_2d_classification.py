@@ -39,7 +39,7 @@ from tomo.objects import SetOfSubTomograms
 from tomo.protocols import ProtTomoBase
 from pyseg import Plugin
 from pyseg.constants import PLANE_ALIGN_CLASS_OUT, PLANE_ALIGN_CLASS_SCRIPT, SEE_METHODS_TAB
-from pyseg.convert import readStarFile, RELION_SUBTOMO_STAR
+from pyseg.convert import readParticlesStarFile, RELION_SUBTOMO_STAR
 
 # Processing level choices
 PARTICLE_FLATENNING = 0     # Particle flattening
@@ -221,8 +221,8 @@ class ProtPySegPlaneAlignClassification(EMProtocol, ProtTomoBase):
         outStar = self._getGatheredStarFile()
         subtomoSet = SetOfSubTomograms.create(self._getPath(), template='setOfSubTomograms%s.sqlite')
         subtomoSet.copyInfo(self.inputSubtomos.get())
-        warningMsg, self._dataTable = readStarFile(self, subtomoSet, RELION_SUBTOMO_STAR, starFile=outStar,
-                                                   returnTable=True)
+        warningMsg, self._dataTable = readParticlesStarFile(self, subtomoSet, RELION_SUBTOMO_STAR, starFile=outStar,
+                                                            returnTable=True)
         if warningMsg:
             self._warningMsg.set(warningMsg)
             self._store()

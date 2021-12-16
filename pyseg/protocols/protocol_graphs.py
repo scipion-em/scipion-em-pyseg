@@ -26,17 +26,19 @@
 # **************************************************************************
 import shutil
 from glob import glob
-
+from os.path import basename
 from pwem.protocols import EMProtocol
+from pyseg.convert import splitPysegStarFile
+from pyseg.utils import createStarDirectories, genOutSplitStarFileName
 from pyworkflow import BETA
 from pyworkflow.protocol import FloatParam, PointerParam, LEVEL_ADVANCED, BooleanParam
-from pyworkflow.utils import Message, makePath
+from pyworkflow.utils import Message, moveFile
 from scipion.constants import PYTHON
 from tomo.protocols import ProtTomoBase
 from tomo.protocols.protocol_base import ProtTomoImportAcquisition
 
 from pyseg import Plugin
-from pyseg.constants import GRAPHS_SCRIPT, FROM_SCIPION, FROM_STAR_FILE
+from pyseg.constants import GRAPHS_SCRIPT
 
 
 class ProtPySegGraphs(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
@@ -46,6 +48,12 @@ class ProtPySegGraphs(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
     _devStatus = BETA
 
     # -------------------------- DEFINE param functions ----------------------
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._outStarDir = None
+        self._inStarDir = None
+        self.starFileList = None
+
     def _defineParams(self, form):
         """ Define the input parameters that will be used.
         Params:
@@ -59,21 +67,22 @@ class ProtPySegGraphs(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
                       important=True,
                       allowsNull=False,
                       help='Pointer to preseg protocol.')
-        form.addParam('keepOnlyreqFiles', BooleanParam,
+        form.addParam('keepOnlyReqFiles', BooleanParam,
                       label='Keep only required files?',
                       default=True,
                       expertLevel=LEVEL_ADVANCED,
                       help='If set to No, all the intermediate Disperse program resulting directories '
                            'will be kept in the extra folder.')
 
-        group = form.addGroup('Graphs parameters', expertLevel=LEVEL_ADVANCED)
+        group = form.addGroup('Graphs parameters')
         group.addParam('sSig', FloatParam,
                        label='Sigma for gaussian filtering',
                        default=1,
                        allowsNull=False,
-                       expertLevel=LEVEL_ADVANCED,
-                       help='Sigma for Gaussian fltering input tomograms. It allows to smooth '
-                            'small and irrelevant features and increases SNR.')
+                       help='Sigma for Gaussian foltering input tomograms. It allows to smooth '
+                            'small and irrelevant features and increases teh signal noise ratio (SNR). '
+                            'Higher values will provide less dense graphs (lower execution time), so they should be '
+                            'used when picking large particles, like ribosomes.')
         group.addParam('vDen', FloatParam,
                        label='Vertex density within membranes (nm³)',
                        default=0.0035,
@@ -88,27 +97,34 @@ class ProtPySegGraphs(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
                        expertLevel=LEVEL_ADVANCED,
                        help='Averaged ratio vertex/edge in the graph within membrane.')
         group.addParam('maxLen', FloatParam,
-                       label='Shortest distance to membrane (nm)',
-                       default=10,
+                       label='Maximum distance to membrane (Å)',
                        allowsNull=False,
-                       expertLevel=LEVEL_ADVANCED,
-                       help='Maximum euclidean shortest distance to membrane in nm.')
+                       help='Maximum euclidean distance to membrane in Å.')
 
         form.addParallelSection(threads=4, mpi=0)
 
     def _insertAllSteps(self):
-        self._insertFunctionStep(self.pysegGraphs)
+        self._initialize()
+        for starFile in self.starFileList:
+            self._insertFunctionStep(self.pysegGraphs, starFile)
+        self._insertFunctionStep(self.removeUnusedFilesStep)
 
-    def pysegGraphs(self):
-        # Generate output dir
-        outDir = self._getExtraPath()
-        makePath(outDir)
+    def _initialize(self):
+        # Generate directories for input and output star files
+        # Split the input file into n (threads) files
+        self._outStarDir, self._inStarDir = createStarDirectories(self._getExtraPath())
+        self.starFileList = splitPysegStarFile(self._getPreSegStarFile(), self._inStarDir, j=self.numberOfThreads.get())
 
+    def pysegGraphs(self, starFile):
         # Script called
-        Plugin.runPySeg(self, PYTHON, self._getGraphsCommand(outDir))
+        Plugin.runPySeg(self, PYTHON, self._getGraphsCommand(starFile))
+        # Fils returns the same star file name, so it will be renamed to avoid overwriting
+        moveFile(self._getExtraPath(basename(starFile)).replace('.star', '_mb_graph.star'),
+                 genOutSplitStarFileName(self._outStarDir, starFile))
 
+    def removeUnusedFilesStep(self):
         # Remove Disperse program intermediate result directories if requested
-        if self.keepOnlyreqFiles.get():
+        if self.keepOnlyReqFiles.get():
             disperseDirs = glob(self._getExtraPath('disperse_*'))
             [shutil.rmtree(disperseDir) for disperseDir in disperseDirs]
 
@@ -119,17 +135,16 @@ class ProtPySegGraphs(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
             summaryMsg.append('Graphs were correctly generated.')
 
     # --------------------------- UTIL functions -----------------------------------
-    def _getGraphsCommand(self, outDir):
-        pixSize = self._getSamplingRate()/10
+    def _getGraphsCommand(self, starFile):
         graphsCmd = ' '
         graphsCmd += '%s ' % Plugin.getHome(GRAPHS_SCRIPT)
-        graphsCmd += '--inStar %s ' % self._getPreSegStarFile()  # self.inStar.get()
-        graphsCmd += '--outDir %s ' % outDir
-        graphsCmd += '--pixelSize %s ' % pixSize  # PySeg requires it in nm
+        graphsCmd += '--inStar %s ' % starFile
+        graphsCmd += '--outDir %s ' % self._getExtraPath()
+        graphsCmd += '--pixelSize %s ' % (self._getSamplingRate()/10)  # PySeg requires it in nm
         graphsCmd += '--sSig %s ' % self.sSig.get()
         graphsCmd += '--vDen %s ' % self.vDen.get()
         graphsCmd += '--veRatio %s ' % self.vRatio.get()
-        graphsCmd += '--maxLen %s ' % self.maxLen.get()
+        graphsCmd += '--maxLen %s ' % (self.maxLen.get()/10)  # PySeg requires it in nm
         graphsCmd += '-j %s ' % self.numberOfThreads.get()
         return graphsCmd
 

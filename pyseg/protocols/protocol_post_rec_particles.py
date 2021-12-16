@@ -38,7 +38,7 @@ from tomo.protocols import ProtTomoBase
 
 from pyseg import Plugin
 from pyseg.constants import POST_REC_OUT, POST_REC_SCRIPT_MEMB_ATT, SEE_METHODS_TAB
-from pyseg.convert import readStarFile, RELION_SUBTOMO_STAR
+from pyseg.convert import readParticlesStarFile, RELION_SUBTOMO_STAR
 
 
 class ProtPySegPostRecParticles(EMProtocol, ProtTomoBase):
@@ -131,7 +131,7 @@ class ProtPySegPostRecParticles(EMProtocol, ProtTomoBase):
         self.subtomoSet = SetOfSubTomograms.create(self._getPath(), template='setOfSubTomograms%s.sqlite')
         self.subtomoSet.copyInfo(self.inputSubtomos.get())
         # Read generated star file and create the output objects
-        warningMsg = readStarFile(self, self.subtomoSet, RELION_SUBTOMO_STAR, starFile=outStar)
+        warningMsg = readParticlesStarFile(self, self.subtomoSet, RELION_SUBTOMO_STAR, starFile=outStar)
         if warningMsg:
             self.warningMsg = String(warningMsg)
             self._store()

@@ -24,7 +24,7 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
-
+import glob
 from collections import OrderedDict
 from os.path import basename, join
 import xml.etree.ElementTree as ET
@@ -32,18 +32,19 @@ import xml.etree.ElementTree as ET
 from pwem.protocols import EMProtocol
 from pyworkflow import BETA
 from pyworkflow.protocol import FloatParam, EnumParam, PointerParam, IntParam, LEVEL_ADVANCED
-from pyworkflow.utils import Message, makePath, removeBaseExt, copyFile
+from pyworkflow.utils import Message, makePath, removeBaseExt, copyFile, moveFile
 from scipion.constants import PYTHON
 from tomo.objects import SetOfCoordinates3D
 from tomo.protocols import ProtTomoBase
 from tomo.protocols.protocol_base import ProtTomoImportAcquisition
 
 from pyseg import Plugin
-from pyseg.constants import FILS_SOURCES, FILS_TARGETS, PICKING_SCRIPT, PICKING_SLICES, PRESEG_AREAS_LIST, MEMBRANE
-from pyseg.convert import readStarFile, PYSEG_PICKING_STAR
+from pyseg.constants import FILS_SOURCES, FILS_TARGETS, PICKING_SCRIPT, PICKING_SLICES, PRESEG_AREAS_LIST, MEMBRANE, \
+    OUT_STARS_DIR, IN_STARS_DIR, FILS_OUT, PICKING_OUT
+from pyseg.convert import readParticlesStarFile, PYSEG_PICKING_STAR
 
 # Fils slices xml fields
-from pyseg.utils import encodePresegArea
+from pyseg.utils import encodePresegArea, getPrevPysegProtOutStarFiles, createStarDirectories
 
 SIDE = 'side'
 CONT = 'cont'
@@ -58,14 +59,21 @@ class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
 
     _label = 'picking'
     _devStatus = BETA
-    tomoSet = None
-    acquisitionParams = {
-            'angleMin': 90,
-            'angleMax': -90,
-            'step': None,
-            'angleAxis1': None,
-            'angleAxis2': None
+
+    def __init__(self,  **kwargs):
+        super().__init__(**kwargs)
+        self.tomoSet = None
+        self.acquisitionParams = {
+                'angleMin': 90,
+                'angleMax': -90,
+                'step': None,
+                'angleAxis1': None,
+                'angleAxis2': None
         }
+        self._inStarDir = None
+        self._outStarDir = None
+        self._xmlSlices = None
+        self._outStarFilesList = []
 
     # -------------------------- DEFINE param functions ----------------------
     def _defineParams(self, form):
@@ -136,19 +144,29 @@ class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         return d
 
     def _insertAllSteps(self):
-        self._insertFunctionStep(self.pysegPicking)
+        starFileList = self._convertInputStep()
+        for starFile in starFileList:
+            self._insertFunctionStep(self.pysegPicking, starFile)
         self._insertFunctionStep(self.createOutputStep)
 
-    def pysegPicking(self):
-        # Generate output dir
+    def _convertInputStep(self):
         outDir = self._getExtraPath()
-        makePath(outDir)
-
+        # Generate directories for input and output star files
+        self._outStarDir, self._inStarDir = createStarDirectories(outDir)
         # Generate slices xml
         self._createPickingXmlFile(Plugin.getHome(PICKING_SLICES), outDir)
+        # Get the star files generated in the fils protocol
+        return getPrevPysegProtOutStarFiles(self.inFilsProt.get()._getExtraPath(OUT_STARS_DIR),
+                                            self._getExtraPath(IN_STARS_DIR))
 
+    def pysegPicking(self, starFile):
         # Script called
-        Plugin.runPySeg(self, PYTHON, self._getPickingCommand(outDir))
+        Plugin.runPySeg(self, PYTHON, self._getPickingCommand(starFile))
+        # Move output files to the corresponding directory
+        outFile = glob.glob(self._getExtraPath(FILS_OUT + '*.star'))[0]
+        newFileName =join(self._outStarDir, basename(outFile).replace(FILS_OUT, PICKING_OUT))
+        self._outStarFilesList.append(newFileName)
+        moveFile(outFile, newFileName)
 
     def createOutputStep(self):
         self.tomoSet = self.inTomoSet.get()  # Required for the convert
@@ -156,8 +174,11 @@ class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         coordsSet = self._createSetOfCoordinates3D(self.inTomoSet.get(), suffix)
         coordsSet.setSamplingRate(self._getSamplingRate())
         coordsSet.setBoxSize(self.boxSize.get())
-        readStarFile(self, coordsSet, PYSEG_PICKING_STAR,
-                     starFile=self._getPickingStarFileName(), invert=True)
+
+        # Read the data from all the out star files
+        for outStar in self._outStarFilesList:
+            readParticlesStarFile(self, coordsSet, PYSEG_PICKING_STAR, starFile=outStar, invert=True)
+
         if not coordsSet:
             raise Exception('ERROR! No coordinates were picked.')
         self._defineOutputs(outputCoordinates=coordsSet)
@@ -184,11 +205,11 @@ class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
                                       + '_to_' + removeBaseExt(FILS_TARGETS) + '_net.star')
         return self._getExtraPath(removeBaseExt(filsStar) + '_parts.star')
 
-    def _getPickingCommand(self, outDir):
+    def _getPickingCommand(self, starFile):
         pickingCmd = ' '
         pickingCmd += '%s ' % Plugin.getHome(PICKING_SCRIPT)
-        pickingCmd += '--inStar %s ' % self._getFilsStarFileName()
-        pickingCmd += '--outDir %s ' % outDir
+        pickingCmd += '--inStar %s ' % starFile
+        pickingCmd += '--outDir %s ' % self._getExtraPath()
         pickingCmd += '--slicesFile %s ' % self._xmlSlices
         pickingCmd += '--peakTh %s ' % self.peakTh.get()
         pickingCmd += '--peakNs %s ' % self.peakNs.get()
