@@ -152,4 +152,4 @@ class ProtPySegGraphs(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         return self.inSegProt.get().getPresegOutputFile(self.inSegProt.get().getVesiclesCenteredStarFile())
 
     def _getSamplingRate(self):
-        return self.inSegProt.get().outputSetofSubTomograms.getSamplingRate()
+        return self.inSegProt.get().outputSubTomograms.getSamplingRate()
