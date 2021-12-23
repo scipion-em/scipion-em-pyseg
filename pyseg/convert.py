@@ -32,12 +32,13 @@ import pwem.convert.transformations as tfs
 from pyseg.constants import NOT_FOUND, VESICLE, SEGMENTATION, GRAPHS_OUT
 from pyworkflow.object import List, Float
 from pyworkflow.utils import removeBaseExt
-from reliontomo.convert.convert30_tomo import TOMO_NAME, SUBTOMO_NAME, COORD_X, COORD_Y, COORD_Z, ROT, TILT, PSI, \
+from reliontomo.constants import TOMO_NAME_30
+from reliontomo.convert.convert30_tomo import SUBTOMO_NAME, COORD_X, COORD_Y, COORD_Z, ROT, TILT, PSI, \
     RELION_TOMO_LABELS, TILT_PRIOR, PSI_PRIOR, SHIFTX, SHIFTY, SHIFTZ
 from tomo.constants import BOTTOM_LEFT_CORNER
 from tomo.objects import SubTomogram, Coordinate3D, TomoAcquisition, Tomogram
 
-PICKING_LABELS = [TOMO_NAME,
+PICKING_LABELS = [TOMO_NAME_30,
                   VESICLE,
                   SEGMENTATION,
                   COORD_X,
