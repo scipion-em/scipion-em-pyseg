@@ -126,6 +126,7 @@ class TestFromPresegToPicking(BaseTest):
             self.assertTrue(vesicleMask.getDimensions() in vesicleSizeList)
         return protPreseg
 
+    @classmethod
     def _runGraphs(cls):
         print(magentaStr("\n==> Running graphs:"))
         protGraphs = cls.newProtocol(
