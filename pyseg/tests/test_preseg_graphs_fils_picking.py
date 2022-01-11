@@ -1,30 +1,54 @@
+# -*- coding: utf-8 -*-
+# **************************************************************************
+# *
+# * Authors:     Scipion Team
+# *
+# * National Center of Biotechnology, CSIC, Spain
+# *
+# * This program is free software; you can redistribute it and/or modify
+# * it under the terms of the GNU General Public License as published by
+# * the Free Software Foundation; either version 2 of the License, or
+# * (at your option) any later version.
+# *
+# * This program is distributed in the hope that it will be useful,
+# * but WITHOUT ANY WARRANTY; without even the implied warranty of
+# * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# * GNU General Public License for more details.
+# *
+# * You should have received a copy of the GNU General Public License
+# * along with this program; if not, write to the Free Software
+# * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
+# * 02111-1307  USA
+# *
+# *  All comments concerning this program package may be sent to the
+# *  e-mail address 'scipion@cnb.csic.es'
+# *
+# **************************************************************************
 from glob import glob
-from os import remove
-from os.path import join, abspath, exists
-
+from os.path import exists
 from imod.protocols import ProtImodTomoNormalization
+from pyseg.protocols.protocol_picking import PROJECTIONS
 from pyworkflow.tests import BaseTest, setupTestProject, DataSet
 from pyworkflow.utils import magentaStr
-from relion.convert import Table
-from pyseg.constants import TOMOGRAM, VESICLE, PYSEG_LABEL, SEGMENTATION, FROM_STAR_FILE, FROM_SCIPION, \
-    MEMBRANE_OUTER_SURROUNDINGS, MEMBRANE
+from pyseg.constants import FROM_SCIPION, MEMBRANE_OUTER_SURROUNDINGS, MEMBRANE, OUT_STARS_DIR
 from pyseg.protocols import *
-from tomo.objects import SetOfTomoMasks, TomoMask
 from tomo.protocols import ProtImportTomograms, ProtImportTomomasks
 
 
 class TestFromPresegToPicking(BaseTest):
-    """ """
     outputPath = None
     ds = None
     boxSize = 44
     samplingRate = 13.68
-
+    nVesicles = 3
+    vesiclesPackagesSize = 3
     inTomoSet = None
     inTomoSetBinned = None
     inTomomaskSetBinned = None
     protPreseg = None
     ProtGraphs = None
+    ProtFils = None
+    ProtPicking = None
 
     @classmethod
     def setUpClass(cls):
@@ -36,6 +60,8 @@ class TestFromPresegToPicking(BaseTest):
         cls.inTomomaskSetBinned = cls._ImportTomoMasks()
         cls.protPreseg = cls._runPreseg()
         cls.ProtGraphs = cls._runGraphs()
+        cls.ProtFils = cls._runFils()
+        cls.ProtPicking = cls._runPicking()
 
     @classmethod
     def _importTomograms(cls):
@@ -96,17 +122,15 @@ class TestFromPresegToPicking(BaseTest):
     def testPreseg(self):
         # Check that resulting files are created as expected
         protPreseg = self.protPreseg
-        nVesicles = 3
         outputStar = 'presegVesiclesCentered_pre.star'
         outputVesiclesPattern = 'emd_10439_tid_%i.mrc'
         outputVesiclesSegPattern = 'emd_10439_tid_%i_seg.mrc'
         self.assertTrue(exists(protPreseg._getExtraPath(outputStar)))
-        for i in range(nVesicles):
+        for i in range(self.nVesicles):
             self.assertTrue(exists(protPreseg._getExtraPath('segs', outputVesiclesPattern % i)))
             self.assertTrue(exists(protPreseg._getExtraPath('segs', outputVesiclesSegPattern % i)))
 
         # Check the generated outputs
-        nVesicles = 3
         binnedSamplingRate = 2 * self.samplingRate
         vesicle0Size = (186, 178, 135)
         vesicle1Size = (282, 180, 143)
@@ -114,8 +138,8 @@ class TestFromPresegToPicking(BaseTest):
         vesicleSizeList = [vesicle0Size, vesicle1Size, vesicle2Size]
         setOfVesiclesTomomasks = getattr(protPreseg, 'outputTomoMasks', None)
         setOfVesiclesSubtomograms = getattr(protPreseg, 'outputSubTomograms', None)
-        self.assertSetSize(setOfVesiclesTomomasks, nVesicles)
-        self.assertSetSize(setOfVesiclesSubtomograms, nVesicles)
+        self.assertSetSize(setOfVesiclesTomomasks, self.nVesicles)
+        self.assertSetSize(setOfVesiclesSubtomograms, self.nVesicles)
         self.assertEqual(setOfVesiclesTomomasks.getSamplingRate(), binnedSamplingRate)
         self.assertEqual(setOfVesiclesSubtomograms.getSamplingRate(), binnedSamplingRate)
         for vesicle, vesicleMask in zip(setOfVesiclesSubtomograms, setOfVesiclesTomomasks):
@@ -133,103 +157,98 @@ class TestFromPresegToPicking(BaseTest):
             ProtPySegGraphs,
             presegFrom=FROM_SCIPION,
             inSegProt=cls.protPreseg,
+            vesiclePkgSize=cls.vesiclesPackagesSize,
             maxLen=330,
-            numberOfThreads=2
         )
 
         protGraphs.setObjLabel('Graphs')
         protGraphs = cls.launchProtocol(protGraphs)
         return protGraphs
 
-    def testGraphs(self, protGraphs):
+    def testGraphs(self):
         # Check that resulting files are created as expected
-        outputStar = 'presegVesiclesCentered_pre_mb_graph.star'
-        self.assertTrue(exists(protGraphs._getExtraPath(outputStar)))
+        # Vesicles were packed into packages of 3 (n of threads), so 1 star files should have
+        # been generated
+        self.assertTrue(exists(self.ProtGraphs._getExtraPath(OUT_STARS_DIR, 'graphs_%03d.star' % 1)))
         # By default, the Disperse program intermediate results directories aren't kept
-        self.assertTrue(not glob(protGraphs._getExtraPath('disperse_*')))
-        return protGraphs
+        self.assertTrue(not glob(self.ProtGraphs._getExtraPath('disperse_*')))
 
-    # def _runFils(self, graphsProt):
-    #     print(magentaStr("\n==> Running fils:"))
-    #     protFils = self.newProtocol(
-    #         ProtPySegFils,
-    #         graphsFrom=FROM_SCIPION,
-    #         inGraphsProt=graphsProt,
-    #         segLabelS=MEMBRANE_OUTER_SURROUNDINGS,
-    #         segLabelT=MEMBRANE,
-    #         gRgEud='1 30',
-    #         gRgLen='1 60',
-    #         gRgSin='0 2'
-    #     )
-    #
-    #     protFils.setObjLabel('Fils')
-    #     protFils = self.launchProtocol(protFils)
-    #
-    #     # Check that resulting files are created as expected
-    #     xmlFiles = ['mb_sources.xml', 'no_mb_targets.xml']
-    #     nVesicles = 3
-    #     filssFilePattern = 'Pertuzumab_1_defocus_25um_tomo_7_aliSIRT_EED_tid_%i_fil_mb_sources_to_no_mb_targets_net'
-    #     graphsFilesPerVesicle = [filssFilePattern + '.pkl',
-    #                              filssFilePattern + '.vtp',
-    #                              filssFilePattern + '_edges.vtp',
-    #                              filssFilePattern + '_edges2.vtp',
-    #                              filssFilePattern + '_skel.vtp']
-    #     outputStar = 'fil_mb_sources_to_no_mb_targets_net.star'
-    #
-    #     [self.assertTrue(exists(protFils._getExtraPath(file))) for file in xmlFiles]
-    #     self.assertTrue(exists(protFils._getExtraPath(outputStar)))
-    #     for i in range(nVesicles):
-    #         for file in graphsFilesPerVesicle:
-    #             self.assertTrue(exists(protFils._getExtraPath(file % i)))
-    #
-    #     return protFils
-    #
-    # def _runPicking(self, filsProt, inTomoSet):
-    #     print(magentaStr("\n==> Running picking:"))
-    #     bSize = 30
-    #     protPicking = self.newProtocol(
-    #         ProtPySegPicking,
-    #         inFilsProt=filsProt,
-    #         inTomoSet=inTomoSet,
-    #         filsFrom=FROM_SCIPION,
-    #         side=MEMBRANE,
-    #         boxSize=bSize
-    #     )
-    #
-    #     protPicking.setObjLabel('Picking')
-    #     protPicking = self.launchProtocol(protPicking)
-    #     outputCoordinates = getattr(protPicking, 'outputCoordinates', None)
-    #
-    #     # Check that resulting files are created as expected
-    #     xmlFile = 'mb_ext.xml'
-    #     nVesicles = 3
-    #     pickingFilePattern = \
-    #         'Pertuzumab_1_defocus_25um_tomo_7_aliSIRT_EED_tid_%i_fil_mb_sources_to_no_mb_targets_net_mb_ext'
-    #     graphsFilesPerVesicle = [pickingFilePattern + '.vtp',
-    #                              pickingFilePattern + '_peak.vtp',
-    #                              pickingFilePattern + '_surf.vtp']
-    #     outputStar = 'fil_mb_sources_to_no_mb_targets_net_parts.star'
-    #
-    #     self.assertTrue(exists(protPicking._getExtraPath(xmlFile)))
-    #     self.assertTrue(exists(protPicking._getExtraPath(outputStar)))
-    #     for i in range(nVesicles):
-    #         for file in graphsFilesPerVesicle:
-    #             self.assertTrue(exists(protPicking._getExtraPath(file % i)))
-    #
-    #     # Output coordinates must have an attribute named _groupId, which stores the corresponding
-    #     # vesicles index. In this case there are 3 vesicles, so it should be contained in range(2)
-    #     testVesicleInd = [0, 1, 2]
-    #     self.assertEqual(outputCoordinates.getBoxSize(), bSize)
-    #     for coord3d in outputCoordinates:
-    #         self.assertTrue(int(coord3d.getGroupId()) in testVesicleInd)
-    #
-    #     return protPicking
-    #
-    # def test_workflow(self):
-    #     protPreseg = self._runPreseg()
-    #     protGraphs = self._runGraphs(protPreseg)
-    #     protFils = self._runFils(protGraphs)
-    #     self._runPicking(protFils, protPreseg.outputSetofTomograms)
-    #     # Remove generated star file
-    #     if exists(self.preSegStar):
-    #         remove(self.preSegStar)
+    @classmethod
+    def _runFils(cls):
+        print(magentaStr("\n==> Running fils:"))
+        protFils = cls.newProtocol(
+            ProtPySegFils,
+            graphsFrom=FROM_SCIPION,
+            inGraphsProt=cls.ProtGraphs,
+            segLabelS=MEMBRANE,
+            segLabelT=MEMBRANE_OUTER_SURROUNDINGS,
+            maxEucDistT=30,
+            maxGeoLenT=60,
+            maxSinuT=2,
+            gRgEud='1 30',
+            gRgLen='1 60',
+            gRgSin='0 2',
+            numberOfThreads=1 + cls.nVesicles
+        )
+
+        protFils.setObjLabel('Fils')
+        protFils = cls.launchProtocol(protFils)
+        return protFils
+
+    def testFils(self):
+        # Check that resulting files are created as expected
+        xmlFiles = ['mb_sources.xml', 'no_mb_targets.xml']
+        filssFilePattern = 'emd_10439_tid_%i_fil_mb_sources_to_no_mb_targets_net'
+        graphsFilesPerVesicle = [filssFilePattern + '.pkl',
+                                 filssFilePattern + '.vtp',
+                                 filssFilePattern + '_edges.vtp',
+                                 filssFilePattern + '_edges2.vtp',
+                                 filssFilePattern + '_skel.vtp']
+
+        [self.assertTrue(exists(self.ProtFils._getExtraPath(file))) for file in xmlFiles]
+        for i in range(self.nVesicles):
+            self.assertTrue(exists(self.ProtFils._getExtraPath(OUT_STARS_DIR, 'fils_%03d.star' % (i + 1))))
+            for file in graphsFilesPerVesicle:
+                self.assertTrue(exists(self.ProtFils._getExtraPath(file % i)))
+
+    @classmethod
+    def _runPicking(cls):
+        print(magentaStr("\n==> Running picking:"))
+        protPicking = cls.newProtocol(
+            ProtPySegPicking,
+            inFilsProt=cls.ProtFils,
+            inTomoSet=cls.inTomoSetBinned,
+            filsFrom=FROM_SCIPION,
+            side=MEMBRANE_OUTER_SURROUNDINGS,
+            cont=PROJECTIONS,
+            numberOfMpi=1 + cls.nVesicles
+        )
+
+        protPicking.setObjLabel('Picking')
+        protPicking = cls.launchProtocol(protPicking)
+        return protPicking
+
+    def testPicking(self):
+        outputCoordinates = getattr(self.ProtPicking, 'outputCoordinates', None)
+
+        # Check that resulting files are created as expected
+        xmlFile = 'mb_ext.xml'
+        pickingFilePattern = 'emd_10439_tid_%i_fil_mb_sources_to_no_mb_targets_net_mb_ext'
+        graphsFilesPerVesicle = [pickingFilePattern + '.vtp',
+                                 pickingFilePattern + '_peak.vtp',
+                                 pickingFilePattern + '_surf.vtp']
+
+        self.assertTrue(exists(self.ProtPicking._getExtraPath(xmlFile)))
+        for i in range(self.nVesicles):
+            for file in graphsFilesPerVesicle:
+                self.assertTrue(exists(self.ProtPicking._getExtraPath(file % i)))
+                self.assertTrue(exists(self.ProtPicking._getExtraPath(OUT_STARS_DIR, 'picking_%03d_parts.star' % (i + 1))))
+
+        # Output coordinates must have an attribute named _groupId, which stores the corresponding
+        # vesicles index. In this case there are 3 vesicles, so it should be contained in range(2)
+        testVesicleInd = list(range(self.nVesicles))
+        self.assertEqual(outputCoordinates.getBoxSize(), 20)
+        for coord3d in outputCoordinates:
+            self.assertTrue(int(coord3d.getGroupId()) in testVesicleInd)
+
+

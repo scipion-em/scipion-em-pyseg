@@ -6,7 +6,7 @@ from imod.protocols import ProtImodAutomaticCtfEstimation
 from pwem.protocols import ProtImportMask
 from pyworkflow.tests import BaseTest, setupTestProject, DataSet
 from pyworkflow.utils import magentaStr
-from reliontomo.protocols.protocol_ctf_3d_estimation import CTF3D_PER_SUBVOLUME, ProtRelionEstimateCTF3D
+# from reliontomo.protocols.protocol_ctf_3d_estimation import CTF3D_PER_SUBVOLUME, ProtRelionEstimateCTF3D
 from tomo.protocols import ProtImportCoordinates3D, ProtImportTomograms, ProtImportTs
 from pyseg.protocols import *
 from pyseg.protocols.protocol_2d_classification import AFFINITY_PROP, CC_WITHIN_MASK, AGGLOMERATIVE, KMEANS
