@@ -24,19 +24,18 @@
 # *
 # **************************************************************************
 from os.path import basename, join
-import numpy as np
 from emtable import Table
 from pwem.emlib.image import ImageHandler
 from pwem.objects.data import Transform, String
-import pwem.convert.transformations as tfs
 from pyseg.constants import NOT_FOUND, VESICLE, SEGMENTATION, GRAPHS_OUT
-from pyworkflow.object import List, Float
+from pyworkflow.object import Float
 from pyworkflow.utils import removeBaseExt, createLink
 from reliontomo.constants import TOMO_NAME_30
 from reliontomo.convert.convert30_tomo import SUBTOMO_NAME, COORD_X, COORD_Y, COORD_Z, ROT, TILT, PSI, \
-    RELION_TOMO_LABELS, TILT_PRIOR, PSI_PRIOR, SHIFTX, SHIFTY, SHIFTZ
+    RELION_TOMO_LABELS, TILT_PRIOR, PSI_PRIOR, getTransformMatrix
+from reliontomo.utils import manageDims
 from tomo.constants import BOTTOM_LEFT_CORNER
-from tomo.objects import SubTomogram, Coordinate3D, TomoAcquisition, Tomogram
+from tomo.objects import SubTomogram, Coordinate3D, TomoAcquisition
 
 PICKING_LABELS = [TOMO_NAME_30,
                   VESICLE,
@@ -81,7 +80,6 @@ def splitPysegStarFile(inStar, outDir, j=1, prefix=GRAPHS_OUT + '_', fileCounter
         labels = tomoTable.getColumnNames()
         outTable = Table(columns=labels)
         counter = 1
-        # fileCounter = 1
         for vesicleRow in tomoTable:
             _addRow()
             if j == 1 or (counter > 1 and counter % j == 0):
@@ -122,19 +120,6 @@ def readParticlesStarFile(prot, outputSetObject, fileType, starFile=None, invert
         return warningMsg
 
 
-def manageIhDims(fileName, z, n):
-    if fileName.endswith('.mrc') or fileName.endswith('.map'):
-        # fileName += ':mrc'
-        if z == 1 and n != 1:
-            zDim = n
-        else:
-            zDim = z
-    else:
-        zDim = z
-
-    return zDim, fileName
-
-
 def _relionTomoStar2Subtomograms(prot, outputSubTomogramsSet, tomoTable, invert):
     ih = ImageHandler()
     samplingRate = outputSubTomogramsSet.getSamplingRate()
@@ -160,15 +145,15 @@ def _relionTomoStar2Subtomograms(prot, outputSubTomogramsSet, tomoTable, invert)
         tiltPrior = row.get(TILT_PRIOR, 0)
         psiPrior = row.get(PSI_PRIOR, 0)
         coordinate3d = subtomo.getCoordinate3D()
+        coordinate3d.setVolume(inSubtomo.getCoordinate3D().getVolume())  # Volume pointer should keep the same
         coordinate3d.setX(float(x), BOTTOM_LEFT_CORNER)
         coordinate3d.setY(float(y), BOTTOM_LEFT_CORNER)
         coordinate3d.setZ(float(z), BOTTOM_LEFT_CORNER)
-        coordinate3d.setVolume(inSubtomo.getCoordinate3D().getVolume())  # Volume pointer should keep the same
         if hasattr(inSubtomo.getCoordinate3D(), '_3dcftMrcFile'):  # Used for the ctf3d in Relion 3.0 (tomo)
             coordinate3d._3dcftMrcFile = inSubtomo.getCoordinate3D()._3dcftMrcFile
         else:
             coordinate3d._3dcftMrcFile = String()
-        M = _getTransformMatrix(row, invert)
+        M = getTransformMatrix(row, invert)
         transform.setMatrix(M)
         subtomo.setCoordinate3D(coordinate3d)
         subtomo._tiltPriorAngle = Float(tiltPrior)
@@ -176,7 +161,7 @@ def _relionTomoStar2Subtomograms(prot, outputSubTomogramsSet, tomoTable, invert)
 
         # Set the origin and the dimensions of the current subtomogram
         x, y, z, n = ih.getDimensions(subtomoFn)
-        zDim, _ = manageIhDims(subtomoFn, z, n)
+        zDim = manageDims(subtomoFn, z, n)
         origin.setShifts(x / -2. * samplingRate, y / -2. * samplingRate, zDim / -2. * samplingRate)
         subtomo.setOrigin(origin)
 
@@ -193,68 +178,8 @@ def _relionTomoStar2Subtomograms(prot, outputSubTomogramsSet, tomoTable, invert)
         outputSubTomogramsSet.append(subtomo)
 
 
-def _getTransformMatrix(row, invert):
-    shiftx = row.get(SHIFTX, 0)
-    shifty = row.get(SHIFTY, 0)
-    shiftz = row.get(SHIFTZ, 0)
-    tilt = row.get(TILT, 0)
-    psi = row.get(PSI, 0)
-    rot = row.get(ROT, 0)
-    shifts = (float(shiftx), float(shifty), float(shiftz))
-    angles = (float(rot), float(tilt), float(psi))
-    radAngles = -np.deg2rad(angles)
-    M = tfs.euler_matrix(radAngles[0], radAngles[1], radAngles[2], 'szyz')
-    if invert:
-        M[0, 3] = -shifts[0]
-        M[1, 3] = -shifts[1]
-        M[2, 3] = -shifts[2]
-        M = np.linalg.inv(M)
-    else:
-        M[0, 3] = shifts[0]
-        M[1, 3] = shifts[1]
-        M[2, 3] = shifts[2]
-
-    return M
-
-
 def managePath4Sqlite(fpath):
     return fpath if fpath != NOT_FOUND else fpath
-
-
-def getTomoSetFromStar(prot, starFile):
-    samplingRate = prot.pixelSize.get()
-    imgh = ImageHandler()
-    tomoTable = Table()
-    tomoTable.read(starFile)
-    tomoList = [row.get(TOMO_NAME_30, NOT_FOUND) for row in tomoTable]
-    prot.tomoList = List(tomoList)
-    tomoNamesUnique = list(set(tomoList))
-
-    # Create a Volume template object
-    tomo = Tomogram()
-    tomo.setSamplingRate(samplingRate)
-    for fileName in tomoNamesUnique:
-        x, y, z, n = imgh.getDimensions(fileName)
-        if fileName.endswith('.mrc') or fileName.endswith('.map'):
-            if z == 1 and n != 1:
-                zDim = n
-                n = 1
-            else:
-                zDim = z
-        else:
-            zDim = z
-        origin = Transform()
-        origin.setShifts(x / -2. * samplingRate,
-                         y / -2. * samplingRate,
-                         zDim / -2. * samplingRate)
-
-        tomo.setOrigin(origin)  # read origin from form
-
-        for index in range(1, n + 1):
-            tomo.cleanObjId()
-            tomo.setLocation(index, fileName)
-            tomo.setAcquisition(TomoAcquisition(**prot.acquisitionParams))
-            prot.tomoSet.append(tomo)
 
 
 def _pysegStar2Coords3D(prot, output3DCoordSet, tomoTable, invert):
@@ -269,7 +194,7 @@ def _pysegStar2Coords3D(prot, output3DCoordSet, tomoTable, invert):
                 x = row.get(COORD_X, 0)
                 y = row.get(COORD_Y, 0)
                 z = row.get(COORD_Z, 0)
-                M = _getTransformMatrix(row, invert)
+                M = getTransformMatrix(row, invert)
                 coordinate3d.setX(float(x), BOTTOM_LEFT_CORNER)
                 coordinate3d.setY(float(y), BOTTOM_LEFT_CORNER)
                 coordinate3d.setZ(float(z), BOTTOM_LEFT_CORNER)

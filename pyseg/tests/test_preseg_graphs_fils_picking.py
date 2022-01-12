@@ -36,6 +36,7 @@ from tomo.protocols import ProtImportTomograms, ProtImportTomomasks
 
 
 class TestFromPresegToPicking(BaseTest):
+
     outputPath = None
     ds = None
     boxSize = 44

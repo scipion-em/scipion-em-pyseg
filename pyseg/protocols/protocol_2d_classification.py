@@ -226,7 +226,7 @@ class ProtPySegPlaneAlignClassification(EMProtocol, ProtTomoBase):
         if warningMsg:
             self._warningMsg.set(warningMsg)
             self._store()
-        self._defineOutputs(outputSetOfSubtomogram=subtomoSet)
+        self._defineOutputs(outputSubtomograms=subtomoSet)
 
         # 2) Set of classes subtomograms
         classesSet = self._createSetOfClassesSubTomograms(subtomoSet)
