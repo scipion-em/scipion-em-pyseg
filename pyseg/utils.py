@@ -28,9 +28,13 @@ import glob
 from os import symlink
 from os.path import abspath, join, basename
 
+import numpy as np
+
+from pwem.convert import transformations
 from pwem.emlib.image import ImageHandler
 from pyseg.constants import IN_STARS_DIR, OUT_STARS_DIR
 from pyworkflow.utils import replaceExt, getExt, makePath
+from reliontomo.convert.convert30_tomo import SHIFTX, SHIFTY, SHIFTZ, TILT, PSI, ROT
 
 COMP_EXT_MASK_LIST = ['.mrc', '.em', '.rec']
 
@@ -79,6 +83,43 @@ def getPrevPysegProtOutStarFiles(inDir, outDir):
 
 def genOutSplitStarFileName(outDir, starFile):
     return join(outDir, basename(starFile))
+
+
+# TODO: remove this once reliontomo3 is deprecated and import this method from reliontomo4 utils
+def manageDims(fileName, z, n):
+    if fileName.endswith('.mrc') or fileName.endswith('.map'):
+        if z == 1 and n != 1:
+            zDim = n
+        else:
+            zDim = z
+    else:
+        zDim = z
+
+    return zDim
+
+# TODO: remove this once reliontomo3 is deprecated and import this method from reliontomo4 utils
+def getTransformMatrix(row, invert=True):
+    shiftx = row.get(SHIFTX, 0)
+    shifty = row.get(SHIFTY, 0)
+    shiftz = row.get(SHIFTZ, 0)
+    tilt = row.get(TILT, 0)
+    psi = row.get(PSI, 0)
+    rot = row.get(ROT, 0)
+    shifts = (float(shiftx), float(shifty), float(shiftz))
+    angles = (float(rot), float(tilt), float(psi))
+    radAngles = -np.deg2rad(angles)
+    M = transformations.euler_matrix(radAngles[0], radAngles[1], radAngles[2], 'szyz')
+    if invert:
+        M[0, 3] = -shifts[0]
+        M[1, 3] = -shifts[1]
+        M[2, 3] = -shifts[2]
+        M = np.linalg.inv(M)
+    else:
+        M[0, 3] = shifts[0]
+        M[1, 3] = shifts[1]
+        M[2, 3] = shifts[2]
+
+    return M
 
 
 

@@ -33,7 +33,7 @@ import xml.etree.ElementTree as ET
 from pwem.protocols import EMProtocol
 from pyseg.convert import splitPysegStarFile
 from pyworkflow import BETA
-from pyworkflow.protocol import FloatParam, NumericListParam, EnumParam, PointerParam, LEVEL_ADVANCED
+from pyworkflow.protocol import FloatParam, NumericListParam, EnumParam, PointerParam, LEVEL_ADVANCED, STEPS_PARALLEL
 from pyworkflow.utils import Message, removeBaseExt, copyFile, moveFile
 from scipion.constants import PYTHON
 from tomo.protocols import ProtTomoBase
@@ -86,6 +86,7 @@ class ProtPySegFils(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
 
     def __init__(self,  **kwargs):
         super().__init__(**kwargs)
+        self.stepsExecutionMode = STEPS_PARALLEL
         self._xmlSources = None
         self._xmlTargets = None
         self._inStarDir = None
@@ -133,6 +134,8 @@ class ProtPySegFils(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
                        label='Filament sinuosity range (FLEXIBILITY, normally the ratio geoLen / eucLen)',
                        default='0 1000',
                        allowsNull=False)
+
+        form.addParallelSection(threads=3, mpi=1)
 
     @staticmethod
     def _defineFilsXMLParams(form, d, isSources=True):
@@ -209,11 +212,11 @@ class ProtPySegFils(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
                        display=EnumParam.DISPLAY_HLIST)
 
     def _insertAllSteps(self):
-        starFileList = self._convertInputStep()
+        starFileList = self._initialize()
         for starFile in starFileList:
-            self._insertFunctionStep(self.pysegFils, starFile)
+            self._insertFunctionStep(self.pysegFils, starFile, prerequisites=[])
 
-    def _convertInputStep(self):
+    def _initialize(self):
         outDir = self._getExtraPath()
         # Split the input file into n (threads) files
         self._outStarDir, self._inStarDir = createStarDirectories(self._getExtraPath())
@@ -221,9 +224,15 @@ class ProtPySegFils(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         self._createFilsXmlFile(Plugin.getHome(FILS_SOURCES), outDir)
         # Generate targets xml
         self._createFilsXmlFile(Plugin.getHome(FILS_TARGETS), outDir, isSource=False)
-        # Get the star files generated in the graphs protocol
-        return getPrevPysegProtOutStarFiles(self.inGraphsProt.get()._getExtraPath(OUT_STARS_DIR),
-                                            self._getExtraPath(IN_STARS_DIR))
+        # Generate 1 star file per vesicle to parallelize the calls to Fils and improve performance
+        inStarFiles = []
+        for inStar in sorted(glob.glob(self.inGraphsProt.get()._getExtraPath(OUT_STARS_DIR, '*.star'))):
+            inStarFiles.extend(splitPysegStarFile(inStar, self._getExtraPath(IN_STARS_DIR),
+                                                  j=1,
+                                                  prefix=FILS_OUT + '_',
+                                                  fileCounter=len(inStarFiles) + 1))
+
+        return inStarFiles
 
     def pysegFils(self, starFile):
         # Script called

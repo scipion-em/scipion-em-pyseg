@@ -57,13 +57,13 @@ class Tomo3D4PysegDataViewer(pwviewer.Viewer):
         cls = type(obj)
         if hasattr(obj, 'inSegProt'):  # Accessing from graphs
             vtiPath = obj._getExtraPath()
-            vesicleSubTomos = obj.inSegProt.get().outputSetofSubTomograms
+            vesicleSubTomos = obj.inSegProt.get().outputSubTomograms
         elif hasattr(obj, 'inGraphsProt'):  # Accessing from fils
             vtiPath = obj.inGraphsProt.get()._getExtraPath()
-            vesicleSubTomos = obj.inGraphsProt.get().inSegProt.get().outputSetofSubTomograms
+            vesicleSubTomos = obj.inGraphsProt.get().inSegProt.get().outputSubTomograms
         elif hasattr(obj, 'inFilsProt'):  # Accessing from picking
             vtiPath = obj.inFilsProt.get().inGraphsProt.get()._getExtraPath()
-            vesicleSubTomos = obj.inFilsProt.get().inGraphsProt.get().inSegProt.get().outputSetofSubTomograms
+            vesicleSubTomos = obj.inFilsProt.get().inGraphsProt.get().inSegProt.get().outputSubTomograms
 
         vesicleList = [vesicle.clone() for vesicle in vesicleSubTomos.iterItems()]
         vesicleProvider = VesicleViewerProvider(vesicleList, None, None)

@@ -31,7 +31,7 @@ from pwem.protocols import EMProtocol
 from pyseg.convert import splitPysegStarFile
 from pyseg.utils import createStarDirectories, genOutSplitStarFileName
 from pyworkflow import BETA
-from pyworkflow.protocol import FloatParam, PointerParam, LEVEL_ADVANCED, BooleanParam
+from pyworkflow.protocol import FloatParam, PointerParam, LEVEL_ADVANCED, BooleanParam, STEPS_SERIAL, IntParam
 from pyworkflow.utils import Message, moveFile
 from scipion.constants import PYTHON
 from tomo.protocols import ProtTomoBase
@@ -67,6 +67,13 @@ class ProtPySegGraphs(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
                       important=True,
                       allowsNull=False,
                       help='Pointer to preseg protocol.')
+        form.addParam('vesiclePkgSize', IntParam,
+                      label='Vesicles packaging size',
+                      allowsNull=False,
+                      hekp='The input set of particles will be split into packages of N vesicles. Each package will '
+                           'be processed as a different step, allowing to continue the execution from the last step in '
+                           'case of the protocol fails. On the other hand, more packages implies more calls to PySeg, '
+                           'which can affect to performance.')
         form.addParam('keepOnlyReqFiles', BooleanParam,
                       label='Keep only required files?',
                       default=True,
@@ -100,7 +107,6 @@ class ProtPySegGraphs(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
                        label='Maximum distance to membrane (Å)',
                        allowsNull=False,
                        help='Maximum euclidean distance to membrane in Å.')
-
         form.addParallelSection(threads=4, mpi=0)
 
     def _insertAllSteps(self):
@@ -113,7 +119,7 @@ class ProtPySegGraphs(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         # Generate directories for input and output star files
         # Split the input file into n (threads) files
         self._outStarDir, self._inStarDir = createStarDirectories(self._getExtraPath())
-        self.starFileList = splitPysegStarFile(self._getPreSegStarFile(), self._inStarDir, j=self.numberOfThreads.get())
+        self.starFileList = splitPysegStarFile(self._getPreSegStarFile(), self._inStarDir, j=self.vesiclePkgSize.get())
 
     def pysegGraphs(self, starFile):
         # Script called
@@ -152,4 +158,4 @@ class ProtPySegGraphs(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         return self.inSegProt.get().getPresegOutputFile(self.inSegProt.get().getVesiclesCenteredStarFile())
 
     def _getSamplingRate(self):
-        return self.inSegProt.get().outputSetofSubTomograms.getSamplingRate()
+        return self.inSegProt.get().outputSubTomograms.getSamplingRate()

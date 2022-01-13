@@ -31,7 +31,7 @@ import xml.etree.ElementTree as ET
 
 from pwem.protocols import EMProtocol
 from pyworkflow import BETA
-from pyworkflow.protocol import FloatParam, EnumParam, PointerParam, IntParam, LEVEL_ADVANCED
+from pyworkflow.protocol import FloatParam, EnumParam, PointerParam, IntParam, LEVEL_ADVANCED, STEPS_PARALLEL
 from pyworkflow.utils import Message, makePath, removeBaseExt, copyFile, moveFile
 from scipion.constants import PYTHON
 from tomo.objects import SetOfCoordinates3D
@@ -62,6 +62,7 @@ class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
 
     def __init__(self,  **kwargs):
         super().__init__(**kwargs)
+        self.stepsExecutionMode = STEPS_PARALLEL
         self.tomoSet = None
         self.acquisitionParams = {
                 'angleMin': 90,
@@ -117,6 +118,8 @@ class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
                        allowsNull=False,
                        help='Scale suppression in nm, two selected points cannot be closer than this distance.')
 
+        form.addParallelSection(threads=3, mpi=1)
+
     @staticmethod
     def _defineFilsXMLParams(form, d):
         """d is a disctionary with the default values"""
@@ -146,7 +149,7 @@ class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
     def _insertAllSteps(self):
         starFileList = self._convertInputStep()
         for starFile in starFileList:
-            self._insertFunctionStep(self.pysegPicking, starFile)
+            self._insertFunctionStep(self.pysegPicking, starFile, prerequisites=[])
         self._insertFunctionStep(self.createOutputStep)
 
     def _convertInputStep(self):

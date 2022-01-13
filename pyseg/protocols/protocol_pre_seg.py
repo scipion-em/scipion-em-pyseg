@@ -69,7 +69,7 @@ class ProtPySegPreSegParticles(EMProtocol):
                       display=EnumParam.DISPLAY_HLIST)
         form.addParam('inTomoMasks', PointerParam,
                       pointerClass='SetOfTomoMasks',
-                      label='Segmented and annotated tomograms',
+                      label='Tomomasks (segmentations)',
                       condition='segmentationFrom == %i' % FROM_SCIPION,
                       important=True,
                       allowsNull=False,
@@ -153,11 +153,12 @@ class ProtPySegPreSegParticles(EMProtocol):
 
     def createOutputStep(self):
         segVesSet, vesSet, tomogramSet = self._genOutputSetOfTomoMasks()
-        self._defineOutputs(outputSetofTomoMasks=segVesSet)
-        self._defineOutputs(outputSetofSubTomograms=vesSet)
+        self._defineOutputs(outputTomoMasks=segVesSet)
+        self._defineOutputs(outputSubTomograms=vesSet)
+        # TODO --> asignar el tomoId a los objetos de salida
         # If the input data is a star file, the corresponding set of tomograms is generated
         if tomogramSet:
-            self._defineOutputs(outputSetofTomograms=tomogramSet)
+            self._defineOutputs(outputTomograms=tomogramSet)
 
     # --------------------------- INFO functions -----------------------------------
     def _validate(self):
