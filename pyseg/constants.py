@@ -28,8 +28,8 @@ from os.path import join
 
 PYSEG = 'pySeg'
 PYSEG_HOME = 'PYSEG_HOME'
-DEFAULT_VERSION = 'jj_fix_preseg_oriented'  # TODO: update to 2.0.1
-PYSEG_SOURCE_URL = 'https://github.com/anmartinezs/pyseg_system/archive/refs/heads/%s.zip' % DEFAULT_VERSION
+DEFAULT_VERSION = 'v2.0.2'
+PYSEG_SOURCE_URL = 'https://github.com/anmartinezs/pyseg_system/archive/refs/tags/%s.zip' % DEFAULT_VERSION
 
 PYSEG_ENV_NAME = 'pySeg-%s' % DEFAULT_VERSION
 PYSEG_ENV_ACTIVATION = 'PYSEG_ENV_ACTIVATION'
