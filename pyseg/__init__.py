@@ -133,9 +133,11 @@ class Plugin(pwem.Plugin):
         installationCmd = cls.getCondaActivationCmd()
 
         # Create the environment
-        installationCmd += 'conda create -y -n %s  -c conda-forge -c anaconda python=3.6 ' \
+        installationCmd += 'conda create -y -n %s  -c conda-forge -c anaconda python=3.7 ' \
                            'opencv=4.2.0 ' \
-                           'graph-tool=2.29 && ' % PYSEG_ENV_NAME
+                           'graph-tool=2.29  ' \
+                           'future=0.18.2=py37_0 && ' % PYSEG_ENV_NAME
+        # 'dataclasses=0.7=py36_0 && ' % PYSEG_ENV_NAME
 
         # Activate new the environment
         installationCmd += 'conda activate %s && ' % PYSEG_ENV_NAME
@@ -153,8 +155,6 @@ class Plugin(pwem.Plugin):
         installationCmd += 'pip install vtk==8.1.2 '
         installationCmd += 'pip install astropy==4.1 '
         installationCmd += 'pip install imageio==2.9.0 '
-        installationCmd += 'pip install future'
-
         return installationCmd
 
     @classmethod
