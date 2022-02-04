@@ -70,7 +70,7 @@ class ProtPySegGraphs(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         form.addParam('vesiclePkgSize', IntParam,
                       label='Vesicles packaging size',
                       allowsNull=False,
-                      hekp='The input set of particles will be split into packages of N vesicles. Each package will '
+                      help='The input set of particles will be split into packages of N vesicles. Each package will '
                            'be processed as a different step, allowing to continue the execution from the last step in '
                            'case of the protocol fails. On the other hand, more packages implies more calls to PySeg, '
                            'which can affect to performance.')
