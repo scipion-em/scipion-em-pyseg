@@ -25,6 +25,6 @@
 # **************************************************************************
 from pyseg.viewers.vesicle_graphs_fils_viewer import VesicleViewerDialog
 from pyseg.viewers.vesicle_visualization_tree import VesicleViewerProvider
-from pyseg.viewers.viewers_data import Tomo3D4PysegDataViewer
+from pyseg.viewers.viewers_data import TomoViz4PysegDataViewer
 
 

@@ -32,7 +32,7 @@ from .vesicle_visualization_tree import VesicleViewerProvider
 from ..protocols import ProtPySegGraphs, ProtPySegFils, ProtPySegPicking
 
 
-class Tomo3D4PysegDataViewer(pwviewer.Viewer):
+class TomoViz4PysegDataViewer(pwviewer.Viewer):
     """ Wrapper to visualize different type of objects
     using pyvista
     """

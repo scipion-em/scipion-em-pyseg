@@ -28,8 +28,8 @@ from os.path import join
 
 from pyworkflow.gui.dialog import ToolbarListDialog
 from pyworkflow.utils.path import removeBaseExt
-from tomo3D.viewers.viewer_vtk import VtkPlot
-from tomo3D.viewers.viewer_triangulations import guiThread
+from tomoviz.viewers.viewer_vtk import VtkPlot
+from tomoviz.viewers.viewer_triangulations import guiThread
 
 FROM_GRAPHS = 0
 FROM_FILS = 1
