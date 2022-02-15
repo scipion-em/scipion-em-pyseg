@@ -147,10 +147,12 @@ class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         return d
 
     def _insertAllSteps(self):
+        allOutputId = []
         starFileList = self._convertInputStep()
         for starFile in starFileList:
-            self._insertFunctionStep(self.pysegPicking, starFile, prerequisites=[])
-        self._insertFunctionStep(self.createOutputStep)
+            pId = self._insertFunctionStep(self.pysegPicking, starFile, prerequisites=[])
+            allOutputId.append(pId)
+        self._insertFunctionStep(self.createOutputStep, prerequisites=allOutputId)
 
     def _convertInputStep(self):
         outDir = self._getExtraPath()
