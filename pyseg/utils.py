@@ -25,15 +25,12 @@
 # *
 # **************************************************************************
 import glob
-from os import symlink
 from os.path import abspath, join, basename
-
 import numpy as np
-
 from pwem.convert import transformations
 from pwem.emlib.image import ImageHandler
 from pyseg.constants import IN_STARS_DIR, OUT_STARS_DIR
-from pyworkflow.utils import replaceExt, getExt, makePath
+from pyworkflow.utils import replaceExt, getExt, makePath, createLink
 from reliontomo.convert.convert30_tomo import SHIFTX, SHIFTY, SHIFTZ, TILT, PSI, ROT
 
 COMP_EXT_MASK_LIST = ['.mrc', '.em', '.rec']
@@ -75,7 +72,7 @@ def getPrevPysegProtOutStarFiles(inDir, outDir):
     outStarFiles = []
     for inStarFile in inStarList:
         outStarFile = join(outDir, basename(inStarFile))
-        symlink(abspath(inStarFile), abspath(outStarFile))
+        createLink(abspath(inStarFile), abspath(outStarFile))
         outStarFiles.append(outStarFile)
 
     return outStarFiles
