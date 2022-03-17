@@ -168,8 +168,8 @@ class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         # Script called
         Plugin.runPySeg(self, PYTHON, self._getPickingCommand(starFile))
         # Move output files to the corresponding directory
-        outFile = glob.glob(self._getExtraPath(FILS_OUT + '*.star'))[0]
-        newFileName =join(self._outStarDir, basename(outFile).replace(FILS_OUT, PICKING_OUT))
+        outFile = self._getExtraPath(removeBaseExt(starFile) + '_parts.star')
+        newFileName = join(self._outStarDir, basename(outFile).replace(FILS_OUT, PICKING_OUT))
         self._outStarFilesList.append(newFileName)
         moveFile(outFile, newFileName)
 
