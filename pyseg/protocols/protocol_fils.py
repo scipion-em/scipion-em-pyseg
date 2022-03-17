@@ -234,8 +234,10 @@ class ProtPySegFils(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         # Associate a different output folder to each star file generated to store the fils resulting star file because
         # it is always generated with the same name, so there can be concurrency problems in parallelization
         inStarDict = {}
+        filsResultsDir = self._getExtraPath('filsFiles')
+        mkdir(filsResultsDir)
         for i, starFile in enumerate(inStarFiles):
-            outDirName = self._getTmpPath('outDir_%i' % (i + 1))
+            outDirName = join(filsResultsDir, 'outDir_%i' % (i + 1))
             mkdir(outDirName)
             inStarDict[starFile] = outDirName
 
