@@ -26,7 +26,7 @@
 # **************************************************************************
 import glob
 from collections import OrderedDict
-from os import symlink
+from os import symlink, mkdir
 from os.path import basename, join, abspath
 import xml.etree.ElementTree as ET
 
@@ -212,9 +212,9 @@ class ProtPySegFils(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
                        display=EnumParam.DISPLAY_HLIST)
 
     def _insertAllSteps(self):
-        starFileList = self._initialize()
-        for starFile in starFileList:
-            self._insertFunctionStep(self.pysegFils, starFile, prerequisites=[])
+        inStarDict = self._initialize()
+        for starFile, outDir in inStarDict.items():
+            self._insertFunctionStep(self.pysegFils, starFile, outDir, prerequisites=[])
 
     def _initialize(self):
         outDir = self._getExtraPath()
@@ -231,14 +231,23 @@ class ProtPySegFils(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
                                                   j=1,
                                                   prefix=FILS_OUT + '_',
                                                   fileCounter=len(inStarFiles) + 1))
+        # Associate a different output folder to each star file generated to store the fils resulting star file because
+        # it is always generated with the same name, so there can be concurrency problems in parallelization
+        inStarDict = {}
+        filsResultsDir = self._getExtraPath('filsFiles')
+        mkdir(filsResultsDir)
+        for i, starFile in enumerate(inStarFiles):
+            outDirName = join(filsResultsDir, 'outDir_%i' % (i + 1))
+            mkdir(outDirName)
+            inStarDict[starFile] = outDirName
 
-        return inStarFiles
+        return inStarDict
 
-    def pysegFils(self, starFile):
+    def pysegFils(self, starFile, outDir):
         # Script called
-        Plugin.runPySeg(self, PYTHON, self._getFilsCommand(self._getExtraPath(), starFile))
+        Plugin.runPySeg(self, PYTHON, self._getFilsCommand(outDir, starFile))
         # Fils returns the same star file name, so it will be renamed to avoid overwriting
-        moveFile(self._getExtraPath('fil_mb_sources_to_no_mb_targets_net.star'),
+        moveFile(join(outDir, 'fil_mb_sources_to_no_mb_targets_net.star'),
                  genOutSplitStarFileName(self._outStarDir, starFile.replace(GRAPHS_OUT, FILS_OUT)))
 
     # --------------------------- INFO functions -----------------------------------
