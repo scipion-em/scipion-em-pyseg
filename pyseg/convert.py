@@ -31,8 +31,9 @@ from pyseg.constants import NOT_FOUND, VESICLE, SEGMENTATION, GRAPHS_OUT
 from pyseg.utils import manageDims, getTransformMatrix
 from pyworkflow.object import Float
 from pyworkflow.utils import removeBaseExt, createLink
+from reliontomo.convert import RELION_30_TOMO_LABELS
 from reliontomo.convert.convert30_tomo import SUBTOMO_NAME, COORD_X, COORD_Y, COORD_Z, ROT, TILT, PSI, \
-    RELION_TOMO_LABELS, TILT_PRIOR, PSI_PRIOR
+     TILT_PRIOR, PSI_PRIOR
 from tomo.constants import BOTTOM_LEFT_CORNER
 from tomo.objects import SubTomogram, Coordinate3D, TomoAcquisition
 
@@ -102,7 +103,7 @@ def readParticlesStarFile(prot, outputSetObject, fileType, starFile=None, invert
     tomoTable.read(starFile)
 
     if fileType == RELION_SUBTOMO_STAR:
-        labels = RELION_TOMO_LABELS
+        labels = RELION_30_TOMO_LABELS
         _relionTomoStar2Subtomograms(prot, outputSetObject, tomoTable, invert)
     else:  # fileType == PYSEG_PICKING_STAR:
         labels = PICKING_LABELS

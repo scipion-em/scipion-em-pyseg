@@ -32,6 +32,7 @@ from pyworkflow.utils import magentaStr
 from reliontomo.protocols import ProtImportSubtomogramsFromStar
 from pyseg.protocols import *
 from pyseg.protocols.protocol_2d_classification import AFFINITY_PROP, CC_WITHIN_MASK, AGGLOMERATIVE, KMEANS
+from tomo.protocols import ProtImportTomograms
 
 
 class TestPostRecAndClassify2d(BaseTest):
@@ -50,14 +51,28 @@ class TestPostRecAndClassify2d(BaseTest):
     def setUpClass(cls):
         setupTestProject(cls)
         cls.dataset = DataSet.getDataSet('emd_10439')
-        cls.protImporSubtomogramsFromStar = cls._runImportSubtomogramsFromStarFile()
+        inTomoSet = cls._importTomograms()
+        cls.protImporSubtomogramsFromStar = cls._runImportSubtomogramsFromStarFile(inTomos=inTomoSet)
         cls.protCreateParticleMask = cls._runCreate3dParticleMask()
         cls.protCreateMembraneMask = cls._runCreate3dMembraneMask()
 
     @classmethod
-    def _runImportSubtomogramsFromStarFile(cls):
+    def _importTomograms(cls):
+        print(magentaStr("\n==> Importing data - tomograms:"))
+        protImportTomogram = cls.newProtocol(ProtImportTomograms,
+                                             filesPath=cls.dataset.getFile('tomoEmd10439'),
+                                             samplingRate=cls.samplingRate)
+
+        cls.launchProtocol(protImportTomogram)
+        outputTomos = getattr(protImportTomogram, 'outputTomograms', None)
+        cls.assertIsNotNone(outputTomos, 'No tomograms were genetated.')
+        return outputTomos
+
+    @classmethod
+    def _runImportSubtomogramsFromStarFile(cls, inTomos=None):
         protImporSubtomogramsFromStar = cls.newProtocol(ProtImportSubtomogramsFromStar,
                                                         starFile=cls.dataset.getFile('subtomogramsStarFile'),
+                                                        inTomos=inTomos,
                                                         samplingRate=cls.samplingRate,
                                                         boxSize=cls.boxSize)
 

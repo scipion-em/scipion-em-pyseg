@@ -29,7 +29,7 @@ from pyseg.utils import getFinalMaskFileName, checkMaskFormat
 from pyworkflow import BETA
 from pyworkflow.protocol import String, FloatParam, LE, GE
 from pyworkflow.utils import Message, makePath
-from reliontomo.convert.convert30_tomo import Writer
+from reliontomo.convert import writeSetOfSubtomograms
 from scipion.constants import PYTHON
 from tomo.objects import SetOfSubTomograms
 from tomo.protocols import ProtTomoBase
@@ -96,10 +96,9 @@ class ProtPySegPostRecParticles(EMProtocol, ProtTomoBase):
         if self.mbMask.get():
             checkMaskFormat(self.mbMask.get())  # Membrane mask for attenuation (optional)
         # Write star from set of subtomograms
-        imgSet = self.inputSubtomos.get()
+        subtomoSet = self.inputSubtomos.get()
         imgStar = self._getExtraPath(self.inStarName)
-        writer = Writer()
-        writer.writeSetOfSubtomograms(imgSet, imgStar, isPyseg=True)
+        writeSetOfSubtomograms(subtomoSet, imgStar, isPyseg=True)
 
     def pysegPostRec(self, outStar):
         # Generate output subtomo dir
