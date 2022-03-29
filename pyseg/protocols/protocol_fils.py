@@ -237,7 +237,7 @@ class ProtPySegFils(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         filsResultsDir = self._getExtraPath('filsFiles')
         mkdir(filsResultsDir)
         for i, starFile in enumerate(inStarFiles):
-            outDirName = join(filsResultsDir, 'outDir_%i' % (i + 1))
+            outDirName = join(filsResultsDir, 'outDir_%03d' % i)
             mkdir(outDirName)
             inStarDict[starFile] = outDirName
 

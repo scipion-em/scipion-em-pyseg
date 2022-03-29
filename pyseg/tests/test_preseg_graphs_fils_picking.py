@@ -210,7 +210,7 @@ class TestFromPresegToPicking(BaseTest):
         for i in range(self.nVesicles):
             self.assertTrue(exists(self.ProtFils._getExtraPath(OUT_STARS_DIR, 'fils_%03d.star' % (i + 1))))
             for file in graphsFilesPerVesicle:
-                self.assertTrue(exists(self.ProtFils._getExtraPath(file % i)))
+                self.assertTrue(exists(self.ProtFils._getExtraPath('filsFiles', 'outDir_%03d' % i, file % i)))
 
     @classmethod
     def _runPicking(cls):
