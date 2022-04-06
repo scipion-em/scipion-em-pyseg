@@ -31,9 +31,8 @@ from pyseg.constants import NOT_FOUND, VESICLE, SEGMENTATION, GRAPHS_OUT
 from pyseg.utils import manageDims, getTransformMatrix
 from pyworkflow.object import Float
 from pyworkflow.utils import removeBaseExt, createLink
+from reliontomo.constants import ROT, TILT, PSI, COORD_X, COORD_Y, COORD_Z, TILT_PRIOR, PSI_PRIOR, SUBTOMO_NAME
 from reliontomo.convert import RELION_30_TOMO_LABELS
-from reliontomo.convert.convert30_tomo import SUBTOMO_NAME, COORD_X, COORD_Y, COORD_Z, ROT, TILT, PSI, \
-     TILT_PRIOR, PSI_PRIOR
 from tomo.constants import BOTTOM_LEFT_CORNER
 from tomo.objects import SubTomogram, Coordinate3D, TomoAcquisition
 

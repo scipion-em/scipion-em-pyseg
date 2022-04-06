@@ -31,7 +31,7 @@ from pwem.convert import transformations
 from pwem.emlib.image import ImageHandler
 from pyseg.constants import IN_STARS_DIR, OUT_STARS_DIR
 from pyworkflow.utils import replaceExt, getExt, makePath, createLink
-from reliontomo.convert.convert30_tomo import SHIFTX, SHIFTY, SHIFTZ, TILT, PSI, ROT
+from reliontomo.constants import SHIFTX, SHIFTY, SHIFTZ, TILT, PSI, ROT
 
 COMP_EXT_MASK_LIST = ['.mrc', '.em', '.rec']
 
