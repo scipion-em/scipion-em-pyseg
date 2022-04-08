@@ -24,24 +24,21 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
-import glob
 from collections import OrderedDict
 from os.path import basename, join
 import xml.etree.ElementTree as ET
-
 from pwem.protocols import EMProtocol
 from pyworkflow import BETA
 from pyworkflow.protocol import FloatParam, EnumParam, PointerParam, IntParam, LEVEL_ADVANCED, STEPS_PARALLEL
-from pyworkflow.utils import Message, makePath, removeBaseExt, copyFile, moveFile
+from pyworkflow.utils import Message, removeBaseExt, copyFile, moveFile
+from reliontomo.convert import createReaderTomo
 from scipion.constants import PYTHON
 from tomo.objects import SetOfCoordinates3D
 from tomo.protocols import ProtTomoBase
 from tomo.protocols.protocol_base import ProtTomoImportAcquisition
-
 from pyseg import Plugin
 from pyseg.constants import FILS_SOURCES, FILS_TARGETS, PICKING_SCRIPT, PICKING_SLICES, PRESEG_AREAS_LIST, MEMBRANE, \
     OUT_STARS_DIR, IN_STARS_DIR, FILS_OUT, PICKING_OUT
-from pyseg.convert import readParticlesStarFile, PYSEG_PICKING_STAR
 
 # Fils slices xml fields
 from pyseg.utils import encodePresegArea, getPrevPysegProtOutStarFiles, createStarDirectories
@@ -174,7 +171,7 @@ class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         moveFile(outFile, newFileName)
 
     def createOutputStep(self):
-        self.tomoSet = self.inTomoSet.get()  # Required for the convert
+        scaleFactor = 1
         suffix = self._getOutputSuffix(SetOfCoordinates3D)
         coordsSet = self._createSetOfCoordinates3D(self.inTomoSet.get(), suffix)
         coordsSet.setSamplingRate(self._getSamplingRate())
@@ -182,7 +179,8 @@ class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
 
         # Read the data from all the out star files
         for outStar in self._outStarFilesList:
-            readParticlesStarFile(self, coordsSet, PYSEG_PICKING_STAR, starFile=outStar, invert=True)
+            reader = createReaderTomo(outStar)
+            reader.starFile2Coords3D(coordsSet, self.inTomoSet.get(), scaleFactor)
 
         if not coordsSet:
             raise Exception('ERROR! No coordinates were picked.')

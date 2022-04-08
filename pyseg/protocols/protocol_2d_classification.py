@@ -33,13 +33,13 @@ from pyworkflow import BETA
 from pyworkflow.object import String
 from pyworkflow.protocol import EnumParam, IntParam, LEVEL_ADVANCED, FloatParam, GE, LT, BooleanParam
 from pyworkflow.utils import Message, makePath
-from reliontomo.convert import writeSetOfSubtomograms
+from reliontomo.convert import writeSetOfSubtomograms, createWriterTomo, createReaderTomo
 from scipion.constants import PYTHON
-from tomo.objects import SetOfSubTomograms
+from tomo.objects import SetOfSubTomograms, SetOfCoordinates3D
 from tomo.protocols import ProtTomoBase
 from pyseg import Plugin
 from pyseg.constants import PLANE_ALIGN_CLASS_OUT, PLANE_ALIGN_CLASS_SCRIPT, SEE_METHODS_TAB
-from pyseg.convert import readParticlesStarFile, RELION_SUBTOMO_STAR
+from pyseg.convert import readPysegParticlesStar
 
 # Processing level choices
 PARTICLE_FLATENNING = 0     # Particle flattening
@@ -206,7 +206,8 @@ class ProtPySegPlaneAlignClassification(EMProtocol, ProtTomoBase):
         """
         subtomoSet = self.inputSubtomos.get()
         subTomoStar = self._getExtraPath(self.inStarName)
-        writeSetOfSubtomograms(subtomoSet, subTomoStar, isPyseg=True)
+        writer = createWriterTomo(isPyseg=True)
+        writer.subtomograms2Star(subtomoSet, subTomoStar)
         # Convert the mask format if necessary
         checkMaskFormat(self.inMask.get())
 
@@ -220,8 +221,9 @@ class ProtPySegPlaneAlignClassification(EMProtocol, ProtTomoBase):
         outStar = self._getGatheredStarFile()
         subtomoSet = SetOfSubTomograms.create(self._getPath(), template='setOfSubTomograms%s.sqlite')
         subtomoSet.copyInfo(self.inputSubtomos.get())
-        warningMsg, self._dataTable = readParticlesStarFile(self, subtomoSet, RELION_SUBTOMO_STAR, starFile=outStar,
-                                                            returnTable=True)
+        warningMsg, self._dataTable = readPysegParticlesStar(self, subtomoSet,
+                                                             starFile=outStar,
+                                                             returnTable=True)
         if warningMsg:
             self._warningMsg.set(warningMsg)
             self._store()

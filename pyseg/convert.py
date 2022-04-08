@@ -23,33 +23,19 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
-from os.path import basename, join
+from os.path import join
 from emtable import Table
 from pwem.emlib.image import ImageHandler
 from pwem.objects.data import Transform, String
-from pyseg.constants import NOT_FOUND, VESICLE, SEGMENTATION, GRAPHS_OUT
+from pyseg.constants import NOT_FOUND, GRAPHS_OUT
 from pyseg.utils import manageDims, getTransformMatrix
 from pyworkflow.object import Float
 from pyworkflow.utils import removeBaseExt, createLink
-from reliontomo.constants import ROT, TILT, PSI, COORD_X, COORD_Y, COORD_Z, TILT_PRIOR, PSI_PRIOR, SUBTOMO_NAME
+from reliontomo.constants import COORD_X, COORD_Y, COORD_Z, TILT_PRIOR, PSI_PRIOR, SUBTOMO_NAME, \
+    TOMO_NAME_30
 from reliontomo.convert import RELION_30_TOMO_LABELS
 from tomo.constants import BOTTOM_LEFT_CORNER
 from tomo.objects import SubTomogram, Coordinate3D, TomoAcquisition
-
-TOMO_NAME_30 = 'rlnMicrographName'
-PICKING_LABELS = [TOMO_NAME_30,
-                  VESICLE,
-                  SEGMENTATION,
-                  COORD_X,
-                  COORD_Y,
-                  COORD_Z,
-                  ROT,
-                  TILT,
-                  PSI]
-
-# Star files coding
-RELION_SUBTOMO_STAR = 0
-PYSEG_PICKING_STAR = 1
 
 
 def splitPysegStarFile(inStar, outDir, j=1, prefix=GRAPHS_OUT + '_', fileCounter=1):
@@ -96,18 +82,12 @@ def splitPysegStarFile(inStar, outDir, j=1, prefix=GRAPHS_OUT + '_', fileCounter
     return outStarFiles
 
 
-def readParticlesStarFile(prot, outputSetObject, fileType, starFile=None, invert=True, returnTable=False):
+def readPysegParticlesStar(prot, outputSetObject, starFile=None, invert=True, returnTable=False):
     warningMsg = None
     tomoTable = Table()
     tomoTable.read(starFile)
-
-    if fileType == RELION_SUBTOMO_STAR:
-        labels = RELION_30_TOMO_LABELS
-        _relionTomoStar2Subtomograms(prot, outputSetObject, tomoTable, invert)
-    else:  # fileType == PYSEG_PICKING_STAR:
-        labels = PICKING_LABELS
-        _pysegStar2Coords3D(prot, outputSetObject, tomoTable, invert)
-
+    labels = RELION_30_TOMO_LABELS
+    _relionTomoStar2Subtomograms(prot, outputSetObject, tomoTable, invert)
     if not tomoTable.hasAllColumns(labels):
         missingCols = [name for name in labels if name not in tomoTable.getColumnNames()]
         warningMsg = 'Columns %s\nwere not found in the star file provided.\nThe corresponding numerical ' \
@@ -180,29 +160,6 @@ def _relionTomoStar2Subtomograms(prot, outputSubTomogramsSet, tomoTable, invert)
 
 def managePath4Sqlite(fpath):
     return fpath if fpath != NOT_FOUND else fpath
-
-
-def _pysegStar2Coords3D(prot, output3DCoordSet, tomoTable, invert):
-    for tomoNum, tomo in enumerate(prot.tomoSet.iterItems()):
-        tomoName = tomo.getFileName().replace(':mrc', '')
-        for row in tomoTable:
-            # Create the set of coordinates referring each of them to its corresponding tomogram (ancestor)
-            if basename(row.get(TOMO_NAME_30)) == basename(tomoName):
-                coordinate3d = Coordinate3D()
-                coordinate3d.setVolId(tomoNum)
-                coordinate3d.setVolume(tomo)
-                x = row.get(COORD_X, 0)
-                y = row.get(COORD_Y, 0)
-                z = row.get(COORD_Z, 0)
-                M = getTransformMatrix(row, invert)
-                coordinate3d.setX(float(x), BOTTOM_LEFT_CORNER)
-                coordinate3d.setY(float(y), BOTTOM_LEFT_CORNER)
-                coordinate3d.setZ(float(z), BOTTOM_LEFT_CORNER)
-                coordinate3d.setMatrix(M)
-                coordinate3d.setGroupId(_getVesicleIdFromSubtomoName(row.get(SUBTOMO_NAME, NOT_FOUND)))
-
-                # Add current subtomogram to the output set
-                output3DCoordSet.append(coordinate3d)
 
 
 def _getVesicleIdFromSubtomoName(subtomoName):

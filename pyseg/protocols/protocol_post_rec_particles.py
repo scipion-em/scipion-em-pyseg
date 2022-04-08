@@ -29,14 +29,14 @@ from pyseg.utils import getFinalMaskFileName, checkMaskFormat
 from pyworkflow import BETA
 from pyworkflow.protocol import String, FloatParam, LE, GE
 from pyworkflow.utils import Message, makePath
-from reliontomo.convert import writeSetOfSubtomograms
+from reliontomo.convert import createWriterTomo
 from scipion.constants import PYTHON
 from tomo.objects import SetOfSubTomograms
 from tomo.protocols import ProtTomoBase
 
 from pyseg import Plugin
 from pyseg.constants import POST_REC_OUT, POST_REC_SCRIPT_MEMB_ATT, SEE_METHODS_TAB
-from pyseg.convert import readParticlesStarFile, RELION_SUBTOMO_STAR
+from pyseg.convert import readPysegParticlesStar
 
 
 class ProtPySegPostRecParticles(EMProtocol, ProtTomoBase):
@@ -97,8 +97,9 @@ class ProtPySegPostRecParticles(EMProtocol, ProtTomoBase):
             checkMaskFormat(self.mbMask.get())  # Membrane mask for attenuation (optional)
         # Write star from set of subtomograms
         subtomoSet = self.inputSubtomos.get()
-        imgStar = self._getExtraPath(self.inStarName)
-        writeSetOfSubtomograms(subtomoSet, imgStar, isPyseg=True)
+        subTomoStar = self._getExtraPath(self.inStarName)
+        writer = createWriterTomo(isPyseg=True)
+        writer.subtomograms2Star(subtomoSet, subTomoStar)
 
     def pysegPostRec(self, outStar):
         # Generate output subtomo dir
@@ -112,7 +113,7 @@ class ProtPySegPostRecParticles(EMProtocol, ProtTomoBase):
         self.subtomoSet = SetOfSubTomograms.create(self._getPath(), template='setOfSubTomograms%s.sqlite')
         self.subtomoSet.copyInfo(self.inputSubtomos.get())
         # Read generated star file and create the output objects
-        warningMsg = readParticlesStarFile(self, self.subtomoSet, RELION_SUBTOMO_STAR, starFile=outStar)
+        warningMsg = readPysegParticlesStar(self, self.subtomoSet, starFile=outStar)
         if warningMsg:
             self.warningMsg = String(warningMsg)
             self._store()
