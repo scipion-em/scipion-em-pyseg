@@ -28,7 +28,8 @@ import shutil
 from glob import glob
 from os.path import basename
 from pwem.protocols import EMProtocol
-from pyseg.convert import splitPysegStarFile
+from pyseg.convert.convert import splitPysegStarFile
+
 from pyseg.utils import createStarDirectories, genOutSplitStarFileName
 from pyworkflow import BETA
 from pyworkflow.protocol import FloatParam, PointerParam, LEVEL_ADVANCED, BooleanParam, STEPS_SERIAL, IntParam

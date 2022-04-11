@@ -94,29 +94,6 @@ def manageDims(fileName, z, n):
 
     return zDim
 
-# TODO: remove this once reliontomo3 is deprecated and import this method from reliontomo4 utils
-def getTransformMatrix(row, invert=True):
-    shiftx = row.get(SHIFTX, 0)
-    shifty = row.get(SHIFTY, 0)
-    shiftz = row.get(SHIFTZ, 0)
-    tilt = row.get(TILT, 0)
-    psi = row.get(PSI, 0)
-    rot = row.get(ROT, 0)
-    shifts = (float(shiftx), float(shifty), float(shiftz))
-    angles = (float(rot), float(tilt), float(psi))
-    radAngles = -np.deg2rad(angles)
-    M = transformations.euler_matrix(radAngles[0], radAngles[1], radAngles[2], 'szyz')
-    if invert:
-        M[0, 3] = -shifts[0]
-        M[1, 3] = -shifts[1]
-        M[2, 3] = -shifts[2]
-        M = np.linalg.inv(M)
-    else:
-        M[0, 3] = shifts[0]
-        M[1, 3] = shifts[1]
-        M[2, 3] = shifts[2]
-
-    return M
 
 
 

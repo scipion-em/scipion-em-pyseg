@@ -30,9 +30,10 @@ from os.path import abspath
 from pwem.convert.headers import fixVolume
 from pwem.emlib.image import ImageHandler
 from pwem.protocols import EMProtocol
+from pyseg.convert.convert import getVesicleIdFromSubtomoName
 from pyworkflow import BETA
 from pyworkflow.protocol import FileParam, NumericListParam, IntParam, FloatParam, GT, LEVEL_ADVANCED, EnumParam, \
-    PointerParam, GE
+    PointerParam
 from pyworkflow.utils import Message, removeBaseExt, removeExt
 from scipion.constants import PYTHON
 from tomo.objects import SetOfTomoMasks, TomoMask, SetOfSubTomograms, SubTomogram, SetOfTomograms, Tomogram
@@ -43,7 +44,6 @@ from pyseg.constants import PRESEG_SCRIPT, TOMOGRAM, PYSEG_LABEL, VESICLE, NOT_F
     RLN_ORIGIN_Z, FROM_SCIPION, FROM_STAR_FILE
 from relion.convert import Table
 import numpy as np
-from pyseg.convert import _getVesicleIdFromSubtomoName
 
 
 class ProtPySegPreSegParticles(EMProtocol):
@@ -313,7 +313,7 @@ class ProtPySegPreSegParticles(EMProtocol):
             tomoMaskList = glob.glob(self._getExtraPath('segs', '*' + suffix + MRC))
         vesicleSubtomoList = [tomoMask.replace(suffix + MRC, MRC) for tomoMask in tomoMaskList]
         indSorting = np.argsort([removeBaseExt(vesicleName) for vesicleName in vesicleSubtomoList])
-        vesicleIds = [int(_getVesicleIdFromSubtomoName(vesicleName)) for vesicleName in vesicleSubtomoList]
+        vesicleIds = [int(getVesicleIdFromSubtomoName(vesicleName)) for vesicleName in vesicleSubtomoList]
         tomoMaskSet = SetOfTomoMasks.create(self._getPath(), template='tomomasks%s.sqlite', suffix='segVesicles')
         subTomoSet = SetOfSubTomograms.create(self._getPath(), template='subtomograms%s.sqlite', suffix='vesicles')
         sRate = self._getSamplingRate()

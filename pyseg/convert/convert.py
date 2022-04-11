@@ -26,16 +26,90 @@
 from os.path import join
 from emtable import Table
 from pwem.emlib.image import ImageHandler
-from pwem.objects.data import Transform, String
-from pyseg.constants import NOT_FOUND, GRAPHS_OUT
-from pyseg.utils import manageDims, getTransformMatrix
+from pwem.objects.data import Transform
+from pyseg.constants import NOT_FOUND, GRAPHS_OUT, VESICLE
+from pyseg.utils import manageDims
 from pyworkflow.object import Float
 from pyworkflow.utils import removeBaseExt, createLink
-from reliontomo.constants import COORD_X, COORD_Y, COORD_Z, TILT_PRIOR, PSI_PRIOR, SUBTOMO_NAME, \
-    TOMO_NAME_30
+from reliontomo.constants import TILT_PRIOR, PSI_PRIOR, SUBTOMO_NAME, TOMO_NAME_30
 from reliontomo.convert import RELION_30_TOMO_LABELS
-from tomo.constants import BOTTOM_LEFT_CORNER
-from tomo.objects import SubTomogram, Coordinate3D, TomoAcquisition
+from reliontomo.convert.convert30_tomo import Reader
+from reliontomo.convert.convertBase import getTransformMatrixFromRow
+from tomo.objects import SubTomogram, TomoAcquisition
+
+
+class PysegStarReader(Reader):
+
+    def __init__(self, starFile, dataTable, **kwargs):
+        super().__init__(starFile, dataTable)
+
+    def starFile2Coords3D(self, coordsSet, precedentsSet, scaleFactor=1):
+        precedentIdList = [tomo.getTsId() for tomo in precedentsSet]
+        for row in self.dataTable:
+            coord3d = self.gen3dCoordFromStarRow(row, precedentsSet, precedentIdList, scaleFactor)
+            # GroupId stuff
+            vsicleName = row.get(VESICLE, None)
+            if 'tid_' in vsicleName:
+                vesicleId = vsicleName.split('tid_')[1]
+                vesicleId = vesicleId[0]
+                coord3d.setGroupId(vesicleId)
+
+            coordsSet.append(coord3d)
+
+    def starFile2Subtomograms(self, inSubtomos, outputSubtomos):
+        warningMsg = None
+        labels = RELION_30_TOMO_LABELS
+        self.genOutputSubtomograms(inSubtomos, outputSubtomos)
+        if not self.dataTable.hasAllColumns(labels):
+            missingCols = [name for name in labels if name not in self.dataTable.getColumnNames()]
+            warningMsg = 'Columns %s\nwere not found in the star file provided.\nThe corresponding numerical ' \
+                         'values will be considered as 0.' \
+                         % '  '.join(['*' + colName + '*' for colName in missingCols])
+        return warningMsg, self.dataTable
+
+    def genOutputSubtomograms(self, inSubtomos, outputSubtomos):
+        ih = ImageHandler()
+        samplingRate = outputSubtomos.getSamplingRate()
+        for row, inSubtomo in zip(self.dataTable, inSubtomos):
+            subtomo = SubTomogram()
+            transform = Transform()
+            origin = Transform()
+
+            volname = row.get(TOMO_NAME_30, NOT_FOUND)
+            subtomoFn = row.get(SUBTOMO_NAME, NOT_FOUND)
+            transform.setMatrix(getTransformMatrixFromRow(row))
+
+            subtomo.setVolName(managePath4Sqlite(volname))
+            subtomo.setTransform(transform)
+            subtomo.setAcquisition(TomoAcquisition())
+            subtomo.setClassId(row.get('rlnClassNumber', 0))
+            subtomo.setSamplingRate(samplingRate)
+
+            tiltPrior = row.get(TILT_PRIOR, 0)
+            psiPrior = row.get(PSI_PRIOR, 0)
+            subtomo.setCoordinate3D(inSubtomo.getCoordinate3D())
+            subtomo._tiltPriorAngle = Float(tiltPrior)
+            subtomo._psiPriorAngle = Float(psiPrior)
+
+            # Set the origin and the dimensions of the current subtomogram
+            x, y, z, n = ih.getDimensions(subtomoFn)
+            zDim = manageDims(subtomoFn, z, n)
+            origin.setShifts(x / -2. * samplingRate,
+                             y / -2. * samplingRate,
+                             zDim / -2. * samplingRate)
+            subtomo.setOrigin(origin)
+
+            subtomo.setFileName(managePath4Sqlite(subtomoFn))
+            # if subtomo is in a vesicle
+            if 'tid_' in subtomoFn:
+                vesicleId = subtomoFn.split('tid_')[1]
+                vesicleId = vesicleId[0]
+                scoor = subtomo.getCoordinate3D()
+                scoor.setGroupId(vesicleId)
+                subtomo.setCoordinate3D(scoor)
+
+            # Add current subtomogram to the output set
+            outputSubtomos.append(subtomo)
 
 
 def splitPysegStarFile(inStar, outDir, j=1, prefix=GRAPHS_OUT + '_', fileCounter=1):
@@ -82,87 +156,11 @@ def splitPysegStarFile(inStar, outDir, j=1, prefix=GRAPHS_OUT + '_', fileCounter
     return outStarFiles
 
 
-def readPysegParticlesStar(prot, outputSetObject, starFile=None, invert=True, returnTable=False):
-    warningMsg = None
-    tomoTable = Table()
-    tomoTable.read(starFile)
-    labels = RELION_30_TOMO_LABELS
-    _relionTomoStar2Subtomograms(prot, outputSetObject, tomoTable, invert)
-    if not tomoTable.hasAllColumns(labels):
-        missingCols = [name for name in labels if name not in tomoTable.getColumnNames()]
-        warningMsg = 'Columns %s\nwere not found in the star file provided.\nThe corresponding numerical ' \
-                     'values will be considered as 0.' \
-                     % '  '.join(['*' + colName + '*' for colName in missingCols])
-
-    if returnTable:
-        return warningMsg, tomoTable
-    else:
-        return warningMsg
-
-
-def _relionTomoStar2Subtomograms(prot, outputSubTomogramsSet, tomoTable, invert):
-    ih = ImageHandler()
-    samplingRate = outputSubTomogramsSet.getSamplingRate()
-    for row, inSubtomo in zip(tomoTable, prot.inputSubtomos.get()):
-        subtomo = SubTomogram()
-        coordinate3d = Coordinate3D()
-        transform = Transform()
-        origin = Transform()
-
-        volname = row.get(TOMO_NAME_30, NOT_FOUND)
-        subtomoFn = row.get(SUBTOMO_NAME, NOT_FOUND)
-
-        subtomo.setVolName(managePath4Sqlite(volname))
-        subtomo.setTransform(transform)
-        subtomo.setAcquisition(TomoAcquisition())
-        subtomo.setClassId(row.get('rlnClassNumber', 0))
-        subtomo.setSamplingRate(samplingRate)
-        subtomo.setCoordinate3D(coordinate3d)  # Needed to get later the tomogram pointer via getCoordinate3D()
-
-        x = row.get(COORD_X, 0)
-        y = row.get(COORD_Y, 0)
-        z = row.get(COORD_Z, 0)
-        tiltPrior = row.get(TILT_PRIOR, 0)
-        psiPrior = row.get(PSI_PRIOR, 0)
-        coordinate3d = subtomo.getCoordinate3D()
-        coordinate3d.setVolume(inSubtomo.getCoordinate3D().getVolume())  # Volume pointer should keep the same
-        coordinate3d.setX(float(x), BOTTOM_LEFT_CORNER)
-        coordinate3d.setY(float(y), BOTTOM_LEFT_CORNER)
-        coordinate3d.setZ(float(z), BOTTOM_LEFT_CORNER)
-        if hasattr(inSubtomo.getCoordinate3D(), '_3dcftMrcFile'):  # Used for the ctf3d in Relion 3.0 (tomo)
-            coordinate3d._3dcftMrcFile = inSubtomo.getCoordinate3D()._3dcftMrcFile
-        else:
-            coordinate3d._3dcftMrcFile = String()
-        M = getTransformMatrix(row, invert)
-        transform.setMatrix(M)
-        subtomo.setCoordinate3D(coordinate3d)
-        subtomo._tiltPriorAngle = Float(tiltPrior)
-        subtomo._psiPriorAngle = Float(psiPrior)
-
-        # Set the origin and the dimensions of the current subtomogram
-        x, y, z, n = ih.getDimensions(subtomoFn)
-        zDim = manageDims(subtomoFn, z, n)
-        origin.setShifts(x / -2. * samplingRate, y / -2. * samplingRate, zDim / -2. * samplingRate)
-        subtomo.setOrigin(origin)
-
-        subtomo.setFileName(managePath4Sqlite(subtomoFn))
-        # if subtomo is in a vesicle
-        if 'tid_' in subtomoFn:
-            vesicleId = subtomoFn.split('tid_')[1]
-            vesicleId = vesicleId[0]
-            scoor = subtomo.getCoordinate3D()
-            scoor.setGroupId(vesicleId)
-            subtomo.setCoordinate3D(scoor)
-
-        # Add current subtomogram to the output set
-        outputSubTomogramsSet.append(subtomo)
-
-
 def managePath4Sqlite(fpath):
     return fpath if fpath != NOT_FOUND else fpath
 
 
-def _getVesicleIdFromSubtomoName(subtomoName):
+def getVesicleIdFromSubtomoName(subtomoName):
     """PySeg adds the vesicle index to the name of the subtomogram, with a suffix of type
     _tid_[VesicleNumber].mrc. Example: Pertuzumab_1_defocus_25um_tomo_7_aliSIRT_EED_tid_0.mrc. In case of splitting
     into slices, the name is slightly different: Pertuzumab_1_defocus_25um_tomo_7_aliSIRT_EED_id_2_split_2.mrc.

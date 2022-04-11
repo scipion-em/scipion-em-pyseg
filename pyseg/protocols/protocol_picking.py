@@ -28,10 +28,10 @@ from collections import OrderedDict
 from os.path import basename, join
 import xml.etree.ElementTree as ET
 from pwem.protocols import EMProtocol
+from pyseg.convert import readPysegCoordinates
 from pyworkflow import BETA
 from pyworkflow.protocol import FloatParam, EnumParam, PointerParam, IntParam, LEVEL_ADVANCED, STEPS_PARALLEL
 from pyworkflow.utils import Message, removeBaseExt, copyFile, moveFile
-from reliontomo.convert import createReaderTomo
 from scipion.constants import PYTHON
 from tomo.objects import SetOfCoordinates3D
 from tomo.protocols import ProtTomoBase
@@ -171,7 +171,6 @@ class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         moveFile(outFile, newFileName)
 
     def createOutputStep(self):
-        scaleFactor = 1
         suffix = self._getOutputSuffix(SetOfCoordinates3D)
         coordsSet = self._createSetOfCoordinates3D(self.inTomoSet.get(), suffix)
         coordsSet.setSamplingRate(self._getSamplingRate())
@@ -179,12 +178,12 @@ class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
 
         # Read the data from all the out star files
         for outStar in self._outStarFilesList:
-            reader = createReaderTomo(outStar)
-            reader.starFile2Coords3D(coordsSet, self.inTomoSet.get(), scaleFactor)
+            readPysegCoordinates(outStar, coordsSet, self.inTomoSet.get())
 
         if not coordsSet:
             raise Exception('ERROR! No coordinates were picked.')
         self._defineOutputs(outputCoordinates=coordsSet)
+        self._defineSourceRelation(self.inTomoSet.get(), coordsSet)
 
     # --------------------------- INFO functions -----------------------------------
     def _summary(self):

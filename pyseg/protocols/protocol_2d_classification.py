@@ -28,18 +28,19 @@ from os.path import abspath, join, exists
 import glob
 from emtable import Table
 from pwem.protocols import EMProtocol, PointerParam
+from pyseg.convert import readPysegSubtomograms
 from pyseg.utils import checkMaskFormat, getFinalMaskFileName
 from pyworkflow import BETA
 from pyworkflow.object import String
 from pyworkflow.protocol import EnumParam, IntParam, LEVEL_ADVANCED, FloatParam, GE, LT, BooleanParam
 from pyworkflow.utils import Message, makePath
-from reliontomo.convert import writeSetOfSubtomograms, createWriterTomo, createReaderTomo
+from reliontomo.convert import createWriterTomo
 from scipion.constants import PYTHON
-from tomo.objects import SetOfSubTomograms, SetOfCoordinates3D
+from tomo.objects import SetOfSubTomograms
 from tomo.protocols import ProtTomoBase
 from pyseg import Plugin
 from pyseg.constants import PLANE_ALIGN_CLASS_OUT, PLANE_ALIGN_CLASS_SCRIPT, SEE_METHODS_TAB
-from pyseg.convert import readPysegParticlesStar
+
 
 # Processing level choices
 PARTICLE_FLATENNING = 0     # Particle flattening
@@ -218,12 +219,11 @@ class ProtPySegPlaneAlignClassification(EMProtocol, ProtTomoBase):
     def createOutputStep(self):
         # Read generated star file and create the output objects:
         # 1) Set of subtomograms
-        outStar = self._getGatheredStarFile()
         subtomoSet = SetOfSubTomograms.create(self._getPath(), template='setOfSubTomograms%s.sqlite')
         subtomoSet.copyInfo(self.inputSubtomos.get())
-        warningMsg, self._dataTable = readPysegParticlesStar(self, subtomoSet,
-                                                             starFile=outStar,
-                                                             returnTable=True)
+        warningMsg, self._dataTable = readPysegSubtomograms(self._getGatheredStarFile(),
+                                                            self.inputSubtomos.get(),
+                                                            subtomoSet)
         if warningMsg:
             self._warningMsg.set(warningMsg)
             self._store()

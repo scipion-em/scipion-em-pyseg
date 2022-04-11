@@ -26,12 +26,12 @@
 # **************************************************************************
 import glob
 from collections import OrderedDict
-from os import symlink, mkdir
+from os import mkdir
 from os.path import basename, join, abspath
 import xml.etree.ElementTree as ET
 
 from pwem.protocols import EMProtocol
-from pyseg.convert import splitPysegStarFile
+from pyseg.convert.convert import splitPysegStarFile
 from pyworkflow import BETA
 from pyworkflow.protocol import FloatParam, NumericListParam, EnumParam, PointerParam, LEVEL_ADVANCED, STEPS_PARALLEL
 from pyworkflow.utils import Message, removeBaseExt, copyFile, moveFile
