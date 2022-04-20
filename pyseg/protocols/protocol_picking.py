@@ -59,6 +59,7 @@ class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
 
     def __init__(self,  **kwargs):
         super().__init__(**kwargs)
+        self._tomoSet = None
         self.stepsExecutionMode = STEPS_PARALLEL
         self.tomoSet = None
         self.acquisitionParams = {
@@ -89,16 +90,18 @@ class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
                       help='Pointer to fils protocol.')
         form.addParam('inTomoSet', PointerParam,
                       pointerClass='SetOfTomograms',
-                      label='Tomograms',
+                      label='Tomograms to refer the coordinates',
                       important=True,
                       allowsNull=False,
-                      help='Tomograms used for the graphs and filaments calculation.')
+                      expertLevel=LEVEL_ADVANCED,
+                      help='Tomograms to which the coordinates should be referred to. If empty, it is assumed that '
+                           'the tomograms are the same from were the vesicles were segmented (pre-seg).')
         form.addParam('boxSize', IntParam,
                       label='Box size (pixels)',
                       default=20,
                       important=True,
                       allowsNull=False,
-                      expertLevel=LEVEL_ADVANCED,)
+                      expertLevel=LEVEL_ADVANCED)
 
         form.addSection(label='Picking')
         self._defineFilsXMLParams(form, self._getSlicesXMLDefaultVals())
@@ -172,18 +175,21 @@ class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
 
     def createOutputStep(self):
         suffix = self._getOutputSuffix(SetOfCoordinates3D)
-        coordsSet = self._createSetOfCoordinates3D(self.inTomoSet.get(), suffix)
+        coordsSet = self._createSetOfCoordinates3D(self._getTomoSet(), suffix)
         coordsSet.setSamplingRate(self._getSamplingRate())
         coordsSet.setBoxSize(self.boxSize.get())
 
+        # TODO --> matching via tomo.getFileName vs starFile rows micrographName  --> get that volId and set it to the
+        # coordinates to be able to use the coords iterator
+
         # Read the data from all the out star files
         for outStar in self._outStarFilesList:
-            readPysegCoordinates(outStar, coordsSet, self.inTomoSet.get())
+            readPysegCoordinates(outStar, coordsSet, self._getTomoSet())
 
         if not coordsSet:
             raise Exception('ERROR! No coordinates were picked.')
         self._defineOutputs(outputCoordinates=coordsSet)
-        self._defineSourceRelation(self.inTomoSet.get(), coordsSet)
+        self._defineSourceRelation(self._getTomoSet(), coordsSet)
 
     # --------------------------- INFO functions -----------------------------------
     def _summary(self):
@@ -240,4 +246,15 @@ class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         return '+' if val == CUTTING_POINT else '-'
 
     def _getSamplingRate(self):
-        return self.inTomoSet.get().getFirstItem().getSamplingRate()
+        return self._getTomoSet().getFirstItem().getSamplingRate()
+
+    def _getTomoSet(self):
+        if self._tomoSet is None:
+            if self.inTomoSet.get():
+                self._tomoSet = self.inTomoSet.get()
+            else:
+                self._tomoSet = self.getTomoFromRelations()
+        return self._tomoSet
+
+    def getTomoFromRelations(self):
+        pass

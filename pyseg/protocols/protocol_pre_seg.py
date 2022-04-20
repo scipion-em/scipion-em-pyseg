@@ -157,8 +157,12 @@ class ProtPySegPreSegParticles(EMProtocol):
         self._defineOutputs(outputSubTomograms=vesSet)
         # TODO --> asignar el tomoId a los objetos de salida
         # If the input data is a star file, the corresponding set of tomograms is generated
-        if tomogramSet:
+        if self.inTomoMasks.get():
+            self._defineSourceRelation(self.inTomoMasks.get(), vesSet)
+        else:
             self._defineOutputs(outputTomograms=tomogramSet)
+            self._defineSourceRelation(tomogramSet, vesSet)
+
 
     # --------------------------- INFO functions -----------------------------------
     def _validate(self):
@@ -356,9 +360,6 @@ class ProtPySegPreSegParticles(EMProtocol):
             subtomo.setClassId(vesicleIds[i])
             subtomo.setVolName(self._getPrecedent(tomoFileList, uniqueTomoBaseNameList, removeBaseExt(vesicleFile)))
             subTomoSet.append(subtomo)
-
-
-
             counter += 1
 
         return tomoMaskSet, subTomoSet, tomogramSet
