@@ -25,25 +25,30 @@
 # *
 # **************************************************************************
 import glob
+from enum import Enum
 from os.path import abspath
-
 from pwem.convert.headers import fixVolume
 from pwem.emlib.image import ImageHandler
 from pwem.protocols import EMProtocol
 from pyseg.convert.convert import getVesicleIdFromSubtomoName
 from pyworkflow import BETA
-from pyworkflow.protocol import FileParam, NumericListParam, IntParam, FloatParam, GT, LEVEL_ADVANCED, EnumParam, \
-    PointerParam
+from pyworkflow.protocol import NumericListParam, IntParam, FloatParam, GT, LEVEL_ADVANCED, PointerParam
 from pyworkflow.utils import Message, removeBaseExt, removeExt
 from scipion.constants import PYTHON
 from tomo.objects import SetOfTomoMasks, TomoMask, SetOfSubTomograms, SubTomogram, SetOfTomograms, Tomogram
-
 from pyseg import Plugin
 from pyseg.constants import PRESEG_SCRIPT, TOMOGRAM, PYSEG_LABEL, VESICLE, NOT_FOUND, \
     PYSEG_OFFSET_X, PYSEG_OFFSET_Y, PYSEG_OFFSET_Z, SEGMENTATION, RLN_ORIGIN_X, RLN_ORIGIN_Y, \
     RLN_ORIGIN_Z, FROM_SCIPION, FROM_STAR_FILE
 from relion.convert import Table
 import numpy as np
+
+from tomo.utils import getObjFromRelation
+
+
+class outputObjects(Enum):
+    vesicles = SetOfSubTomograms
+    segmentations = SetOfTomoMasks
 
 
 class ProtPySegPreSegParticles(EMProtocol):
@@ -61,25 +66,12 @@ class ProtPySegPreSegParticles(EMProtocol):
         """
         # You need a params to belong to a section:
         form.addSection(label=Message.LABEL_INPUT)
-        form.addParam('segmentationFrom', EnumParam,
-                      choices=['Scipion Protocol', 'Star file'],
-                      default=FROM_SCIPION,
-                      label='Choose pre seg data source',
-                      important=True,
-                      display=EnumParam.DISPLAY_HLIST)
         form.addParam('inTomoMasks', PointerParam,
                       pointerClass='SetOfTomoMasks',
                       label='Tomomasks (segmentations)',
-                      condition='segmentationFrom == %i' % FROM_SCIPION,
                       important=True,
                       allowsNull=False,
                       help='Pointer to segmented and annotated tomograms within Scipion.')
-        form.addParam('inStar', FileParam,
-                      label='Seg particles star file',
-                      condition='segmentationFrom == %i' % FROM_STAR_FILE,
-                      important=True,
-                      allowsNull=False,
-                      help='Star file obtained in PySeg graphs step.')
         group = form.addGroup('Sub-volume splitting')
         group.addParam('spSplit', NumericListParam,
                        default='-1',
@@ -93,10 +85,6 @@ class ProtPySegPreSegParticles(EMProtocol):
                        validators=[GT(0)],
                        help='Margin to ensure that the desired entities, e. g. membranes, proteins, are included.')
         group = form.addGroup('Membrane segmentation')
-        group.addParam('sgVoxelSize', FloatParam,
-                       label='Voxel size (Å/voxel)',
-                       condition='segmentationFrom == %s' % FROM_STAR_FILE,
-                       important=True)
         group.addParam('sgThreshold', IntParam,
                        default=-1,
                        label='Density threshold',
@@ -123,17 +111,26 @@ class ProtPySegPreSegParticles(EMProtocol):
                             'desired to be included in the analysis.')
 
     def _insertAllSteps(self):
-        self._initialize()
+        self._starFile = self._getExtraPath('inStar.star')
+        self._insertFunctionStep(self.convertInputStep)
         self._insertFunctionStep(self.pysegPreSegStep)
         self._insertFunctionStep(self.getMembraneCenterStep)
         self._insertFunctionStep(self.pysegPreSegCenteredStep)
         self._insertFunctionStep(self.createOutputStep)
 
-    def _initialize(self):
-        if self.segmentationFrom.get() == FROM_SCIPION:
-            self._starFile = self._convertInput2Star()
-        else:
-            self._starFile = self.inStar.get()
+    def convertInputStep(self):
+        outputTable = self._createTable(isConvertingInput=True)
+
+        # Generate the star file with the vesicles centered for the second pre_seg execution
+        for tomoMask in self.inTomoMasks.get():
+            vesicle = tomoMask.getFileName()
+            for materialIndex in self._getMaterialsList(vesicle):  # Get annotated materials from txt file and add one
+                # Add row to output table
+                outputTable.addRow(tomoMask.getVolName(),
+                                   vesicle,
+                                   int(materialIndex),
+                                   vesicle)
+        outputTable.write(self._starFile)
 
     def pysegPreSegStep(self):
         outDir = self._getExtraPath()
@@ -147,36 +144,23 @@ class ProtPySegPreSegParticles(EMProtocol):
     def pysegPreSegCenteredStep(self):
         inStar = abspath(self.getVesiclesCenteredStarFile())
         outDir = self._getExtraPath()
-
         # Script called
         Plugin.runPySeg(self, PYTHON, self._getPreSegCmd(inStar, outDir))
 
     def createOutputStep(self):
-        segVesSet, vesSet, tomogramSet = self._genOutputSetOfTomoMasks()
-        self._defineOutputs(outputTomoMasks=segVesSet)
-        self._defineOutputs(outputSubTomograms=vesSet)
-        # TODO --> asignar el tomoId a los objetos de salida
-        # If the input data is a star file, the corresponding set of tomograms is generated
-        if self.inTomoMasks.get():
-            self._defineSourceRelation(self.inTomoMasks.get(), vesSet)
-        else:
-            self._defineOutputs(outputTomograms=tomogramSet)
-            self._defineSourceRelation(tomogramSet, vesSet)
+        segVesSet, vesSet = self._genOutputSetOfTomoMasks()
+        self._defineOutputs(**{outputObjects.vesicles.name: vesSet,
+                               outputObjects.segmentations.name: segVesSet})
 
+        self._defineSourceRelation(self.inTomoMasks.get(), vesSet)
+        self._defineSourceRelation(self.inTomoMasks.get(), segVesSet)
 
     # --------------------------- INFO functions -----------------------------------
     def _validate(self):
-        validationMsg = []
-        if self.segmentationFrom.get() == FROM_STAR_FILE:
-            voxelSize = self.sgVoxelSize.get()
-            msg = 'Voxel size must be greater than 0.'
-            if voxelSize:
-                if voxelSize <= 0:
-                    validationMsg.append(msg)
-            else:
-                validationMsg.append(msg)
-
-        return validationMsg
+        valMsg = []
+        if not self._getTomoFromRelations():
+            valMsg.append('Unable to get trough the relations the tomograms corresponding to the introduced tomomasks')
+        return valMsg
 
     # --------------------------- UTIL functions -----------------------------------
 
@@ -194,27 +178,6 @@ class ProtPySegPreSegParticles(EMProtocol):
         preSegCmd += '--sgMembNeigh %s ' % self._checkValue4PySeg(self.sgMembNeigh.get())  # required in nm
 
         return preSegCmd
-
-    def _convertInput2Star(self):
-        inStar = self._getExtraPath('inStar.star')
-        outputTable = self._createTable(isConvertingInput=True)
-
-        # Generate the star file with the vesicles centered for the second pre_seg execution
-        for tomoMask in self.inTomoMasks.get():
-            vesicle = tomoMask.getFileName()
-
-            for materialIndex in self._getMaterialsList(vesicle):   # Get annotated materials from txt file and add one
-                # line for each one
-
-                # Add row to output table
-                outputTable.addRow(tomoMask.getVolName(),
-                                   vesicle,
-                                   int(materialIndex),
-                                   vesicle
-                                   )
-
-        outputTable.write(inStar)
-        return inStar
 
     @staticmethod
     def _getMaterialsList(vesicle):
@@ -295,20 +258,8 @@ class ProtPySegPreSegParticles(EMProtocol):
     def _checkValue4PySeg(value):
         return value if value == -1 else value/10
 
-    def _getTomogramsFromStar(self):
-        """Get the tomograms names to generate the output setOfTomograms and vesicles subtomogras ref tomograms"""
-        tomoFileList = []
-        tomoTable = Table()
-        tomoTable.read(self._starFile)
-        for row in tomoTable:
-            tomoFileList.append(row.get(TOMOGRAM))
-
-        return tomoFileList
-
     def _genOutputSetOfTomoMasks(self):
         # TODO: check why sometimes the suffix is _mb and sometimes it is _seg
-        tomogramSet = []
-        tomoFileList = self._getTomogramsFromStar()
         suffix = '_seg'
         MRC = '.mrc'
         tomoMaskList = glob.glob(self._getExtraPath('segs', '*' + suffix + MRC))
@@ -321,28 +272,14 @@ class ProtPySegPreSegParticles(EMProtocol):
         tomoMaskSet = SetOfTomoMasks.create(self._getPath(), template='tomomasks%s.sqlite', suffix='segVesicles')
         subTomoSet = SetOfSubTomograms.create(self._getPath(), template='subtomograms%s.sqlite', suffix='vesicles')
         sRate = self._getSamplingRate()
-        if self.segmentationFrom.get() == FROM_SCIPION:
-            inTomoMaskSet = self.inTomoMasks.get()
-            tomoMaskSet.copyInfo(inTomoMaskSet)
-            subTomoSet.copyInfo(inTomoMaskSet)
-        else:
-            tomoMaskSet.setSamplingRate(sRate)
-            subTomoSet.setSamplingRate(sRate)
-            # Generate the set of tomograms
-            tomogramSet = SetOfTomograms.create(self._getPath(), template='tomograms%s.sqlite')
-            tomogramSet.setSamplingRate(sRate)
-            counter = 1
-            for tomoFile in sorted(set(tomoFileList)):
-                tomo = Tomogram()
-                tomo.setLocation(counter, tomoFile)
-                tomo.setSamplingRate(sRate)
-                tomogramSet.append(tomo)
-                counter += 1
+        inTomoMaskSet = self.inTomoMasks.get()
+        tomoMaskSet.copyInfo(inTomoMaskSet)
+        subTomoSet.copyInfo(inTomoMaskSet)
 
         counter = 1
-        uniqueTomoBaseNameList = [removeBaseExt(tomoFile) for tomoFile in set(tomoFileList)]
+        tomoBaseNamesDict = {removeBaseExt(tomo.getFileName()): tomo.getFileName() for tomo in self._getTomoFromRelations()}
         for i in indSorting:
-            # TomoMask
+            # Fill the set of tomomasks
             tomoMask = TomoMask()
             vesicleFile = vesicleSubtomoList[i]
             fixVolume(vesicleFile)
@@ -353,25 +290,26 @@ class ProtPySegPreSegParticles(EMProtocol):
             tomoMask.setVolName(vesicleFile)
             tomoMask.setClassId(vesicleIds[i])
             tomoMaskSet.append(tomoMask)
-            # Subtomogram
+            # Fill the set of subtomograms
             subtomo = SubTomogram()
             subtomo.setFileName(vesicleFile)
             subtomo.setSamplingRate(sRate)
             subtomo.setClassId(vesicleIds[i])
-            subtomo.setVolName(self._getPrecedent(tomoFileList, uniqueTomoBaseNameList, removeBaseExt(vesicleFile)))
+            subtomo.setVolName(self._getMatchingTomo2Vesicle(tomoBaseNamesDict, removeBaseExt(vesicleFile)))
             subTomoSet.append(subtomo)
             counter += 1
 
-        return tomoMaskSet, subTomoSet, tomogramSet
+        return tomoMaskSet, subTomoSet
 
     def _getSamplingRate(self):
-        if self.segmentationFrom.get() == FROM_SCIPION:
-            return self.inTomoMasks.get().getFirstItem().getSamplingRate()
-        else:
-            return self.sgVoxelSize.get()
+        return self.inTomoMasks.get().getFirstItem().getSamplingRate()
+
+    def _getTomoFromRelations(self):
+        return getObjFromRelation(self.inTomoMasks.get(), self, SetOfTomograms)
 
     @staticmethod
-    def _getPrecedent(tomoFileList, uniqueTomoBaseNameList, vesicleBaseName):
-        for i, tomoBaseName in enumerate(uniqueTomoBaseNameList):
-            if tomoBaseName in vesicleBaseName:
-                return tomoFileList[i]
+    def _getMatchingTomo2Vesicle(tomoBNameDict, vesicleBaseName):
+        for tomoBName in list(tomoBNameDict.keys()):
+            if tomoBName in vesicleBaseName:
+                return tomoBNameDict[tomoBName]
+        return None

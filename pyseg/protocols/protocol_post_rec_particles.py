@@ -24,6 +24,8 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
+from enum import Enum
+
 from pwem.protocols import EMProtocol, PointerParam
 from pyseg.convert import readPysegSubtomograms
 from pyseg.utils import getFinalMaskFileName, checkMaskFormat
@@ -37,6 +39,10 @@ from tomo.protocols import ProtTomoBase
 
 from pyseg import Plugin
 from pyseg.constants import POST_REC_OUT, POST_REC_SCRIPT_MEMB_ATT, SEE_METHODS_TAB
+
+
+class outputObjects(Enum):
+    subtomograms = SetOfSubTomograms
 
 
 class ProtPySegPostRecParticles(EMProtocol, ProtTomoBase):
@@ -122,7 +128,7 @@ class ProtPySegPostRecParticles(EMProtocol, ProtTomoBase):
             self.warningMsg = String(warningMsg)
             self._store()
 
-        self._defineOutputs(outputSubtomograms=self.subtomoSet)
+        self._defineOutputs(**{outputObjects.subtomograms.name: self.subtomoSet}),
 
     # --------------------------- INFO functions -----------------------------------
     def _summary(self):

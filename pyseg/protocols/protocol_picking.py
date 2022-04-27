@@ -33,7 +33,7 @@ from pyworkflow import BETA
 from pyworkflow.protocol import FloatParam, EnumParam, PointerParam, IntParam, LEVEL_ADVANCED, STEPS_PARALLEL
 from pyworkflow.utils import Message, removeBaseExt, copyFile, moveFile
 from scipion.constants import PYTHON
-from tomo.objects import SetOfCoordinates3D
+from tomo.objects import SetOfCoordinates3D, SetOfTomograms
 from tomo.protocols import ProtTomoBase
 from tomo.protocols.protocol_base import ProtTomoImportAcquisition
 from pyseg import Plugin
@@ -42,6 +42,7 @@ from pyseg.constants import FILS_SOURCES, FILS_TARGETS, PICKING_SCRIPT, PICKING_
 
 # Fils slices xml fields
 from pyseg.utils import encodePresegArea, getPrevPysegProtOutStarFiles, createStarDirectories
+from tomo.utils import getObjFromRelation
 
 SIDE = 'side'
 CONT = 'cont'
@@ -91,8 +92,7 @@ class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         form.addParam('inTomoSet', PointerParam,
                       pointerClass='SetOfTomograms',
                       label='Tomograms to refer the coordinates',
-                      important=True,
-                      allowsNull=False,
+                      allowsNull=True,
                       expertLevel=LEVEL_ADVANCED,
                       help='Tomograms to which the coordinates should be referred to. If empty, it is assumed that '
                            'the tomograms are the same from were the vesicles were segmented (pre-seg).')
@@ -146,6 +146,7 @@ class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         d[CONT] = CUTTING_POINT
         return d
 
+    # -------------------------- INSERT steps functions -----------------------
     def _insertAllSteps(self):
         allOutputId = []
         starFileList = self._convertInputStep()
@@ -183,8 +184,9 @@ class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         # coordinates to be able to use the coords iterator
 
         # Read the data from all the out star files
+        tomoSet = self._getTomoSet()
         for outStar in self._outStarFilesList:
-            readPysegCoordinates(outStar, coordsSet, self._getTomoSet())
+            readPysegCoordinates(outStar, coordsSet, tomoSet)
 
         if not coordsSet:
             raise Exception('ERROR! No coordinates were picked.')
@@ -192,6 +194,12 @@ class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         self._defineSourceRelation(self._getTomoSet(), coordsSet)
 
     # --------------------------- INFO functions -----------------------------------
+    def _validate(self):
+        valMsg = []
+        if not self._getTomoFromRelations():
+            valMsg.append("Unable to find the corresponding tomograms using the relations.")
+        return valMsg
+
     def _summary(self):
         """ Summarize what the protocol has done"""
         summary = []
@@ -253,8 +261,12 @@ class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
             if self.inTomoSet.get():
                 self._tomoSet = self.inTomoSet.get()
             else:
-                self._tomoSet = self.getTomoFromRelations()
+                self._tomoSet = self._getTomoFromRelations()
         return self._tomoSet
 
-    def getTomoFromRelations(self):
-        pass
+    def _getTomoFromRelations(self):
+        # Get the tomograms climbing from this point of the workflow until the pre-seg and if there aren't tomograms
+        # at that point, use the relations to go to the corresponding tomograms
+        presegProt = self.inFilsProt.get().inGraphsProt.get().inSegProt.get()
+        tomoSet = getObjFromRelation(presegProt.inTomoMasks.get(), self, SetOfTomograms)
+        return tomoSet

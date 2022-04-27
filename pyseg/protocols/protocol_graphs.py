@@ -29,10 +29,11 @@ from glob import glob
 from os.path import basename
 from pwem.protocols import EMProtocol
 from pyseg.convert.convert import splitPysegStarFile
+from pyseg.protocols.protocol_pre_seg import outputObjects as presegOutputObjects
 
 from pyseg.utils import createStarDirectories, genOutSplitStarFileName
 from pyworkflow import BETA
-from pyworkflow.protocol import FloatParam, PointerParam, LEVEL_ADVANCED, BooleanParam, STEPS_SERIAL, IntParam
+from pyworkflow.protocol import FloatParam, PointerParam, LEVEL_ADVANCED, BooleanParam, IntParam
 from pyworkflow.utils import Message, moveFile
 from scipion.constants import PYTHON
 from tomo.protocols import ProtTomoBase
@@ -159,4 +160,5 @@ class ProtPySegGraphs(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         return self.inSegProt.get().getPresegOutputFile(self.inSegProt.get().getVesiclesCenteredStarFile())
 
     def _getSamplingRate(self):
-        return self.inSegProt.get().outputSubTomograms.getSamplingRate()
+        inVesicles = getattr(self.inSegProt.get(), presegOutputObjects.vesicles.name)
+        return inVesicles.getSamplingRate()

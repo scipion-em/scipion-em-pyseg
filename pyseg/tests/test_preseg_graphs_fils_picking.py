@@ -28,6 +28,7 @@ from glob import glob
 from os.path import exists
 from imod.protocols import ProtImodTomoNormalization
 from pyseg.protocols.protocol_picking import PROJECTIONS
+from pyseg.protocols.protocol_pre_seg import outputObjects as presegOutputs
 from pyworkflow.tests import BaseTest, setupTestProject, DataSet
 from pyworkflow.utils import magentaStr
 from pyseg.constants import FROM_SCIPION, MEMBRANE_OUTER_SURROUNDINGS, MEMBRANE, OUT_STARS_DIR
@@ -137,8 +138,8 @@ class TestFromPresegToPicking(BaseTest):
         vesicle1Size = (282, 180, 143)
         vesicle2Size = (133, 133, 139)
         vesicleSizeList = [vesicle0Size, vesicle1Size, vesicle2Size]
-        setOfVesiclesTomomasks = getattr(protPreseg, 'outputTomoMasks', None)
-        setOfVesiclesSubtomograms = getattr(protPreseg, 'outputSubTomograms', None)
+        setOfVesiclesTomomasks = getattr(protPreseg, presegOutputs.segmentations.name, None)
+        setOfVesiclesSubtomograms = getattr(protPreseg, presegOutputs.vesicles.name, None)
         self.assertSetSize(setOfVesiclesTomomasks, self.nVesicles)
         self.assertSetSize(setOfVesiclesSubtomograms, self.nVesicles)
         self.assertEqual(setOfVesiclesTomomasks.getSamplingRate(), binnedSamplingRate)
@@ -218,8 +219,6 @@ class TestFromPresegToPicking(BaseTest):
         protPicking = cls.newProtocol(
             ProtPySegPicking,
             inFilsProt=cls.ProtFils,
-            inTomoSet=cls.inTomoSetBinned,
-            filsFrom=FROM_SCIPION,
             side=MEMBRANE_OUTER_SURROUNDINGS,
             cont=PROJECTIONS,
             numberOfMpi=1 + cls.nVesicles
