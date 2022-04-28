@@ -128,7 +128,8 @@ class ProtPySegPostRecParticles(EMProtocol, ProtTomoBase):
             self.warningMsg = String(warningMsg)
             self._store()
 
-        self._defineOutputs(**{outputObjects.subtomograms.name: self.subtomoSet}),
+        self._defineOutputs(**{outputObjects.subtomograms.name: self.subtomoSet})
+        self._defineSourceRelation(self.inputSubtomos.get(), self.subtomoSet)
 
     # --------------------------- INFO functions -----------------------------------
     def _summary(self):

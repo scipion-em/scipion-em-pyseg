@@ -32,6 +32,8 @@ from pyworkflow.utils import magentaStr
 from reliontomo.protocols import ProtImportSubtomogramsFromStar
 from pyseg.protocols import *
 from pyseg.protocols.protocol_2d_classification import AFFINITY_PROP, CC_WITHIN_MASK, AGGLOMERATIVE, KMEANS
+from pyseg.protocols.protocol_2d_classification import outputObjects as cl2dOutputs
+from reliontomo.protocols.protocol_import_subtomograms_from_star import outputObjects as importSubtomoOutputs
 from tomo.protocols import ProtImportTomograms
 
 
@@ -105,7 +107,7 @@ class TestPostRecAndClassify2d(BaseTest):
         print(magentaStr("\n==> Pos rec with rot angle randomization only:"))
         protPosRec = self.newProtocol(
             ProtPySegPostRecParticles,
-            inputSubtomos=getattr(self.protImporSubtomogramsFromStar, 'outputSubtomograms', None),
+            inputSubtomos=getattr(self.protImporSubtomogramsFromStar, importSubtomoOutputs.subtomograms.name),
             inMask=getattr(self.protCreateParticleMask, 'outputMask', None),
         )
         protPosRec.setObjLabel('Pos rec only rot rand')
@@ -117,7 +119,7 @@ class TestPostRecAndClassify2d(BaseTest):
         print(magentaStr("\n==> Pos rec with membrane attenuation:"))
         protPosRec = self.newProtocol(
             ProtPySegPostRecParticles,
-            inputSubtomos=getattr(self.protImporSubtomogramsFromStar, 'outputSubtomograms', None),
+            inputSubtomos=getattr(self.protImporSubtomogramsFromStar, importSubtomoOutputs.subtomograms.name),
             inMask=getattr(self.protCreateParticleMask, 'outputMask', None),
             mbMask=getattr(self.protCreateMembraneMask, 'outputMask', None),
             mbSupFactor=0.3
@@ -128,7 +130,7 @@ class TestPostRecAndClassify2d(BaseTest):
         return protPosRec
 
     def _runCheckPosRec(self, protPosRec):
-        subtomoSet = getattr(protPosRec, 'outputSubtomograms', None)
+        subtomoSet = getattr(protPosRec, cl2dOutputs.subtomograms.name)
         self.assertSetSize(subtomoSet, size=self.nSubtomos)
         self.assertEqual(subtomoSet.getSamplingRate(), self.samplingRate)
         self.assertEqual(subtomoSet.getDim(), (self.boxSize, self.boxSize, self.boxSize))
@@ -138,7 +140,7 @@ class TestPostRecAndClassify2d(BaseTest):
         outClasses = 1
         protCl2d = self.newProtocol(
             ProtPySegPlaneAlignClassification,
-            inputSubtomos=getattr(self.protImporSubtomogramsFromStar, 'outputSubtomograms', None),
+            inputSubtomos=getattr(self.protImporSubtomogramsFromStar, importSubtomoOutputs.subtomograms.name),
             inMask=getattr(self.protCreateParticleMask, 'outputMask', None),
             clusteringAlg=AFFINITY_PROP,
             filterSize=2,
@@ -166,7 +168,7 @@ class TestPostRecAndClassify2d(BaseTest):
     def _genCl2dProtAggOrKmeans(self, clusteringAlg, nClasses):
         return self.newProtocol(
             ProtPySegPlaneAlignClassification,
-            inputSubtomos=getattr(self.protImporSubtomogramsFromStar, 'outputSubtomograms', None),
+            inputSubtomos=getattr(self.protImporSubtomogramsFromStar, importSubtomoOutputs.subtomograms.name),
             inMask=getattr(self.protCreateParticleMask, 'outputMask', None),
             clusteringAlg=clusteringAlg,
             filterSize=2,
@@ -176,9 +178,9 @@ class TestPostRecAndClassify2d(BaseTest):
 
     def _runClProtAndCheckResults(self, protCl2d, nOutputClasses, clustersPostProcessed=False):
         protCl2d = self.launchProtocol(protCl2d)
-        inSubtomoSet = getattr(self.protImporSubtomogramsFromStar, 'outputSubtomograms', None)
-        outSubtomoSet = getattr(protCl2d, 'outputSubtomograms', None)
-        outputClasses = getattr(protCl2d, 'outputClasses', None)
+        inSubtomoSet = getattr(self.protImporSubtomogramsFromStar, importSubtomoOutputs.subtomograms.name)
+        outSubtomoSet = getattr(protCl2d, cl2dOutputs.subtomograms.name)
+        outputClasses = getattr(protCl2d, cl2dOutputs.classes.name)
 
         # CHECK SUBTOMO OUTPUT SET
         # Output set size must be lower or equal than the input set because some classes can have been purged

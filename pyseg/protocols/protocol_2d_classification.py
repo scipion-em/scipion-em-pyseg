@@ -235,16 +235,15 @@ class ProtPySegPlaneAlignClassification(EMProtocol, ProtTomoBase):
             self._warningMsg.set(warningMsg)
             self._store()
 
-        self._defineSourceRelation(inSubtomoSet, outSubtomoSet)
-
         # 2) Set of classes subtomograms
         classesSet = SetOfClassesSubTomograms.create(self._getPath(), template='setOfClasses%s.sqlite')
         classesSet.setImages(outSubtomoSet)
         self._fillClasses(classesSet)
-        self._defineSourceRelation(inSubtomoSet, classesSet)
 
         self._defineOutputs(**{outputObjects.subtomograms.name: outSubtomoSet,
                                outputObjects.classes.name: classesSet})
+        self._defineSourceRelation(inSubtomoSet, outSubtomoSet)
+        self._defineSourceRelation(inSubtomoSet, classesSet)
 
     # --------------------------- INFO functions -----------------------------------
     def _summary(self):

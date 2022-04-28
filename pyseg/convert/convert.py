@@ -44,7 +44,7 @@ class PysegStarReader(Reader):
         super().__init__(starFile, dataTable)
 
     def starFile2Coords3D(self, coordsSet, precedentsSet, scaleFactor=1):
-        precedentDict = {tomo.getFileName(): tomo.clone() for tomo in precedentsSet}
+        precedentDict = {removeBaseExt(tomo.getFileName()): tomo.clone() for tomo in precedentsSet}
         for row in self.dataTable:
             coord3d = self.gen3dCoordFromStarRow(row, precedentDict, scaleFactor)
             # GroupId stuff
