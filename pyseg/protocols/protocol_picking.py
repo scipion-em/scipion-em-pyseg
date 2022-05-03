@@ -25,6 +25,7 @@
 # *
 # **************************************************************************
 from collections import OrderedDict
+from enum import Enum
 from os.path import basename, join
 import xml.etree.ElementTree as ET
 from pwem.protocols import EMProtocol
@@ -50,6 +51,10 @@ CONT = 'cont'
 # CONT param codification
 CUTTING_POINT = 0
 PROJECTIONS = 1
+
+
+class outputObjects(Enum):
+    coordinates = SetOfCoordinates3D
 
 
 class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
@@ -180,9 +185,6 @@ class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         coordsSet.setSamplingRate(self._getSamplingRate())
         coordsSet.setBoxSize(self.boxSize.get())
 
-        # TODO --> matching via tomo.getFileName vs starFile rows micrographName  --> get that volId and set it to the
-        # coordinates to be able to use the coords iterator
-
         # Read the data from all the out star files
         tomoSet = self._getTomoSet()
         for outStar in self._outStarFilesList:
@@ -190,7 +192,7 @@ class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
 
         if not coordsSet:
             raise Exception('ERROR! No coordinates were picked.')
-        self._defineOutputs(outputCoordinates=coordsSet)
+        self._defineOutputs(**{outputObjects.coordinates.name: coordsSet})
         self._defineSourceRelation(self._getTomoSet(), coordsSet)
 
     # --------------------------- INFO functions -----------------------------------

@@ -28,6 +28,7 @@ from glob import glob
 from os.path import exists
 from imod.protocols import ProtImodTomoNormalization
 from pyseg.protocols.protocol_picking import PROJECTIONS
+from pyseg.protocols.protocol_picking import outputObjects as pickingOutputs
 from pyseg.protocols.protocol_pre_seg import outputObjects as presegOutputs
 from pyworkflow.tests import BaseTest, setupTestProject, DataSet
 from pyworkflow.utils import magentaStr
@@ -229,7 +230,7 @@ class TestFromPresegToPicking(BaseTest):
         return protPicking
 
     def testPicking(self):
-        outputCoordinates = getattr(self.ProtPicking, 'outputCoordinates', None)
+        outputCoordinates = getattr(self.ProtPicking, pickingOutputs.coordinates.name)
 
         # Check that resulting files are created as expected
         xmlFile = 'mb_ext.xml'
