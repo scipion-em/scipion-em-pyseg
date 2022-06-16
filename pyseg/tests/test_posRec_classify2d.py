@@ -27,6 +27,8 @@ from collections import Counter
 from xmipp3.constants import MASK3D_CYLINDER
 from xmipp3.protocols import XmippProtCreateMask3D
 from xmipp3.protocols.protocol_preprocess.protocol_create_mask3d import SOURCE_GEOMETRY
+
+from pyseg.tests import EMD_10439
 from pyworkflow.tests import BaseTest, setupTestProject, DataSet
 from pyworkflow.utils import magentaStr
 from reliontomo.protocols import ProtImportSubtomogramsFromStar
@@ -52,7 +54,7 @@ class TestPostRecAndClassify2d(BaseTest):
     @classmethod
     def setUpClass(cls):
         setupTestProject(cls)
-        cls.dataset = DataSet.getDataSet('emd_10439')
+        cls.dataset = DataSet.getDataSet(EMD_10439)
         inTomoSet = cls._importTomograms()
         cls.protImporSubtomogramsFromStar = cls._runImportSubtomogramsFromStarFile(inTomos=inTomoSet)
         cls.protCreateParticleMask = cls._runCreate3dParticleMask()

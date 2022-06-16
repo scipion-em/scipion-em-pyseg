@@ -30,6 +30,7 @@ from imod.protocols import ProtImodTomoNormalization
 from pyseg.protocols.protocol_picking import PROJECTIONS
 from pyseg.protocols.protocol_picking import outputObjects as pickingOutputs
 from pyseg.protocols.protocol_pre_seg import outputObjects as presegOutputs
+from pyseg.tests import EMD_10439, DataSetEmd10439
 from pyworkflow.tests import BaseTest, setupTestProject, DataSet
 from pyworkflow.utils import magentaStr
 from pyseg.constants import FROM_SCIPION, MEMBRANE_OUTER_SURROUNDINGS, MEMBRANE, OUT_STARS_DIR
@@ -56,7 +57,7 @@ class TestFromPresegToPicking(BaseTest):
     @classmethod
     def setUpClass(cls):
         setupTestProject(cls)
-        ds = DataSet.getDataSet('emd_10439')
+        ds = DataSet.getDataSet(EMD_10439)
         cls.ds = ds
         cls.inTomoSet = cls._importTomograms()
         cls.inTomoSetBinned = cls._normalizeTomo()
@@ -70,7 +71,7 @@ class TestFromPresegToPicking(BaseTest):
     def _importTomograms(cls):
         print(magentaStr("\n==> Importing data - tomograms:"))
         protImportTomogram = cls.newProtocol(ProtImportTomograms,
-                                             filesPath=cls.ds.getFile('tomoEmd10439'),
+                                             filesPath=cls.ds.getFile(DataSetEmd10439.tomoEmd10439.value),
                                              samplingRate=cls.samplingRate)
 
         cls.launchProtocol(protImportTomogram)
@@ -97,7 +98,7 @@ class TestFromPresegToPicking(BaseTest):
         print(magentaStr("\n==> Importing data - tomoMasks"
                          ":"))
         protImportTomomasks = cls.newProtocol(ProtImportTomomasks,
-                                              filesPath=cls.ds.getFile('tomomaskAnnotated'),
+                                              filesPath=cls.ds.getFile(DataSetEmd10439.tomoMaskAnnotated.value),
                                               inputTomos=cls.inTomoSetBinned)
 
         cls.launchProtocol(protImportTomomasks)
