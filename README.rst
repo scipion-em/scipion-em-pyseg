@@ -22,7 +22,7 @@ Setup
 
         sudo apt-get install libgsl-dev
 
-    3. gcc/g++ 5 (for DisPerSE_ compilation). In Ubuntu,
+    3. gcc/g++ 5, 6, or 7 (for DisPerSE_ compilation). In Ubuntu,
        the installation command is:
 
     .. code-block::
