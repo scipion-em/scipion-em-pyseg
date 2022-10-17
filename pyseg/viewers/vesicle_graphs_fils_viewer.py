@@ -26,6 +26,7 @@
 import glob
 from os.path import join
 
+from pyseg.constants import FILS_FILES
 from pyworkflow.gui.dialog import ToolbarListDialog
 from pyworkflow.utils.path import removeBaseExt
 from tomoviz.viewers.viewer_vtk import VtkPlot
@@ -61,7 +62,7 @@ class VesicleViewerDialog(ToolbarListDialog):
         if self.source == FROM_GRAPHS:
             args['graph_file'] = glob.glob(self.prot._getExtraPath(vesicleBaseName + '*_edges_2.vtp'))[0]
         elif self.source == FROM_FILS:
-            args['net_file'] = glob.glob(self.prot._getExtraPath(vesicleBaseName + '*_net.vtp'))[0]
+            args['net_file'] = glob.glob(self.prot._getExtraPath(FILS_FILES, '*', vesicleBaseName + '*_net.vtp'))[0]
         elif self.source == FROM_PICKING:
             args['peaks_file'] = glob.glob(self.prot._getExtraPath(vesicleBaseName + '*_peak.vtp'))[0]
             args['surf_file'] = glob.glob(self.prot._getExtraPath(vesicleBaseName + '*_surf.vtp'))[0]

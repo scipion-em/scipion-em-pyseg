@@ -41,7 +41,7 @@ from tomo.protocols.protocol_base import ProtTomoImportAcquisition
 
 from pyseg import Plugin
 from pyseg.constants import FILS_SCRIPT, FILS_SOURCES, FILS_TARGETS, MEMBRANE, \
-    MEMBRANE_OUTER_SURROUNDINGS, PRESEG_AREAS_LIST, IN_STARS_DIR, OUT_STARS_DIR, FILS_OUT, GRAPHS_OUT
+    MEMBRANE_OUTER_SURROUNDINGS, PRESEG_AREAS_LIST, IN_STARS_DIR, OUT_STARS_DIR, FILS_OUT, GRAPHS_OUT, FILS_FILES
 from pyseg.utils import encodePresegArea, createStarDirectories, genOutSplitStarFileName, getPrevPysegProtOutStarFiles
 
 TH_MODE_IN = 0
@@ -234,7 +234,7 @@ class ProtPySegFils(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         # Associate a different output folder to each star file generated to store the fils resulting star file because
         # it is always generated with the same name, so there can be concurrency problems in parallelization
         inStarDict = {}
-        filsResultsDir = self._getExtraPath('filsFiles')
+        filsResultsDir = self._getExtraPath(FILS_FILES)
         mkdir(filsResultsDir)
         for i, starFile in enumerate(inStarFiles):
             outDirName = join(filsResultsDir, 'outDir_%03d' % i)

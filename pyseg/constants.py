@@ -63,6 +63,7 @@ FILS_OUT = 'fils'
 PICKING_OUT = 'picking'
 POST_REC_OUT = 'subtomos_post_rec'
 PLANE_ALIGN_CLASS_OUT = 'plane_align_classification'
+FILS_FILES = 'filsFiles'
 
 # Third parties software
 CFITSIO = 'cfitsio'

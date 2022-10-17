@@ -33,7 +33,7 @@ from pyseg.protocols.protocol_pre_seg import outputObjects as presegOutputs
 from pyseg.tests import EMD_10439, DataSetEmd10439
 from pyworkflow.tests import BaseTest, setupTestProject, DataSet
 from pyworkflow.utils import magentaStr
-from pyseg.constants import FROM_SCIPION, MEMBRANE_OUTER_SURROUNDINGS, MEMBRANE, OUT_STARS_DIR
+from pyseg.constants import FROM_SCIPION, MEMBRANE_OUTER_SURROUNDINGS, MEMBRANE, OUT_STARS_DIR, FILS_FILES
 from pyseg.protocols import *
 from tomo.protocols import ProtImportTomograms, ProtImportTomomasks
 
@@ -213,7 +213,7 @@ class TestFromPresegToPicking(BaseTest):
         for i in range(self.nVesicles):
             self.assertTrue(exists(self.ProtFils._getExtraPath(OUT_STARS_DIR, 'fils_%03d.star' % (i + 1))))
             for file in graphsFilesPerVesicle:
-                self.assertTrue(exists(self.ProtFils._getExtraPath('filsFiles', 'outDir_%03d' % i, file % i)))
+                self.assertTrue(exists(self.ProtFils._getExtraPath(FILS_FILES, 'outDir_%03d' % i, file % i)))
 
     @classmethod
     def _runPicking(cls):
