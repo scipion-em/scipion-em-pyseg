@@ -88,7 +88,7 @@ class TestFromPresegToPicking(BaseTest):
                                                 binning=2)
 
         cls.launchProtocol(protTomoNormalization)
-        outputTomos = getattr(protTomoNormalization, 'outputSetOfTomograms', None)
+        outputTomos = getattr(protTomoNormalization, 'Tomograms', None)
         cls.assertIsNotNone(outputTomos, 'No tomograms were genetated in tomo normalization.')
 
         return outputTomos
