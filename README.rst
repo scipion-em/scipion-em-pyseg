@@ -37,8 +37,8 @@ Using the command line:
 
     scipion3 installp -p local/path/to/scipion-em-pyseg --devel
 
-Installation can be checked out running some tests (Important: TestPosRec requires Scipion plugin for Dynamo_
-to be installed:
+Installation can be checked out running some tests (Important: TestPosRec requires the plugin scipion-em-dynamo_
+to be installed and plugin scipion-em-reliontomo_ to be updated:
 
 .. code-block::
 
@@ -59,5 +59,6 @@ We'll be pleased to help.
 
 .. _PySeg: https://github.com/anmartinezs/pyseg_system
 .. _DisPerSE: http://www2.iap.fr/users/sousbie/web/html/indexd41d.html
-.. _Dynamo: https://github.com/scipion-em/scipion-em-dynamo
+.. _scipion-em-dynamo: https://github.com/scipion-em/scipion-em-dynamo
+.. _scipion-em-reliontomo: https://github.com/scipion-em/scipion-em-reliontomo
 .. _issue: https://github.com/scipion-em/scipion-em-pyseg/issues
