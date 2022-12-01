@@ -27,15 +27,15 @@
 from glob import glob
 from os.path import exists
 from imod.protocols import ProtImodTomoNormalization
-from pyseg.protocols.protocol_picking import PROJECTIONS
+from pyseg.protocols import ProtPySegGraphs, ProtPySegFils
+from pyseg.protocols.protocol_picking import PROJECTIONS, ProtPySegPicking
 from pyseg.protocols.protocol_picking import outputObjects as pickingOutputs
-from pyseg.protocols.protocol_pre_seg import outputObjects as presegOutputs
-from pyseg.tests import EMD_10439, DataSetEmd10439
+from pyseg.protocols.protocol_pre_seg import outputObjects as presegOutputs, ProtPySegPreSegParticles
 from pyworkflow.tests import BaseTest, setupTestProject, DataSet
 from pyworkflow.utils import magentaStr
 from pyseg.constants import FROM_SCIPION, MEMBRANE_OUTER_SURROUNDINGS, MEMBRANE, OUT_STARS_DIR, FILS_FILES
-from pyseg.protocols import *
 from tomo.protocols import ProtImportTomograms, ProtImportTomomasks
+from tomo.tests import EMD_10439, DataSetEmd10439
 
 
 class TestFromPresegToPicking(BaseTest):
@@ -223,7 +223,7 @@ class TestFromPresegToPicking(BaseTest):
             inFilsProt=cls.ProtFils,
             side=MEMBRANE_OUTER_SURROUNDINGS,
             cont=PROJECTIONS,
-            numberOfMpi=1 + cls.nVesicles
+            numberOfThreads=1 + cls.nVesicles
         )
 
         protPicking.setObjLabel('Picking')

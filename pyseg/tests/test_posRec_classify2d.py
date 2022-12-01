@@ -28,15 +28,16 @@ from xmipp3.constants import MASK3D_CYLINDER
 from xmipp3.protocols import XmippProtCreateMask3D
 from xmipp3.protocols.protocol_preprocess.protocol_create_mask3d import SOURCE_GEOMETRY
 
-from pyseg.tests import EMD_10439
+from pyseg.protocols import ProtPySegPostRecParticles
 from pyworkflow.tests import BaseTest, setupTestProject, DataSet
 from pyworkflow.utils import magentaStr
 from reliontomo.protocols import ProtImportSubtomogramsFromStar
-from pyseg.protocols import *
-from pyseg.protocols.protocol_2d_classification import AFFINITY_PROP, CC_WITHIN_MASK, AGGLOMERATIVE, KMEANS
+from pyseg.protocols.protocol_2d_classification import AFFINITY_PROP, CC_WITHIN_MASK, AGGLOMERATIVE, KMEANS, \
+    ProtPySegPlaneAlignClassification
 from pyseg.protocols.protocol_2d_classification import outputObjects as cl2dOutputs
 from reliontomo.protocols.protocol_import_subtomograms_from_star import outputObjects as importSubtomoOutputs
 from tomo.protocols import ProtImportTomograms
+from tomo.tests import EMD_10439, DataSetEmd10439
 
 
 class TestPostRecAndClassify2d(BaseTest):
@@ -64,7 +65,7 @@ class TestPostRecAndClassify2d(BaseTest):
     def _importTomograms(cls):
         print(magentaStr("\n==> Importing data - tomograms:"))
         protImportTomogram = cls.newProtocol(ProtImportTomograms,
-                                             filesPath=cls.dataset.getFile('tomoEmd10439'),
+                                             filesPath=cls.dataset.getFile(DataSetEmd10439.tomoEmd10439.name),
                                              samplingRate=cls.samplingRate)
 
         cls.launchProtocol(protImportTomogram)
@@ -75,7 +76,7 @@ class TestPostRecAndClassify2d(BaseTest):
     @classmethod
     def _runImportSubtomogramsFromStarFile(cls, inTomos=None):
         protImporSubtomogramsFromStar = cls.newProtocol(ProtImportSubtomogramsFromStar,
-                                                        starFile=cls.dataset.getFile('subtomogramsStarFile'),
+                                                        starFile=cls.dataset.getFile(DataSetEmd10439.subtomogramsStarFile.name),
                                                         inTomos=inTomos,
                                                         samplingRate=cls.samplingRate,
                                                         boxSize=cls.boxSize)
