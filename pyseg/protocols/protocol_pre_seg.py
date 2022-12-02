@@ -119,10 +119,21 @@ class ProtPySegPreSegParticles(EMProtocol):
         self._insertFunctionStep(self.createOutputStep)
 
     def convertInputStep(self):
-        outputTable = self._createTable(isConvertingInput=True)
-
+        from pwem import Domain
+        xmipp3 = Domain.importFromPlugin('xmipp3')
         # Generate the star file with the vesicles centered for the second pre_seg execution
+        outputTable = self._createTable(isConvertingInput=True)
         for tomoMask in self.inTomoMasks.get():
+            # Convert to MRC the tomograms to which the tomomasks are referred to if they are not, because it's
+            # the format searched by pyseg
+            tomoFile = tomoMask.getVolName()
+            if not tomoFile.endswith('.mrc'):
+                mrcTomoFile = self._getExtraPath(removeBaseExt(tomoFile) + '.mrc')
+                args = '-i %s -o %s -t vol ' % (tomoFile, mrcTomoFile)
+                xmipp3.Plugin.runXmippProgram('xmipp_image_convert', args)
+                # Set the volName to the generated volume
+                tomoMask.setVolName(mrcTomoFile)
+
             vesicle = tomoMask.getFileName()
             for materialIndex in self._getMaterialsList(vesicle):  # Get annotated materials from txt file and add one
                 # Add row to output table
