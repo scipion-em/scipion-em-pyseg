@@ -72,6 +72,10 @@ class Plugin(pwem.Plugin):
         pysegHome = join(pwem.Config.EM_ROOT, PYSEG + '-' + DEFAULT_VERSION)
         PYSEG_INSTALLED = '%s_installed' % PYSEG
         compErrMsg = cls._checkCompilingDrivers()
+        disperseCompiledFiles = ['fieldconv', 'mse', 'netconv', 'skelconv']
+        disperseCompiledFiles = [join(cls.getDisperseBuildPath(pysegHome), 'bin', binFile) for binFile in
+                                 disperseCompiledFiles]
+
         if compErrMsg:
             # Check gcc and g++ versions (compatible from 5 to 7, both included)
             installationCmd = 'rm -rf %s && echo "%s" ' % (pysegHome, compErrMsg)
@@ -94,9 +98,9 @@ class Plugin(pwem.Plugin):
         env.addPackage(PYSEG,
                        version=DEFAULT_VERSION,
                        tar='void.tgz',
-                       commands=[(installationCmd, PYSEG_INSTALLED)],
+                       commands=[(installationCmd, [PYSEG_INSTALLED] + disperseCompiledFiles)],
                        neededProgs=["wget", "make", "cmake", "tar"],
-                       libChecks=["libgsl-dev"],
+                       libChecks=["gsl"],  # This is how the libgsl-dev is named by the system package manager --> pkg-config --list-all | grep gsl --> gsl GSL - GNU Scientific Library
                        default=True)
 
     @classmethod
@@ -120,17 +124,20 @@ class Plugin(pwem.Plugin):
 
     @classmethod
     def _genCmdToInstallDisperse(cls, thirdPartyPath, CFITSIO_BUILD_PATH, pySegDir):
-        DISPERSE_BUILD_PATH = join(pySegDir, '%s_build' % DISPERSE)
         installationCmd = 'tar zxf %s -C %s && ' % \
                           (join(thirdPartyPath, 'disperse_v0.9.24_pyseg_gcc7.tar.gz'), pySegDir)
         installationCmd += 'cd %s && ' % join(pySegDir, DISPERSE)
-        installationCmd += 'mkdir %s && ' % DISPERSE_BUILD_PATH
+        installationCmd += 'mkdir %s && ' % cls.getDisperseBuildPath(pySegDir)
         installationCmd += 'cmake . -DCMAKE_INSTALL_PREFIX=%s -DCFITSIO_DIR=%s && ' \
-                           % (DISPERSE_BUILD_PATH, CFITSIO_BUILD_PATH)
+                           % (cls.getDisperseBuildPath(pySegDir), CFITSIO_BUILD_PATH)
         installationCmd += 'make && make install && '
         installationCmd += 'cd ..'
 
         return installationCmd
+
+    @staticmethod
+    def getDisperseBuildPath(pySegDir):
+        return join(pySegDir, '%s_build' % DISPERSE)
 
     @classmethod
     def _genCmdToDefineSegCondaEnv(cls):
