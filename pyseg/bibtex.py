@@ -12,7 +12,7 @@ year = "2020",
 issn = "15487105",
 doi = "http://doi.org/10.1038/s41592-019-0675-5",
 url = "http://www.nature.com/articles/s41592-019-0675-5",
-author = "Antonio Martinez-Sanchez",
+author = "A. Martinez-Sanchez",
 }
 
 """

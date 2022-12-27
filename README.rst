@@ -92,6 +92,13 @@ Tutorial
 ========
 A tutorial about how to use PySeg within Scipion can be found here_.
 
+==========
+References
+==========
+
+* `Template-free detection and classification of heterogeneous membrane-bound complexes in cryo-electron tomograms. <http://doi.org/10.1038/s41592-019-0675-5>`_
+ A. Martinez-Sanchez et al., Nature Methods, 2020.
+
 ===================
 Contact information
 ===================
