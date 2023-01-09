@@ -206,7 +206,7 @@ class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         """ Summarize what the protocol has done"""
         summary = []
         if self.isFinished():
-            outputCoords = getattr(self, 'outputCoordinates', None)
+            outputCoords = getattr(self, outputObjects.coordinates.name, None)
             summary.append('*Picking*:\n\t- Picking area = %s\n\t- Particles picked = %i\n' %
                            (PRESEG_AREAS_LIST[int(self.side.get())], outputCoords.getSize()))
 
