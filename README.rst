@@ -59,18 +59,17 @@ Protocols
 =========
 The integrated protocols are:
 
-1. ProtPySegFils ( pyseg - fils ) 
-  doc:  filter a MbGraphMCF (Mean Cumulative Function) object by extracting a filament network
-2. ProtPySegGraphs ( pyseg - graphs )
-  doc:  analyze a GraphMCF (Mean Cumulative Function) from a segmented membrane
-3. ProtPySegPicking ( pyseg - picking )
-  doc:  extract particles from a filament network of a oriented single membrane graph
-4. ProtPySegPlaneAlignClassification ( pyseg - 2D classification )
-  doc:  Unsupervised and deterministic classification of membrane-bound particles
-5. ProtPySegPostRecParticles ( pyseg - posrec )
-  doc:  post-process already reconstructed particles: rot angle randomization and membrane suppression
-6. ProtPySegPreSegParticles ( pyseg - preseg membranes )
-  doc:  Segment membranes into membranes, inner surroundings and outer surroundings
+1. pyseg - fils: Filters a MbGraphMCF (Mean Cumulative Function) object by extracting a filament network
+
+2. pyseg - graphs: Analyzes a GraphMCF (Mean Cumulative Function) from a segmented membrane
+
+3. pyseg - picking: Extracts particles from a filament network of a oriented single membrane graph
+
+4. pyseg - 2D classification: Unsupervised and deterministic classification of membrane-bound particles
+
+5. pyseg - posrec: post-process already reconstructed particles; rot angle randomization and membrane suppression
+
+6. pyseg - preseg membranes: Segment membranes into membranes, inner surroundings and outer surroundings
     
 =====
 Tests
