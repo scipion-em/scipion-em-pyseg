@@ -1,3 +1,2 @@
-V3.0.1
-  To fill
-March 16, 2021 - First release
+v3.1.0:
+  - First plugin release

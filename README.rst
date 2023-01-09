@@ -8,7 +8,7 @@ This plugin allows to use PySeg_ - De novo analysis for cryo-electron tomography
 Setup
 =====
 
-- **System pre-requisites:**
+**System pre-requisites:**
 
     1. Cmake 2.6.3+. The intallation command in Ubuntu is:
 
@@ -22,23 +22,62 @@ Setup
 
         sudo apt-get install libgsl-dev
 
-    3. gcc/g++ 5, 6, or 7 (for DisPerSE_ compilation). In Ubuntu,
+    3. gcc/g++ version greater or equal to 5 and lower or equal to 7 (for DisPerSE_ compilation). In Ubuntu,
        the installation command is:
 
     .. code-block::
 
         sudo apt -y install gcc-5 g++-5
 
-- **Install this plugin in devel mode:**
+============
+Installation
+============
+The plugin can be installed in user (stable) or developer (latest, may be unstable) mode:
 
-Using the command line:
+**1. User (stable) version:**:
+
+.. code-block::
+
+    scipion3 installp -p scipion-em-pyseg
+
+**2. Developer (latest, may be unstable) version:**:
+
+* Clone the source code repository:
+
+.. code-block::
+
+    git clone https://github.com/scipion-em/scipion-em-pyseg.git
+    
+* Install:
 
 .. code-block::
 
     scipion3 installp -p local/path/to/scipion-em-pyseg --devel
+    
+=========
+Protocols
+=========
+The integrated protocols are:
 
-Installation can be checked out running some tests (Important: TestPosRec requires the plugin scipion-em-dynamo_
-to be installed and plugin scipion-em-reliontomo_ to be updated:
+1. ProtPySegFils ( pyseg - fils ) 
+  doc:  filter a MbGraphMCF (Mean Cumulative Function) object by extracting a filament network
+2. ProtPySegGraphs ( pyseg - graphs )
+  doc:  analyze a GraphMCF (Mean Cumulative Function) from a segmented membrane
+3. ProtPySegPicking ( pyseg - picking )
+  doc:  extract particles from a filament network of a oriented single membrane graph
+4. ProtPySegPlaneAlignClassification ( pyseg - 2D classification )
+  doc:  Unsupervised and deterministic classification of membrane-bound particles
+5. ProtPySegPostRecParticles ( pyseg - posrec )
+  doc:  post-process already reconstructed particles: rot angle randomization and membrane suppression
+6. ProtPySegPreSegParticles ( pyseg - preseg membranes )
+  doc:  Segment membranes into membranes, inner surroundings and outer surroundings
+    
+=====
+Tests
+=====
+
+The installation can be checked out running some tests (Important: TestPosRec requires the plugins scipion-em-xmipp_
+and scipion-em-reliontomo_ to be installed:
 
 .. code-block::
 
@@ -47,8 +86,22 @@ to be installed and plugin scipion-em-reliontomo_ to be updated:
 .. code-block::
 
     scipion3 tests pyseg.tests.test_pos_rec.TestPostRec
+    
+========
+Tutorial
+========
+A tutorial about how to use PySeg within Scipion can be found here_.
 
-- **Contact information:**
+==========
+References
+==========
+
+* `Template-free detection and classification of heterogeneous membrane-bound complexes in cryo-electron tomograms. <http://doi.org/10.1038/s41592-019-0675-5>`_
+  A. Martinez-Sanchez et al., Nature Methods, 2020.
+
+===================
+Contact information
+===================
 
 If you experiment any problem, please contact us here: scipion-users@lists.sourceforge.net or open an issue_.
 
@@ -59,6 +112,7 @@ We'll be pleased to help.
 
 .. _PySeg: https://github.com/anmartinezs/pyseg_system
 .. _DisPerSE: http://www2.iap.fr/users/sousbie/web/html/indexd41d.html
-.. _scipion-em-dynamo: https://github.com/scipion-em/scipion-em-dynamo
+.. _scipion-em-xmipp: https://github.com/I2PC/scipion-em-xmipp
 .. _scipion-em-reliontomo: https://github.com/scipion-em/scipion-em-reliontomo
 .. _issue: https://github.com/scipion-em/scipion-em-pyseg/issues
+.. _here: https://scipion-em.github.io/docs/release-3.0.0/docs/user/denoising_mbSegmentation_pysegDirPicking/tomosegmemTV-pySeg-workflow.html#tomosegmemtv-pyseg-workflow
