@@ -24,26 +24,26 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
-
 from collections import OrderedDict
+from enum import Enum
 from os.path import basename, join
 import xml.etree.ElementTree as ET
-
 from pwem.protocols import EMProtocol
+from pyseg.convert import readPysegCoordinates
 from pyworkflow import BETA
-from pyworkflow.protocol import FloatParam, EnumParam, PointerParam, IntParam, FileParam, LEVEL_ADVANCED
-from pyworkflow.utils import Message, makePath, removeBaseExt, copyFile
+from pyworkflow.protocol import FloatParam, EnumParam, PointerParam, IntParam, LEVEL_ADVANCED, STEPS_PARALLEL
+from pyworkflow.utils import Message, removeBaseExt, copyFile, moveFile
 from scipion.constants import PYTHON
 from tomo.objects import SetOfCoordinates3D, SetOfTomograms
 from tomo.protocols import ProtTomoBase
 from tomo.protocols.protocol_base import ProtTomoImportAcquisition
-
 from pyseg import Plugin
-from pyseg.constants import FILS_SOURCES, FILS_TARGETS, PICKING_SCRIPT, PICKING_SLICES, PRESEG_AREAS_LIST, MEMBRANE
-from pyseg.convert import readStarFile, PYSEG_PICKING_STAR
+from pyseg.constants import FILS_SOURCES, FILS_TARGETS, PICKING_SCRIPT, PICKING_SLICES, PRESEG_AREAS_LIST, MEMBRANE, \
+    OUT_STARS_DIR, IN_STARS_DIR, FILS_OUT, PICKING_OUT
 
 # Fils slices xml fields
-from pyseg.utils import encodePresegArea
+from pyseg.utils import encodePresegArea, getPrevPysegProtOutStarFiles, createStarDirectories
+from tomo.utils import getObjFromRelation
 
 SIDE = 'side'
 CONT = 'cont'
@@ -53,19 +53,32 @@ CUTTING_POINT = 0
 PROJECTIONS = 1
 
 
+class outputObjects(Enum):
+    coordinates = SetOfCoordinates3D
+
+
 class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
     """extract particles from a filament network of a oriented single membrane graph"""
 
     _label = 'picking'
     _devStatus = BETA
-    tomoSet = None
-    acquisitionParams = {
-            'angleMin': 90,
-            'angleMax': -90,
-            'step': None,
-            'angleAxis1': None,
-            'angleAxis2': None
+
+    def __init__(self,  **kwargs):
+        super().__init__(**kwargs)
+        self._tomoSet = None
+        self.stepsExecutionMode = STEPS_PARALLEL
+        self.tomoSet = None
+        self.acquisitionParams = {
+                'angleMin': 90,
+                'angleMax': -90,
+                'step': None,
+                'angleAxis1': None,
+                'angleAxis2': None
         }
+        self._inStarDir = None
+        self._outStarDir = None
+        self._xmlSlices = None
+        self._outStarFilesList = []
 
     # -------------------------- DEFINE param functions ----------------------
     def _defineParams(self, form):
@@ -83,16 +96,17 @@ class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
                       help='Pointer to fils protocol.')
         form.addParam('inTomoSet', PointerParam,
                       pointerClass='SetOfTomograms',
-                      label='Tomograms',
-                      important=True,
-                      allowsNull=False,
-                      help='Tomograms used for the graphs and filaments calculation.')
+                      label='Tomograms to refer the coordinates',
+                      allowsNull=True,
+                      expertLevel=LEVEL_ADVANCED,
+                      help='Tomograms to which the coordinates should be referred to. If empty, it is assumed that '
+                           'the tomograms are the same from were the vesicles were segmented (pre-seg).')
         form.addParam('boxSize', IntParam,
                       label='Box size (pixels)',
                       default=20,
                       important=True,
                       allowsNull=False,
-                      expertLevel=LEVEL_ADVANCED,)
+                      expertLevel=LEVEL_ADVANCED)
 
         form.addSection(label='Picking')
         self._defineFilsXMLParams(form, self._getSlicesXMLDefaultVals())
@@ -109,6 +123,8 @@ class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
                        allowsNull=False,
                        help='Scale suppression in nm, two selected points cannot be closer than this distance.')
 
+        form.addParallelSection(threads=3, mpi=1)
+
     @staticmethod
     def _defineFilsXMLParams(form, d):
         """d is a disctionary with the default values"""
@@ -122,7 +138,7 @@ class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
                       help='Area in which the cutting point or cutting point + projections of the '
                            'filament will be considered for the picking coordinates.')
         form.addParam(paramList[1], EnumParam,
-                      choices=['Cutting point', 'Cutting point + projections'],
+                      choices=['Cutting point', 'Projected local minima'],
                       default=0,
                       label='Find on two surfaces',
                       display=EnumParam.DISPLAY_HLIST,
@@ -135,33 +151,57 @@ class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         d[CONT] = CUTTING_POINT
         return d
 
+    # -------------------------- INSERT steps functions -----------------------
     def _insertAllSteps(self):
-        self._insertFunctionStep(self.pysegPicking)
-        self._insertFunctionStep(self.createOutputStep)
+        allOutputId = []
+        starFileList = self._convertInputStep()
+        for starFile in starFileList:
+            pId = self._insertFunctionStep(self.pysegPicking, starFile, prerequisites=[])
+            allOutputId.append(pId)
+        self._insertFunctionStep(self.createOutputStep, prerequisites=allOutputId)
 
-    def pysegPicking(self):
-        # Generate output dir
+    def _convertInputStep(self):
         outDir = self._getExtraPath()
-        makePath(outDir)
-
+        # Generate directories for input and output star files
+        self._outStarDir, self._inStarDir = createStarDirectories(outDir)
         # Generate slices xml
         self._createPickingXmlFile(Plugin.getHome(PICKING_SLICES), outDir)
+        # Get the star files generated in the fils protocol
+        return getPrevPysegProtOutStarFiles(self.inFilsProt.get()._getExtraPath(OUT_STARS_DIR),
+                                            self._getExtraPath(IN_STARS_DIR))
 
+    def pysegPicking(self, starFile):
         # Script called
-        Plugin.runPySeg(self, PYTHON, self._getPickingCommand(outDir))
+        Plugin.runPySeg(self, PYTHON, self._getPickingCommand(starFile))
+        # Move output files to the corresponding directory
+        outFile = self._getExtraPath(removeBaseExt(starFile) + '_parts.star')
+        newFileName = join(self._outStarDir, basename(outFile).replace(FILS_OUT, PICKING_OUT))
+        self._outStarFilesList.append(newFileName)
+        moveFile(outFile, newFileName)
 
     def createOutputStep(self):
-        self.tomoSet = self.inTomoSet.get()  # Required for the convert
         suffix = self._getOutputSuffix(SetOfCoordinates3D)
-        coordsSet = self._createSetOfCoordinates3D(self.inTomoSet.get(), suffix)
+        coordsSet = self._createSetOfCoordinates3D(self._getTomoSet(), suffix)
         coordsSet.setSamplingRate(self._getSamplingRate())
         coordsSet.setBoxSize(self.boxSize.get())
-        readStarFile(self, coordsSet, PYSEG_PICKING_STAR,
-                     starFile=self._getPickingStarFileName(), invert=True)
 
-        self._defineOutputs(outputCoordinates=coordsSet)
+        # Read the data from all the out star files
+        tomoSet = self._getTomoSet()
+        for outStar in self._outStarFilesList:
+            readPysegCoordinates(outStar, coordsSet, tomoSet)
+
+        if not coordsSet:
+            raise Exception('ERROR! No coordinates were picked.')
+        self._defineOutputs(**{outputObjects.coordinates.name: coordsSet})
+        self._defineSourceRelation(self._getTomoSet(), coordsSet)
 
     # --------------------------- INFO functions -----------------------------------
+    def _validate(self):
+        valMsg = []
+        if not self._getTomoFromRelations():
+            valMsg.append("Unable to find the corresponding tomograms using the relations.")
+        return valMsg
+
     def _summary(self):
         """ Summarize what the protocol has done"""
         summary = []
@@ -183,11 +223,11 @@ class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
                                       + '_to_' + removeBaseExt(FILS_TARGETS) + '_net.star')
         return self._getExtraPath(removeBaseExt(filsStar) + '_parts.star')
 
-    def _getPickingCommand(self, outDir):
+    def _getPickingCommand(self, starFile):
         pickingCmd = ' '
         pickingCmd += '%s ' % Plugin.getHome(PICKING_SCRIPT)
-        pickingCmd += '--inStar %s ' % self._getFilsStarFileName()
-        pickingCmd += '--outDir %s ' % outDir
+        pickingCmd += '--inStar %s ' % starFile
+        pickingCmd += '--outDir %s ' % self._getExtraPath()
         pickingCmd += '--slicesFile %s ' % self._xmlSlices
         pickingCmd += '--peakTh %s ' % self.peakTh.get()
         pickingCmd += '--peakNs %s ' % self.peakNs.get()
@@ -216,4 +256,19 @@ class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         return '+' if val == CUTTING_POINT else '-'
 
     def _getSamplingRate(self):
-        return self.inTomoSet.get().getFirstItem().getSamplingRate()
+        return self._getTomoSet().getFirstItem().getSamplingRate()
+
+    def _getTomoSet(self):
+        if self._tomoSet is None:
+            if self.inTomoSet.get():
+                self._tomoSet = self.inTomoSet.get()
+            else:
+                self._tomoSet = self._getTomoFromRelations()
+        return self._tomoSet
+
+    def _getTomoFromRelations(self):
+        # Get the tomograms climbing from this point of the workflow until the pre-seg and if there aren't tomograms
+        # at that point, use the relations to go to the corresponding tomograms
+        presegProt = self.inFilsProt.get().inGraphsProt.get().inSegProt.get()
+        tomoSet = getObjFromRelation(presegProt.inTomoMasks.get(), self, SetOfTomograms)
+        return tomoSet

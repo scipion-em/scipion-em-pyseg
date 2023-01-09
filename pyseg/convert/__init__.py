@@ -1,4 +1,3 @@
-# **************************************************************************
 # *
 # * Authors:     Scipion Team
 # *
@@ -20,11 +19,25 @@
 # * 02111-1307  USA
 # *
 # *  All comments concerning this program package may be sent to the
-# *  e-mail address 'scipion@cnb.csic.es'
+# *  e-mail address 'scipion-users@lists.sourceforge.net'
 # *
 # **************************************************************************
-from pyseg.viewers.vesicle_graphs_fils_viewer import VesicleViewerDialog
-from pyseg.viewers.vesicle_visualization_tree import VesicleViewerProvider
-from pyseg.viewers.viewers_data import TomoViz4PysegDataViewer
+from emtable import Table
+from pyseg.convert.convert import PysegStarReader
 
+
+def createPysegReader(starFile, **kwargs):
+    dataTable = Table()
+    dataTable.read(starFile, tableName=None)
+    return PysegStarReader(starFile, dataTable, **kwargs)
+
+
+def readPysegCoordinates(starFile, coordSet, precedentsSet):
+    reader = createPysegReader(starFile)
+    return reader.starFile2Coords3D(coordSet, precedentsSet)
+
+
+def readPysegSubtomograms(starFile, inSubtomos, outSubtomos):
+    reader = createPysegReader(starFile)
+    return reader.starFile2Subtomograms(inSubtomos, outSubtomos)
 

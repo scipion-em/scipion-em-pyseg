@@ -32,7 +32,7 @@ from .vesicle_visualization_tree import VesicleViewerProvider
 from ..protocols import ProtPySegGraphs, ProtPySegFils, ProtPySegPicking
 
 
-class Tomo3D4PysegDataViewer(pwviewer.Viewer):
+class TomoViz4PysegDataViewer(pwviewer.Viewer):
     """ Wrapper to visualize different type of objects
     using pyvista
     """
@@ -57,13 +57,13 @@ class Tomo3D4PysegDataViewer(pwviewer.Viewer):
         cls = type(obj)
         if hasattr(obj, 'inSegProt'):  # Accessing from graphs
             vtiPath = obj._getExtraPath()
-            vesicleSubTomos = obj.inSegProt.get().outputSetofSubTomograms
+            vesicleSubTomos = obj.inSegProt.get().vesicles
         elif hasattr(obj, 'inGraphsProt'):  # Accessing from fils
             vtiPath = obj.inGraphsProt.get()._getExtraPath()
-            vesicleSubTomos = obj.inGraphsProt.get().inSegProt.get().outputSetofSubTomograms
+            vesicleSubTomos = obj.inGraphsProt.get().inSegProt.get().vesicles
         elif hasattr(obj, 'inFilsProt'):  # Accessing from picking
             vtiPath = obj.inFilsProt.get().inGraphsProt.get()._getExtraPath()
-            vesicleSubTomos = obj.inFilsProt.get().inGraphsProt.get().inSegProt.get().outputSetofSubTomograms
+            vesicleSubTomos = obj.inFilsProt.get().inGraphsProt.get().inSegProt.get().vesicles
 
         vesicleList = [vesicle.clone() for vesicle in vesicleSubTomos.iterItems()]
         vesicleProvider = VesicleViewerProvider(vesicleList, None, None)

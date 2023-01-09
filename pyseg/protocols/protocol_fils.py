@@ -24,23 +24,25 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
-
+import glob
 from collections import OrderedDict
+from os import mkdir
 from os.path import basename, join, abspath
 import xml.etree.ElementTree as ET
 
 from pwem.protocols import EMProtocol
+from pyseg.convert.convert import splitPysegStarFile
 from pyworkflow import BETA
-from pyworkflow.protocol import FloatParam, NumericListParam, EnumParam, PointerParam
-from pyworkflow.utils import Message, makePath, removeBaseExt, copyFile
+from pyworkflow.protocol import FloatParam, NumericListParam, EnumParam, PointerParam, LEVEL_ADVANCED, STEPS_PARALLEL
+from pyworkflow.utils import Message, removeBaseExt, copyFile, moveFile
 from scipion.constants import PYTHON
 from tomo.protocols import ProtTomoBase
 from tomo.protocols.protocol_base import ProtTomoImportAcquisition
 
 from pyseg import Plugin
 from pyseg.constants import FILS_SCRIPT, FILS_SOURCES, FILS_TARGETS, MEMBRANE, \
-    MEMBRANE_OUTER_SURROUNDINGS, PRESEG_AREAS_LIST
-from pyseg.utils import encodePresegArea
+    MEMBRANE_OUTER_SURROUNDINGS, PRESEG_AREAS_LIST, IN_STARS_DIR, OUT_STARS_DIR, FILS_OUT, GRAPHS_OUT, FILS_FILES
+from pyseg.utils import encodePresegArea, createStarDirectories, genOutSplitStarFileName, getPrevPysegProtOutStarFiles
 
 TH_MODE_IN = 0
 TH_MODE_OUT = 1
@@ -81,8 +83,14 @@ class ProtPySegFils(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
 
     _label = 'fils'
     _devStatus = BETA
-    _xmlSources = None
-    _xmlTargets = None
+
+    def __init__(self,  **kwargs):
+        super().__init__(**kwargs)
+        self.stepsExecutionMode = STEPS_PARALLEL
+        self._xmlSources = None
+        self._xmlTargets = None
+        self._inStarDir = None
+        self._outStarDir = None
 
     # -------------------------- DEFINE param functions ----------------------
     def _defineParams(self, form):
@@ -111,23 +119,23 @@ class ProtPySegFils(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
                        default=TH_MODE_IN,
                        choices=['in', 'out'],
                        label='Orientation with respect to the membrane/filament',
-                       display=EnumParam.DISPLAY_HLIST)
-        group = form.addGroup('Filament geometry refinement')
+                       display=EnumParam.DISPLAY_HLIST,
+                       expertLevel=LEVEL_ADVANCED)
+        group = form.addGroup('Filament geometry refinement ranges [min max]')
         group.addParam('gRgEud', NumericListParam,
-                       label='Euclidean distance of vertices source-target (nm)',
+                       label='Euclidean distance (STRAIGHT) range of vertices source-target (nm)',
                        default='1 1000',
-                       allowsNull=False,
-                       help='Euclidean distance between source and target vertices in nm.')
+                       allowsNull=False)
         group.addParam('gRgLen', NumericListParam,
-                       label='Geodesic distance of vertices source-target (nm)',
+                       label='Geodesic distance (CURVED) range of vertices source-target (nm)',
                        default='1 1000',
-                       allowsNull=False,
-                       help='Geodesic distance trough the graph between source and target vertices in nm.')
+                       allowsNull=False)
         group.addParam('gRgSin', NumericListParam,
-                       label='Filament sinuosity',
+                       label='Filament sinuosity range (FLEXIBILITY, normally the ratio geoLen / eucLen)',
                        default='0 1000',
-                       allowsNull=False,
-                       help='Filament sinuosity, geodesic/euclidean distances ratio.')
+                       allowsNull=False)
+
+        form.addParallelSection(threads=3, mpi=1)
 
     @staticmethod
     def _defineFilsXMLParams(form, d, isSources=True):
@@ -142,7 +150,7 @@ class ProtPySegFils(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
                       allowsNull=False,
                       help='Source or destination (depending if you are in the Sources or Targets tab) '
                            'area for the filament calculation.')
-        group = form.addGroup('%sEuclidean distance to membrane (nm)' % sectionName)
+        group = form.addGroup('%sEuclidean (STRAIGHT) distance to membrane (nm)' % sectionName)
         group.addParam(paramList[1], FloatParam,
                        label='Min',
                        default=valList[1],
@@ -155,8 +163,9 @@ class ProtPySegFils(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
                        default=valList[3],
                        choices=['[min, max]', '[-inf, min] U [max, +inf]'],
                        label='range',
+                       expertLevel=LEVEL_ADVANCED,
                        display=EnumParam.DISPLAY_HLIST)
-        group = form.addGroup('%sGeodesic distance to membrane (nm)' % sectionName)
+        group = form.addGroup('%sGeodesic distance to membrane (nm)' % sectionName, expertLevel=LEVEL_ADVANCED)
         group.addParam(paramList[4], FloatParam,
                        label='Min',
                        default=valList[4],
@@ -170,7 +179,7 @@ class ProtPySegFils(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
                        choices=['[min, max]', '[-inf, min] U [max, +inf]'],
                        label='range',
                        display=EnumParam.DISPLAY_HLIST)
-        group = form.addGroup('%sGeodesic length to membrane (nm)' % sectionName)
+        group = form.addGroup('%sGeodesic (CURVED) length to membrane (nm)' % sectionName)
         group.addParam(paramList[7], FloatParam,
                        label='Min',
                        default=valList[7],
@@ -183,8 +192,10 @@ class ProtPySegFils(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
                        default=valList[9],
                        choices=['[min, max]', '[-inf, min] U [max, +inf]'],
                        label='range',
+                       expertLevel=LEVEL_ADVANCED,
                        display=EnumParam.DISPLAY_HLIST)
-        group = form.addGroup('%sFilament sinuosity' % sectionName)
+        group = form.addGroup('%sFilament sinuosity (FLEXIBILITY, normally the ratio '
+                              'geodesicLen/euclideanLen)' % sectionName)
         group.addParam(paramList[10], FloatParam,
                        label='Min',
                        default=valList[10],
@@ -197,23 +208,47 @@ class ProtPySegFils(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
                        default=valList[12],
                        choices=['[min, max]', '[-inf, min] U [max, +inf]'],
                        label='range',
+                       expertLevel=LEVEL_ADVANCED,
                        display=EnumParam.DISPLAY_HLIST)
 
     def _insertAllSteps(self):
-        self._insertFunctionStep(self.pysegFils)
+        inStarDict = self._initialize()
+        for starFile, outDir in inStarDict.items():
+            self._insertFunctionStep(self.pysegFils, starFile, outDir, prerequisites=[])
 
-    def pysegFils(self):
-        # Generate output dir
+    def _initialize(self):
         outDir = self._getExtraPath()
-        makePath(outDir)
-
+        # Split the input file into n (threads) files
+        self._outStarDir, self._inStarDir = createStarDirectories(self._getExtraPath())
         # Generate sources xml
         self._createFilsXmlFile(Plugin.getHome(FILS_SOURCES), outDir)
         # Generate targets xml
         self._createFilsXmlFile(Plugin.getHome(FILS_TARGETS), outDir, isSource=False)
+        # Generate 1 star file per vesicle to parallelize the calls to Fils and improve performance
+        inStarFiles = []
+        for inStar in sorted(glob.glob(self.inGraphsProt.get()._getExtraPath(OUT_STARS_DIR, '*.star'))):
+            inStarFiles.extend(splitPysegStarFile(inStar, self._getExtraPath(IN_STARS_DIR),
+                                                  j=1,
+                                                  prefix=FILS_OUT + '_',
+                                                  fileCounter=len(inStarFiles) + 1))
+        # Associate a different output folder to each star file generated to store the fils resulting star file because
+        # it is always generated with the same name, so there can be concurrency problems in parallelization
+        inStarDict = {}
+        filsResultsDir = self._getExtraPath(FILS_FILES)
+        mkdir(filsResultsDir)
+        for i, starFile in enumerate(inStarFiles):
+            outDirName = join(filsResultsDir, 'outDir_%03d' % i)
+            mkdir(outDirName)
+            inStarDict[starFile] = outDirName
 
+        return inStarDict
+
+    def pysegFils(self, starFile, outDir):
         # Script called
-        Plugin.runPySeg(self, PYTHON, self._getFilsCommand(outDir))
+        Plugin.runPySeg(self, PYTHON, self._getFilsCommand(outDir, starFile))
+        # Fils returns the same star file name, so it will be renamed to avoid overwriting
+        moveFile(join(outDir, 'fil_mb_sources_to_no_mb_targets_net.star'),
+                 genOutSplitStarFileName(self._outStarDir, starFile.replace(GRAPHS_OUT, FILS_OUT)))
 
     # --------------------------- INFO functions -----------------------------------
     def _summary(self):
@@ -226,10 +261,10 @@ class ProtPySegFils(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         return summary
 
     # --------------------------- UTIL functions -----------------------------------
-    def _getFilsCommand(self, outDir):
+    def _getFilsCommand(self, outDir, starFile):
         filsCmd = ' '
         filsCmd += '%s ' % Plugin.getHome(FILS_SCRIPT)
-        filsCmd += '--inStar %s ' % self._getGraphsStarFile()
+        filsCmd += '--inStar %s ' % starFile
         filsCmd += '--outDir %s ' % outDir
         filsCmd += '--inSources %s ' % abspath(self._xmlSources)
         filsCmd += '--inTargets %s ' % abspath(self._xmlTargets)
@@ -338,3 +373,13 @@ class ProtPySegFils(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         #   0 --> [min, max], expected as '+'
         #   1 --> [-inf, min] U [max, +inf]'], expected as any other thing
         return '+' if val == 0 else '-'
+
+    # def _getGraphsOutStarFiles(prot):
+    #     inStarList = glob.glob(prot.inGraphsProt.get()._getExtraPath(join(OUT_STARS_DIR, '*.star')))
+    #     outStarFiles = []
+    #     for inStarFile in inStarList:
+    #         outStarFile = prot._getExtraPath(IN_STARS_DIR, basename(inStarFile))
+    #         symlink(abspath(inStarFile), abspath(outStarFile))
+    #         outStarFiles.append(outStarFile)
+    #
+    #     return outStarFiles

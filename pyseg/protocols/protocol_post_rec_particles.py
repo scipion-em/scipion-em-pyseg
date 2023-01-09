@@ -24,21 +24,25 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
-from os.path import exists, abspath
+from enum import Enum
 
 from pwem.protocols import EMProtocol, PointerParam
+from pyseg.convert import readPysegSubtomograms
 from pyseg.utils import getFinalMaskFileName, checkMaskFormat
 from pyworkflow import BETA
-from pyworkflow.protocol import String, FloatParam, LEVEL_ADVANCED, BooleanParam, GT, LE, GE
+from pyworkflow.protocol import String, FloatParam, LE, GE
 from pyworkflow.utils import Message, makePath
-from reliontomo.convert import writeSetOfSubtomograms
+from reliontomo.convert import createWriterTomo
 from scipion.constants import PYTHON
 from tomo.objects import SetOfSubTomograms
 from tomo.protocols import ProtTomoBase
 
 from pyseg import Plugin
 from pyseg.constants import POST_REC_OUT, POST_REC_SCRIPT_MEMB_ATT, SEE_METHODS_TAB
-from pyseg.convert import readStarFile, RELION_SUBTOMO_STAR
+
+
+class outputObjects(Enum):
+    subtomograms = SetOfSubTomograms
 
 
 class ProtPySegPostRecParticles(EMProtocol, ProtTomoBase):
@@ -82,22 +86,6 @@ class ProtPySegPostRecParticles(EMProtocol, ProtTomoBase):
                        condition='mbMask',
                        help='Value 0 suppress the area corresponding to the suppression mask, while higher values '
                             'up to 1 attenuate it.')
-        group = form.addGroup('Gaussian low pass filter', expertLevel=LEVEL_ADVANCED)
-        group.addParam('doGaussLowPassFilter', BooleanParam,
-                       label='Apply filter to the particles?',
-                       default=False)
-        group.addParam('cutOffRes', FloatParam,
-                       label='Cut-off resolution (nm)',
-                       condition='doGaussLowPassFilter')
-        group.addParam('ampCutOff', FloatParam,
-                       label='Amplitude at cut-off (0, 1]',
-                       default=0.01,
-                       validators=[GT(0), LE(1)],
-                       condition='doGaussLowPassFilter')
-        group.addParam('filterCTF', BooleanParam,
-                       label='Apply this filter to the CTF?',
-                       default=False,
-                       condition='doGaussLowPassFilter')
         form.addParallelSection(threads=4, mpi=0)
 
     def _insertAllSteps(self):
@@ -114,9 +102,12 @@ class ProtPySegPostRecParticles(EMProtocol, ProtTomoBase):
         if self.mbMask.get():
             checkMaskFormat(self.mbMask.get())  # Membrane mask for attenuation (optional)
         # Write star from set of subtomograms
-        imgSet = self.inputSubtomos.get()
-        imgStar = self._getExtraPath(self.inStarName)
-        writeSetOfSubtomograms(imgSet, imgStar, isPyseg=True)
+        subtomoSet = self.inputSubtomos.get()
+        subTomoStar = self._getExtraPath(self.inStarName)
+        writer = createWriterTomo(isPyseg=True)
+        writer.subtomograms2Star(subtomoSet, subTomoStar)
+        # Convert the mask format if necessary
+        checkMaskFormat(self.inMask.get())
 
     def pysegPostRec(self, outStar):
         # Generate output subtomo dir
@@ -130,12 +121,15 @@ class ProtPySegPostRecParticles(EMProtocol, ProtTomoBase):
         self.subtomoSet = SetOfSubTomograms.create(self._getPath(), template='setOfSubTomograms%s.sqlite')
         self.subtomoSet.copyInfo(self.inputSubtomos.get())
         # Read generated star file and create the output objects
-        warningMsg = readStarFile(self, self.subtomoSet, RELION_SUBTOMO_STAR, starFile=outStar)
+        warningMsg, _ = readPysegSubtomograms(outStar,
+                                              self.inputSubtomos.get(),
+                                              self.subtomoSet)
         if warningMsg:
             self.warningMsg = String(warningMsg)
             self._store()
 
-        self._defineOutputs(outputSetOfSubtomogram=self.subtomoSet)
+        self._defineOutputs(**{outputObjects.subtomograms.name: self.subtomoSet})
+        self._defineSourceRelation(self.inputSubtomos.get(), self.subtomoSet)
 
     # --------------------------- INFO functions -----------------------------------
     def _summary(self):
@@ -184,49 +178,18 @@ class ProtPySegPostRecParticles(EMProtocol, ProtTomoBase):
                 validationMsg.append('Sampling rate of the input subtomograms and the input membrane suppression mask '
                                      'should be the same\n'
                                      '%2.3f != %2.3f' % (subTomosRes, mbMaskRes))
-        if self.doGaussLowPassFilter.get():
-            # CTF3D required
-            COORD_CTF_3D = '_3dcftMrcFile'
-            coord3D = self.inputSubtomos.get().getCoordinates3D().get().getFirstItem()
-            ctf3d = getattr(coord3D, COORD_CTF_3D, None)
-            if ctf3d:
-                ctf3d = abspath(ctf3d.get())
-                if not exists(ctf3d):
-                    validationMsg.append('CTF3D not found.\nValue read for the first coordinate is\n%s = %s'
-                                         % (COORD_CTF_3D, ctf3d))
-            else:
-                validationMsg.append('CTF3D is required to apply the gaussian low pass filter. Please calculate it\n'
-                                     'or do not apply the filter.')
-            failingInputs = []
-            if not self.cutOffRes.get():
-                failingInputs.append('Cut-off resolution')
-            if not self.ampCutOff.get():
-                failingInputs.append('Amplitude at cut-off')
-            if failingInputs:
-                validationMsg.append('Inputs *%s* should not be empty to apply the gaussian low pas filter' %
-                                     ', '.join(failingInputs))
         return validationMsg
 
     # --------------------------- UTIL functions -----------------------------------
 
     def _getCommand(self, outDir, outStar):
-        doGaussianLPFilter = self.doGaussLowPassFilter.get()
-        cutOffRes = 0
-        ampCutOff = 0
-        if doGaussianLPFilter:
-            cutOffRes = self.cutOffRes.get()
-            ampCutOff = self.ampCutOff.get()
         posRecCmd = ' '
         posRecCmd += '%s ' % Plugin.getHome(POST_REC_SCRIPT_MEMB_ATT)
         posRecCmd += '--inStar %s ' % self._getExtraPath(self.inStarName)
         posRecCmd += '--inMask %s ' % getFinalMaskFileName(self.inMask.get())
         posRecCmd += '--inMaskMbSup %s ' % (getFinalMaskFileName(self.mbMask.get()) if self.mbMask.get() else 'None')
         posRecCmd += '--mbSupFactor %s ' % (self.mbSupFactor.get() if self.mbSupFactor.get() else '0')
-        posRecCmd += '--doGaussLowPass %s ' % doGaussianLPFilter
-        posRecCmd += '--resolution %s ' % (float(self.inputSubtomos.get().getSamplingRate()) / 10)  # in nm
-        posRecCmd += '--cutOffRes %s ' % cutOffRes
-        posRecCmd += '--ampCutOff %s ' % ampCutOff
-        posRecCmd += '--filterCTF %s ' % self.filterCTF.get()
+        posRecCmd += '--doGaussLowPass %s ' % False
         posRecCmd += '--outDir %s ' % outDir
         posRecCmd += '--outStar %s ' % outStar
         posRecCmd += '-j %s ' % self.numberOfThreads.get()

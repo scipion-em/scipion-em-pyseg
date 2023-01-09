@@ -1,8 +1,9 @@
+# -*- coding: utf-8 -*-
 # **************************************************************************
 # *
 # * Authors:     Scipion Team
 # *
-# * Unidad de  Bioinformatica of Centro Nacional de Biotecnologia , CSIC
+# * National Center of Biotechnology, CSIC, Spain
 # *
 # * This program is free software; you can redistribute it and/or modify
 # * it under the terms of the GNU General Public License as published by
@@ -23,8 +24,20 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
-from pyseg.viewers.vesicle_graphs_fils_viewer import VesicleViewerDialog
-from pyseg.viewers.vesicle_visualization_tree import VesicleViewerProvider
-from pyseg.viewers.viewers_data import TomoViz4PysegDataViewer
+from pwem.wizards import EmWizard
+from pyseg.protocols import ProtPySegGraphs
 
 
+class PysegGraphsDistanceToMbWizard(EmWizard):
+    maxLenParamName = 'maxLen'
+    _targets = [(ProtPySegGraphs, [maxLenParamName])]
+
+    def show(self, form):
+        pysegGraphsProt = form.protocol
+        presegProt = pysegGraphsProt.inSegProt.get()
+        if not presegProt:
+            print('An input pre-segmentation protocol is required to get the automated value for '
+                  'the current parameter.')
+            return
+
+        form.setVar(self.maxLenParamName, presegProt.sgMembNeigh.get())

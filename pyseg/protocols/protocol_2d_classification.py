@@ -24,22 +24,24 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
+from enum import Enum
 from os.path import abspath, join, exists
 import glob
 from emtable import Table
 from pwem.protocols import EMProtocol, PointerParam
+from pyseg.convert import readPysegSubtomograms
 from pyseg.utils import checkMaskFormat, getFinalMaskFileName
 from pyworkflow import BETA
 from pyworkflow.object import String
 from pyworkflow.protocol import EnumParam, IntParam, LEVEL_ADVANCED, FloatParam, GE, LT, BooleanParam
 from pyworkflow.utils import Message, makePath
-from reliontomo.convert import writeSetOfSubtomograms
+from reliontomo.convert import createWriterTomo
 from scipion.constants import PYTHON
-from tomo.objects import SetOfSubTomograms
+from tomo.objects import SetOfSubTomograms, SetOfClassesSubTomograms
 from tomo.protocols import ProtTomoBase
 from pyseg import Plugin
 from pyseg.constants import PLANE_ALIGN_CLASS_OUT, PLANE_ALIGN_CLASS_SCRIPT, SEE_METHODS_TAB
-from pyseg.convert import readStarFile, RELION_SUBTOMO_STAR
+
 
 # Processing level choices
 PARTICLE_FLATENNING = 0     # Particle flattening
@@ -67,6 +69,11 @@ NOT_AP_CONDITION = 'clusteringAlg != %s' % AFFINITY_PROP
 # Affinity Propagation reference choices
 EXEMPLAR = 0
 AVERAGE = 1
+
+
+class outputObjects(Enum):
+    subtomograms = SetOfSubTomograms
+    classes = SetOfClassesSubTomograms
 
 
 class ProtPySegPlaneAlignClassification(EMProtocol, ProtTomoBase):
@@ -206,7 +213,8 @@ class ProtPySegPlaneAlignClassification(EMProtocol, ProtTomoBase):
         """
         subtomoSet = self.inputSubtomos.get()
         subTomoStar = self._getExtraPath(self.inStarName)
-        writeSetOfSubtomograms(subtomoSet, subTomoStar, isPyseg=True)
+        writer = createWriterTomo(isPyseg=True)
+        writer.subtomograms2Star(subtomoSet, subTomoStar)
         # Convert the mask format if necessary
         checkMaskFormat(self.inMask.get())
 
@@ -217,21 +225,25 @@ class ProtPySegPlaneAlignClassification(EMProtocol, ProtTomoBase):
     def createOutputStep(self):
         # Read generated star file and create the output objects:
         # 1) Set of subtomograms
-        outStar = self._getGatheredStarFile()
-        subtomoSet = SetOfSubTomograms.create(self._getPath(), template='setOfSubTomograms%s.sqlite')
-        subtomoSet.copyInfo(self.inputSubtomos.get())
-        warningMsg, self._dataTable = readStarFile(self, subtomoSet, RELION_SUBTOMO_STAR, starFile=outStar,
-                                                   returnTable=True)
+        inSubtomoSet = self.inputSubtomos.get()
+        outSubtomoSet = SetOfSubTomograms.create(self._getPath(), template='setOfSubTomograms%s.sqlite')
+        outSubtomoSet.copyInfo(self.inputSubtomos.get())
+        warningMsg, self._dataTable = readPysegSubtomograms(self._getGatheredStarFile(),
+                                                            inSubtomoSet,
+                                                            outSubtomoSet)
         if warningMsg:
             self._warningMsg.set(warningMsg)
             self._store()
-        self._defineOutputs(outputSetOfSubtomogram=subtomoSet)
 
         # 2) Set of classes subtomograms
-        classesSet = self._createSetOfClassesSubTomograms(subtomoSet)
+        classesSet = SetOfClassesSubTomograms.create(self._getPath(), template='setOfClasses%s.sqlite')
+        classesSet.setImages(outSubtomoSet)
         self._fillClasses(classesSet)
-        self._defineOutputs(outputClasses=classesSet)
-        self._defineSourceRelation(subtomoSet, classesSet)
+
+        self._defineOutputs(**{outputObjects.subtomograms.name: outSubtomoSet,
+                               outputObjects.classes.name: classesSet})
+        self._defineSourceRelation(inSubtomoSet, outSubtomoSet)
+        self._defineSourceRelation(inSubtomoSet, classesSet)
 
     # --------------------------- INFO functions -----------------------------------
     def _summary(self):
