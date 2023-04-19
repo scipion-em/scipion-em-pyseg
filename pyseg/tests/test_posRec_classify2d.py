@@ -69,7 +69,7 @@ class TestPostRecAndClassify2d(BaseTest):
                                              samplingRate=cls.samplingRate)
 
         cls.launchProtocol(protImportTomogram)
-        outputTomos = getattr(protImportTomogram, 'outputTomograms', None)
+        outputTomos = getattr(protImportTomogram, 'Tomograms', None)
         cls.assertIsNotNone(outputTomos, 'No tomograms were genetated.')
         return outputTomos
 
