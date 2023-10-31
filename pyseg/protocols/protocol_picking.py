@@ -30,7 +30,6 @@ from os.path import basename, join
 import xml.etree.ElementTree as ET
 from pwem.protocols import EMProtocol
 from pyseg.convert import readPysegCoordinates
-from pyworkflow import BETA
 from pyworkflow.protocol import FloatParam, EnumParam, PointerParam, IntParam, LEVEL_ADVANCED, STEPS_PARALLEL
 from pyworkflow.utils import Message, removeBaseExt, copyFile, moveFile
 from scipion.constants import PYTHON
@@ -61,7 +60,6 @@ class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
     """extract particles from a filament network of a oriented single membrane graph"""
 
     _label = 'picking'
-    _devStatus = BETA
 
     def __init__(self,  **kwargs):
         super().__init__(**kwargs)

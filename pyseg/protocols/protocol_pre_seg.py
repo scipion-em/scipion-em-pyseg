@@ -31,7 +31,6 @@ from pwem.convert.headers import fixVolume
 from pwem.emlib.image import ImageHandler
 from pwem.protocols import EMProtocol
 from pyseg.convert.convert import getVesicleIdFromSubtomoName
-from pyworkflow import BETA
 from pyworkflow.protocol import NumericListParam, IntParam, FloatParam, GT, LEVEL_ADVANCED, PointerParam
 from pyworkflow.utils import Message, removeBaseExt, removeExt
 from scipion.constants import PYTHON
@@ -39,7 +38,7 @@ from tomo.objects import SetOfTomoMasks, TomoMask, SetOfSubTomograms, SubTomogra
 from pyseg import Plugin
 from pyseg.constants import PRESEG_SCRIPT, TOMOGRAM, PYSEG_LABEL, VESICLE, NOT_FOUND, \
     PYSEG_OFFSET_X, PYSEG_OFFSET_Y, PYSEG_OFFSET_Z, SEGMENTATION, RLN_ORIGIN_X, RLN_ORIGIN_Y, \
-    RLN_ORIGIN_Z, FROM_SCIPION, FROM_STAR_FILE
+    RLN_ORIGIN_Z
 from relion.convert import Table
 import numpy as np
 
@@ -55,7 +54,6 @@ class ProtPySegPreSegParticles(EMProtocol):
     """Segment membranes into membranes, inner surroundings and outer surroundings"""
 
     _label = 'preseg membranes'
-    _devStatus = BETA
     _starFile = None
 
     # -------------------------- DEFINE param functions ----------------------

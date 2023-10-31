@@ -32,7 +32,6 @@ import xml.etree.ElementTree as ET
 
 from pwem.protocols import EMProtocol
 from pyseg.convert.convert import splitPysegStarFile
-from pyworkflow import BETA
 from pyworkflow.protocol import FloatParam, NumericListParam, EnumParam, PointerParam, LEVEL_ADVANCED, STEPS_PARALLEL
 from pyworkflow.utils import Message, removeBaseExt, copyFile, moveFile
 from scipion.constants import PYTHON
@@ -82,7 +81,6 @@ class ProtPySegFils(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
     """filter a MbGraphMCF (Mean Cumulative Function) object by extracting a filament network"""
 
     _label = 'fils'
-    _devStatus = BETA
 
     def __init__(self,  **kwargs):
         super().__init__(**kwargs)
