@@ -71,12 +71,6 @@ class ProtPySegPreSegParticles(EMProtocol):
                       allowsNull=False,
                       help='Pointer to segmented and annotated tomograms within Scipion.')
         group = form.addGroup('Sub-volume splitting')
-        group.addParam('spSplit', NumericListParam,
-                       default='-1',
-                       allowsNull=False,
-                       label='Number of splits (X, Y, Z)',
-                       help='Parts in which the tomogram will be split, respecting X, Y and Z axis. Value -1'
-                            'is used to indicate no splitting.')
         group.addParam('spOffVoxels', IntParam,
                        label='Offset voxels',
                        default=1,
@@ -178,7 +172,6 @@ class ProtPySegPreSegParticles(EMProtocol):
         preSegCmd += '%s ' % Plugin.getHome(PRESEG_SCRIPT)
         preSegCmd += '--inStar %s ' % inStar
         preSegCmd += '--outDir %s ' % outDir
-        preSegCmd += '--spSplit %s ' % self.spSplit.get()
         preSegCmd += '--spOffVoxels %s ' % self.spOffVoxels.get()
         preSegCmd += '--sgVoxelSize %s ' % (float(self._getSamplingRate())/10)  # required in nm
         preSegCmd += '--sgThreshold %s ' % self.sgThreshold.get()
