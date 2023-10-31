@@ -67,7 +67,7 @@ FILS_FILES = 'filsFiles'
 
 # Third parties software
 CFITSIO = 'cfitsio'
-DISPERSE = 'disperse'
+DISPERSE = 'DisPerSE'
 
 # Data source codification
 FROM_SCIPION = 0

@@ -35,7 +35,7 @@ from pyseg.constants import PYSEG_HOME, PYSEG, PYSEG_SOURCE_URL, PYSEG_ENV_ACTIV
 
 _logo = "icon.png"
 _references = ['MartinezSanchez2020']
-__version__ = '3.1.1'
+__version__ = '3.1.2'
 
 
 class Plugin(pwem.Plugin):
@@ -81,7 +81,7 @@ class Plugin(pwem.Plugin):
             installationCmd = 'rm -rf %s && echo "%s" ' % (pysegHome, compErrMsg)
         else:
             thirdPartyPath = join(pysegHome, ('pyseg_system-%s' % DEFAULT_VERSION).replace('v', ''), 'sys', 'install',
-                                  DISPERSE, '0.9.24_pyseg_gcc7', 'sources')
+                                  DISPERSE.lower(), '0.9.24_pyseg_gcc7', 'sources')
 
             # PySeg Conda environment
             genPySegCondaEnvCmd = cls._genCmdToDefineSegCondaEnv()
@@ -124,10 +124,14 @@ class Plugin(pwem.Plugin):
 
     @classmethod
     def _genCmdToInstallDisperse(cls, thirdPartyPath, CFITSIO_BUILD_PATH, pySegDir):
-        installationCmd = 'tar zxf %s -C %s && ' % \
-                          (join(thirdPartyPath, 'disperse_v0.9.24_pyseg_gcc7.tar.gz'), pySegDir)
-        installationCmd += 'cd %s && ' % join(pySegDir, DISPERSE)
-        installationCmd += 'mkdir %s && ' % cls.getDisperseBuildPath(pySegDir)
+        # Remove old disperse included in pyseg distribution
+        zipName = 'master.zip'
+        buildPath = join(pySegDir, f'{DISPERSE}-master')
+        installationCmd = 'cd %s && rm -rf disperse* && ' % pySegDir
+        # Get the latest disperse
+        installationCmd += 'wget https://github.com/thierry-sousbie/DisPerSE/archive/refs/heads/%s && ' % zipName
+        installationCmd += 'unzip %s && ' % zipName
+        installationCmd += 'cd %s && ' % buildPath
         installationCmd += 'cmake . -DCMAKE_INSTALL_PREFIX=%s -DCFITSIO_DIR=%s && ' \
                            % (cls.getDisperseBuildPath(pySegDir), CFITSIO_BUILD_PATH)
         installationCmd += 'make && make install && '
@@ -187,7 +191,7 @@ class Plugin(pwem.Plugin):
         GCC = 'gcc'
         GPP = 'g++'
         minVer = 5
-        maxVer = 7
+        maxVer = 12
         gccVersion = Plugin._getCompilingDriversVer(compiler=GCC)
         gppVersion = Plugin._getCompilingDriversVer(compiler=GPP)
         if gccVersion != gppVersion or (gccVersion == gppVersion and (gccVersion < minVer or gccVersion > maxVer)):
