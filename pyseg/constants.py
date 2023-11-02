@@ -29,9 +29,9 @@ from os.path import join
 PYSEG = 'pySeg'
 PYSEG_HOME = 'PYSEG_HOME'
 DEFAULT_VERSION = 'v2.0.5'
-PYSEG_SOURCE_URL = 'https://github.com/anmartinezs/pyseg_system/archive/refs/tags/%s.zip' % DEFAULT_VERSION
+PYSEG_SOURCE_URL = 'https://github.com/anmartinezs/pyseg_system/archive/refs/tags/%s.tar.gz' % DEFAULT_VERSION
 
-PYSEG_ENV_NAME = 'pySeg-%s' % DEFAULT_VERSION
+PYSEG_ENV_NAME = '%s-%s' % (PYSEG, DEFAULT_VERSION)
 PYSEG_ENV_ACTIVATION = 'PYSEG_ENV_ACTIVATION'
 DEFAULT_ACTIVATION_CMD = 'conda activate %s' % PYSEG_ENV_NAME
 

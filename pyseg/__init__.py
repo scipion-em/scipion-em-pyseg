@@ -39,7 +39,6 @@ __version__ = '3.1.2'
 
 
 class Plugin(pwem.Plugin):
-
     _homeVar = PYSEG_HOME
 
     @classmethod
@@ -70,73 +69,83 @@ class Plugin(pwem.Plugin):
     def defineBinaries(cls, env):
         # At this point of the installation execution cls.getHome() is None, so the em path should be provided
         pysegHome = join(pwem.Config.EM_ROOT, PYSEG + '-' + DEFAULT_VERSION)
-        PYSEG_INSTALLED = '%s_installed' % PYSEG
+        pattern = '%s_installed'
+        CONDA_ENV_INSTALLED = pattern % PYSEG_ENV_NAME
+        PYSEG_SRC_DL = pattern % 'pysegSrcDl'
+        CFITSIO_INSTALLED = pattern % CFITSIO
+        DISPERSE_INSTALLED = pattern % DISPERSE
+        PYSEG_INSTALLED = pattern % PYSEG
         compErrMsg = cls._checkCompilingDrivers()
         disperseCompiledFiles = ['fieldconv', 'mse', 'netconv', 'skelconv']
         disperseCompiledFiles = [join(cls.getDisperseBuildPath(pysegHome), 'bin', binFile) for binFile in
                                  disperseCompiledFiles]
 
         if compErrMsg:
-            # Check gcc and g++ versions (compatible from 5 to 7, both included)
+            # Check gcc and g++ versions (compatible from 5 to 12, both included)
             installationCmd = 'rm -rf %s && echo "%s" ' % (pysegHome, compErrMsg)
         else:
             thirdPartyPath = join(pysegHome, ('pyseg_system-%s' % DEFAULT_VERSION).replace('v', ''), 'sys', 'install',
                                   DISPERSE.lower(), '0.9.24_pyseg_gcc7', 'sources')
 
             # PySeg Conda environment
-            genPySegCondaEnvCmd = cls._genCmdToDefineSegCondaEnv()
+            genPySegCondaEnvCmd = cls._genCmdToDefineSegCondaEnv(CONDA_ENV_INSTALLED)
             # PySeg source code
-            getPySegCmd = cls._genCmdToGetPySegSrcCode(pysegHome)
+            getPySegCmd = cls._genCmdToGetPySegSrcCode(pysegHome, PYSEG_SRC_DL)
             # Third party software - CFitsIO
-            installCFitsIOCmd, CFITSIO_BUILD_PATH = cls._genCmdToInstallCFitsIO(thirdPartyPath, pysegHome)
+            installCFitsIOCmd, cfitBuildPath = cls._genCmdToInstallCFitsIO(thirdPartyPath, pysegHome, CFITSIO_INSTALLED)
             # Third party software - disperse
-            installDisperseCmd = cls._genCmdToInstallDisperse(thirdPartyPath, CFITSIO_BUILD_PATH, pysegHome)
-
-            installationCmd = ' && '.join([genPySegCondaEnvCmd, getPySegCmd, installCFitsIOCmd, installDisperseCmd])
-            installationCmd += ' && touch %s' % PYSEG_INSTALLED  # Flag installation finished
-
+            installDisperseCmd = cls._genCmdToInstallDisperse(cfitBuildPath, pysegHome, DISPERSE_INSTALLED)
+            # Flag installation finished
+            genFinalTargetCmd = 'cd %s && touch %s' % (pysegHome, PYSEG_INSTALLED)
+            installationCmd = [(genPySegCondaEnvCmd, CONDA_ENV_INSTALLED),
+                               (getPySegCmd, PYSEG_SRC_DL),
+                               (installCFitsIOCmd, CFITSIO_INSTALLED),
+                               (installDisperseCmd, DISPERSE_INSTALLED),
+                               (genFinalTargetCmd, [PYSEG_INSTALLED] + disperseCompiledFiles)]
         env.addPackage(PYSEG,
                        version=DEFAULT_VERSION,
                        tar='void.tgz',
-                       commands=[(installationCmd, [PYSEG_INSTALLED] + disperseCompiledFiles)],
+                       commands=installationCmd,
                        neededProgs=["wget", "make", "cmake", "tar"],
                        libChecks=["gsl"],  # This is how the libgsl-dev is named by the system package manager --> pkg-config --list-all | grep gsl --> gsl GSL - GNU Scientific Library
                        default=True)
 
-    @classmethod
-    def _genCmdToGetPySegSrcCode(cls, pySegDir):
-        installationCmd = 'wget ' + PYSEG_SOURCE_URL
-        installationCmd += ' && unzip %s' % join(pySegDir, basename(PYSEG_SOURCE_URL))
-        installationCmd += ' && rm -rf %s' % join(pySegDir, DEFAULT_VERSION + '.zip')  # rm downloaded file (>600 MB)
-
+    @staticmethod
+    def _genCmdToGetPySegSrcCode(pySegDir, controlFile):
+        installationCmd = 'wget %s && ' % PYSEG_SOURCE_URL
+        installationCmd += 'tar zxf %s --directory=%s && ' % (join(pySegDir, basename(PYSEG_SOURCE_URL)), pySegDir)
+        installationCmd += 'rm -rf %s && ' % join(pySegDir, DEFAULT_VERSION + '.zip')  # rm downloaded file (>600 MB)
+        installationCmd += 'cd %s && ' % pySegDir
+        installationCmd += 'touch %s ' % controlFile
         return installationCmd
 
     @classmethod
-    def _genCmdToInstallCFitsIO(cls, thirdPartyPath, pySegDir):
+    def _genCmdToInstallCFitsIO(cls, thirdPartyPath, pySegDir, controlFile):
         CFITSIO_BUILD_PATH = join(pySegDir, '%s_build' % CFITSIO)
-        installationCmd = 'tar zxf %s -C %s && ' % (join(thirdPartyPath, 'cfitsio_3.380.tar.gz'), pySegDir)
+        installationCmd = 'tar zxf %s --directory=%s && ' % (join(thirdPartyPath, 'cfitsio_3.380.tar.gz'), pySegDir)
         installationCmd += 'cd %s && ' % join(pySegDir, CFITSIO)
         installationCmd += 'mkdir %s && ' % CFITSIO_BUILD_PATH
         installationCmd += './configure --prefix=%s && ' % CFITSIO_BUILD_PATH
-        installationCmd += 'make && make install'
-
+        installationCmd += 'make && make install && '
+        installationCmd += 'cd %s && ' % pySegDir
+        installationCmd += 'touch %s ' % controlFile
         return installationCmd, CFITSIO_BUILD_PATH
 
     @classmethod
-    def _genCmdToInstallDisperse(cls, thirdPartyPath, CFITSIO_BUILD_PATH, pySegDir):
+    def _genCmdToInstallDisperse(cls, CFITSIO_BUILD_PATH, pySegDir, controlFile):
         # Remove old disperse included in pyseg distribution
-        zipName = 'master.zip'
+        zipName = 'master.tar.gz'
         buildPath = join(pySegDir, f'{DISPERSE}-master')
         installationCmd = 'cd %s && rm -rf disperse* && ' % pySegDir
         # Get the latest disperse
         installationCmd += 'wget https://github.com/thierry-sousbie/DisPerSE/archive/refs/heads/%s && ' % zipName
-        installationCmd += 'unzip %s && ' % zipName
+        installationCmd += 'tar zxf %s --directory=%s && ' % (zipName, pySegDir)
         installationCmd += 'cd %s && ' % buildPath
         installationCmd += 'cmake . -DCMAKE_INSTALL_PREFIX=%s -DCFITSIO_DIR=%s && ' \
                            % (cls.getDisperseBuildPath(pySegDir), CFITSIO_BUILD_PATH)
         installationCmd += 'make && make install && '
-        installationCmd += 'cd ..'
-
+        installationCmd += 'cd %s && ' % pySegDir
+        installationCmd += 'touch %s ' % controlFile
         return installationCmd
 
     @staticmethod
@@ -144,11 +153,11 @@ class Plugin(pwem.Plugin):
         return join(pySegDir, '%s_build' % DISPERSE)
 
     @classmethod
-    def _genCmdToDefineSegCondaEnv(cls):
+    def _genCmdToDefineSegCondaEnv(cls, controlFileName):
         installationCmd = cls.getCondaActivationCmd()
 
         # Create the environment
-        installationCmd += ' conda create -y -n %s -c conda-forge -c anaconda python=3.7 ' \
+        installationCmd += 'conda create -y -n %s -c conda-forge -c anaconda python=3.7 ' \
                            'opencv=4.2.0 ' \
                            'graph-tool=2.29  ' \
                            'future=0.18.2=py37_0 && ' % PYSEG_ENV_NAME
@@ -167,9 +176,10 @@ class Plugin(pwem.Plugin):
         installationCmd += 'pip install scikit-learn==0.20.4 && '
         installationCmd += 'pip install scikit-fmm==2021.2.2 && '
         installationCmd += 'pip install scipy==1.2.1 && '
-        installationCmd += 'pip install vtk==8.1.2 '
-        installationCmd += 'pip install astropy==4.1 '
-        installationCmd += 'pip install imageio==2.9.0 '
+        installationCmd += 'pip install vtk==8.1.2 && '
+        installationCmd += 'pip install astropy==4.1 &&'
+        installationCmd += 'pip install imageio==2.9.0 &&'
+        installationCmd += 'touch %s ' % controlFileName
         return installationCmd
 
     @classmethod
@@ -203,9 +213,3 @@ class Plugin(pwem.Plugin):
                       (GCC, gccVersion, GPP, gppVersion, minVer, maxVer)
 
         return compMsg
-
-
-
-
-
-
