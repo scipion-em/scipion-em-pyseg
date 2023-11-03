@@ -1,6 +1,22 @@
-=======================
-Scipion - PySeg plugin
-=======================
+========================
+Scipion plugin for PySeg
+========================
+
+.. image:: https://img.shields.io/pypi/v/scipion-em-pyseg.svg
+        :target: https://pypi.python.org/pypi/scipion-em-pyseg
+        :alt: PyPI release
+
+.. image:: https://img.shields.io/pypi/l/scipion-em-pyseg.svg
+        :target: https://pypi.python.org/pypi/scipion-em-pyseg
+        :alt: License
+
+.. image:: https://img.shields.io/pypi/pyversions/scipion-em-pyseg.svg
+        :target: https://pypi.python.org/pypi/scipion-em-pyseg
+        :alt: Supported Python versions
+
+.. image:: https://img.shields.io/pypi/dm/scipion-em-pyseg
+        :target: https://pypi.python.org/pypi/scipion-em-pyseg
+        :alt: Downloads
 
 This plugin allows to use PySeg_ - De novo analysis for cryo-electron tomography - within the Scipion framework.
 
