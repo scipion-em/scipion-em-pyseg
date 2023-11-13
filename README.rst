@@ -1,6 +1,22 @@
-=======================
-Scipion - PySeg plugin
-=======================
+========================
+Scipion plugin for PySeg
+========================
+
+.. image:: https://img.shields.io/pypi/v/scipion-em-pyseg.svg
+        :target: https://pypi.python.org/pypi/scipion-em-pyseg
+        :alt: PyPI release
+
+.. image:: https://img.shields.io/pypi/l/scipion-em-pyseg.svg
+        :target: https://pypi.python.org/pypi/scipion-em-pyseg
+        :alt: License
+
+.. image:: https://img.shields.io/pypi/pyversions/scipion-em-pyseg.svg
+        :target: https://pypi.python.org/pypi/scipion-em-pyseg
+        :alt: Supported Python versions
+
+.. image:: https://img.shields.io/pypi/dm/scipion-em-pyseg
+        :target: https://pypi.python.org/pypi/scipion-em-pyseg
+        :alt: Downloads
 
 This plugin allows to use PySeg_ - De novo analysis for cryo-electron tomography - within the Scipion framework.
 
@@ -22,12 +38,7 @@ Setup
 
         sudo apt-get install libgsl-dev
 
-    3. gcc/g++ version greater or equal to 5 and lower or equal to 7 (for DisPerSE_ compilation). In Ubuntu,
-       the installation command is:
-
-    .. code-block::
-
-        sudo apt -y install gcc-5 g++-5
+    3. gcc/g++ version greater or equal to 5 (for DisPerSE_ compilation).
 
 ============
 Installation

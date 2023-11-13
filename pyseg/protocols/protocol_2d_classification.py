@@ -31,7 +31,6 @@ from emtable import Table
 from pwem.protocols import EMProtocol, PointerParam
 from pyseg.convert import readPysegSubtomograms
 from pyseg.utils import checkMaskFormat, getFinalMaskFileName
-from pyworkflow import BETA
 from pyworkflow.object import String
 from pyworkflow.protocol import EnumParam, IntParam, LEVEL_ADVANCED, FloatParam, GE, LT, BooleanParam
 from pyworkflow.utils import Message, makePath
@@ -80,7 +79,6 @@ class ProtPySegPlaneAlignClassification(EMProtocol, ProtTomoBase):
     """Unsupervised and deterministic classification of membrane-bound particles"""
 
     _label = '2D classification'
-    _devStatus = BETA
     inStarName = 'input_particles.star'
     _dataTable = Table()
     _outDir = None

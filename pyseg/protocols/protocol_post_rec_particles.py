@@ -29,7 +29,6 @@ from enum import Enum
 from pwem.protocols import EMProtocol, PointerParam
 from pyseg.convert import readPysegSubtomograms
 from pyseg.utils import getFinalMaskFileName, checkMaskFormat
-from pyworkflow import BETA
 from pyworkflow.protocol import String, FloatParam, LE, GE
 from pyworkflow.utils import Message, makePath
 from reliontomo.convert import createWriterTomo
@@ -49,7 +48,6 @@ class ProtPySegPostRecParticles(EMProtocol, ProtTomoBase):
     """post-process already reconstructed particles: rot angle randomization and membrane suppression"""
 
     _label = 'posrec'
-    _devStatus = BETA
     inStarName = 'input_particles.star'
     warningMsg = None
     subtomoSet = None
