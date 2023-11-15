@@ -32,7 +32,6 @@ from pyseg.convert.convert import splitPysegStarFile
 from pyseg.protocols.protocol_pre_seg import outputObjects as presegOutputObjects
 
 from pyseg.utils import createStarDirectories, genOutSplitStarFileName
-from pyworkflow import BETA
 from pyworkflow.protocol import FloatParam, PointerParam, LEVEL_ADVANCED, BooleanParam, IntParam
 from pyworkflow.utils import Message, moveFile
 from scipion.constants import PYTHON
@@ -47,7 +46,6 @@ class ProtPySegGraphs(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
     """analyze a GraphMCF (Mean Cumulative Function) from a segmented membrane"""
 
     _label = 'graphs'
-    _devStatus = BETA
 
     # -------------------------- DEFINE param functions ----------------------
     def __init__(self, **kwargs):

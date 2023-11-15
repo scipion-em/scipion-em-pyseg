@@ -31,7 +31,6 @@ from pwem.convert.headers import fixVolume
 from pwem.emlib.image import ImageHandler
 from pwem.protocols import EMProtocol
 from pyseg.convert.convert import getVesicleIdFromSubtomoName
-from pyworkflow import BETA
 from pyworkflow.protocol import NumericListParam, IntParam, FloatParam, GT, LEVEL_ADVANCED, PointerParam
 from pyworkflow.utils import Message, removeBaseExt, removeExt
 from scipion.constants import PYTHON
@@ -39,7 +38,7 @@ from tomo.objects import SetOfTomoMasks, TomoMask, SetOfSubTomograms, SubTomogra
 from pyseg import Plugin
 from pyseg.constants import PRESEG_SCRIPT, TOMOGRAM, PYSEG_LABEL, VESICLE, NOT_FOUND, \
     PYSEG_OFFSET_X, PYSEG_OFFSET_Y, PYSEG_OFFSET_Z, SEGMENTATION, RLN_ORIGIN_X, RLN_ORIGIN_Y, \
-    RLN_ORIGIN_Z, FROM_SCIPION, FROM_STAR_FILE
+    RLN_ORIGIN_Z
 from relion.convert import Table
 import numpy as np
 
@@ -55,7 +54,6 @@ class ProtPySegPreSegParticles(EMProtocol):
     """Segment membranes into membranes, inner surroundings and outer surroundings"""
 
     _label = 'preseg membranes'
-    _devStatus = BETA
     _starFile = None
 
     # -------------------------- DEFINE param functions ----------------------
@@ -73,12 +71,6 @@ class ProtPySegPreSegParticles(EMProtocol):
                       allowsNull=False,
                       help='Pointer to segmented and annotated tomograms within Scipion.')
         group = form.addGroup('Sub-volume splitting')
-        group.addParam('spSplit', NumericListParam,
-                       default='-1',
-                       allowsNull=False,
-                       label='Number of splits (X, Y, Z)',
-                       help='Parts in which the tomogram will be split, respecting X, Y and Z axis. Value -1'
-                            'is used to indicate no splitting.')
         group.addParam('spOffVoxels', IntParam,
                        label='Offset voxels',
                        default=1,
@@ -180,7 +172,6 @@ class ProtPySegPreSegParticles(EMProtocol):
         preSegCmd += '%s ' % Plugin.getHome(PRESEG_SCRIPT)
         preSegCmd += '--inStar %s ' % inStar
         preSegCmd += '--outDir %s ' % outDir
-        preSegCmd += '--spSplit %s ' % self.spSplit.get()
         preSegCmd += '--spOffVoxels %s ' % self.spOffVoxels.get()
         preSegCmd += '--sgVoxelSize %s ' % (float(self._getSamplingRate())/10)  # required in nm
         preSegCmd += '--sgThreshold %s ' % self.sgThreshold.get()
