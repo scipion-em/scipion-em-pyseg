@@ -127,12 +127,14 @@ class ProtPySegPreSegParticles(EMProtocol):
                 tomoMask.setVolName(mrcTomoFile)
 
             vesicle = tomoMask.getFileName()
-            for materialIndex in self._getMaterialsList(vesicle):  # Get annotated materials from txt file and add one
-                # Add row to output table
-                outputTable.addRow(tomoMask.getVolName(),
-                                   vesicle,
-                                   int(materialIndex),
-                                   vesicle)
+            materials = self._getMaterialsList(vesicle)
+            if materials:
+                for materialIndex in materials:  # Get annotated materials from txt file and add one
+                    # Add row to output table
+                    outputTable.addRow(tomoMask.getVolName(),
+                                       vesicle,
+                                       int(materialIndex),
+                                       vesicle)
         outputTable.write(self._starFile)
 
     def pysegPreSegStep(self):
