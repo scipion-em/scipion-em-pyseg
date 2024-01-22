@@ -24,18 +24,20 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
-from os.path import join, basename, realpath
-import pwem
+from os.path import join, basename
 import os
+import subprocess
 
+import pwem
 import pyworkflow
-from pyworkflow.utils import Environ, which
-from pyseg.constants import PYSEG_HOME, PYSEG, PYSEG_SOURCE_URL, PYSEG_ENV_ACTIVATION, DEFAULT_ACTIVATION_CMD, \
-    PYSEG_ENV_NAME, CFITSIO, DISPERSE, DEFAULT_VERSION
+from pyworkflow.utils import Environ
+from pyseg.constants import (PYSEG_HOME, PYSEG, PYSEG_SOURCE_URL, PYSEG_ENV_ACTIVATION,
+                             DEFAULT_ACTIVATION_CMD, PYSEG_ENV_NAME, CFITSIO,
+                             DISPERSE, DEFAULT_VERSION)
 
 _logo = "icon.png"
 _references = ['MartinezSanchez2020']
-__version__ = '3.1.2'
+__version__ = '3.1.3'
 
 
 class Plugin(pwem.Plugin):
@@ -60,7 +62,9 @@ class Plugin(pwem.Plugin):
 
         # Add required disperse path to PATH and pyto path to PYTHONPATH
         environ.update({'PATH': join(pySegDir, '%s_build' % DISPERSE, 'bin'),
-                        'PYTHONPATH': join(pySegDir, 'pyseg_system-%s' % DEFAULT_VERSION.replace('v', ''), 'code')
+                        'PYTHONPATH': join(pySegDir,
+                                           'pyseg_system-%s' % DEFAULT_VERSION.replace('v', ''),
+                                           'code')
                         })
 
         return environ
@@ -191,9 +195,10 @@ class Plugin(pwem.Plugin):
         protocol.runJob(fullProgram, args, env=cls.getEnviron(), cwd=cwd)
 
     @staticmethod
-    def _getCompilingDriversVer(compiler=None):
-        driverFile = realpath(which(compiler))
-        return float(driverFile.split('-')[-1].strip())
+    def _getCompilerVer(compiler=None):
+        result = subprocess.run([compiler, '-dumpversion'], stdout=subprocess.PIPE)
+        result = result.stdout.decode()
+        return int(result.strip().split(".")[0])
 
     @staticmethod
     def _checkCompilingDrivers():
@@ -202,8 +207,8 @@ class Plugin(pwem.Plugin):
         GPP = 'g++'
         minVer = 5
         maxVer = 12
-        gccVersion = Plugin._getCompilingDriversVer(compiler=GCC)
-        gppVersion = Plugin._getCompilingDriversVer(compiler=GPP)
+        gccVersion = Plugin._getCompilerVer(compiler=GCC)
+        gppVersion = Plugin._getCompilerVer(compiler=GPP)
         if gccVersion != gppVersion or (gccVersion == gppVersion and (gccVersion < minVer or gccVersion > maxVer)):
             compMsg = '%s-%i detected. ' \
                       '%s-%i detected. ' \

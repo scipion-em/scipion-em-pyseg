@@ -1,3 +1,6 @@
+v3.1.3:
+    - fix gcc detection
+    - fix reading segmentation txt files
 v3.1.2:
   - Installer updated: it installs a newer version of DisPerSE that compiler with gcc/g++ greater than 7
 v3.1.0:
