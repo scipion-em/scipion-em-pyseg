@@ -283,8 +283,22 @@ class ProtPySegPlaneAlignClassification(EMProtocol, ProtTomoBase):
         return summary
 
     def _validate(self):
-        nSubtomos = self.inputSubtomos.get().getSize()
         errors = []
+        tol = 1e-3
+        inMask = self.inMask.get()
+        inSubtomos = self.inputSubtomos.get()
+        maskRes = inMask.getSamplingRate()
+        subTomosRes = inSubtomos.getSamplingRate()
+        nSubtomos = inSubtomos.getSize()
+        xs, ys, zs = inSubtomos.getDimensions()
+        xm, ym, zm = inMask.getDimensions()
+        if abs(maskRes - subTomosRes) > tol:
+            errors.append('Sampling rate of the input subtomograms and the input mask should be the same\n'
+                          '%2.3f != %2.3f' % (subTomosRes, maskRes))
+        if (xs, ys, zs) != (xm, ym, zm):
+            errors.append('The dimensions of the subtomograms and the mask introduced must be the same:\n'
+                          '\t- Subtomograms: (x, y, z) = (%i, %i, %i)\n'
+                          '\t- Mask: (x, y, z) = (%i, %i, %i)\n' % (xs, ys, zs, xm, ym, zm))
         if self.clusteringAlg.get() != AFFINITY_PROP:
             if self.aggNClusters.get() <= 0 or self.aggNClusters.get() > nSubtomos:
                 errors.append('Number of clusters to find must be in range (0, nParticles).')
