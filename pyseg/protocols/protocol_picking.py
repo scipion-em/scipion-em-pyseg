@@ -69,9 +69,7 @@ class ProtPySegPicking(EMProtocol, ProtTomoBase, ProtTomoImportAcquisition):
         self.acquisitionParams = {
                 'angleMin': 90,
                 'angleMax': -90,
-                'step': None,
-                'angleAxis1': None,
-                'angleAxis2': None
+                'step': None
         }
         self._inStarDir = None
         self._outStarDir = None
