@@ -45,7 +45,146 @@ class outputObjects(Enum):
 
 
 class ProtPySegPostRecParticles(EMProtocol, ProtTomoBase):
-    """post-process already reconstructed particles: rot angle randomization and membrane suppression"""
+    """
+    Post-processes reconstructed subtomograms through membrane suppression
+    and particle conditioning operations in preparation for downstream
+    subtomogram averaging, classification, or structural interpretation.
+
+    AI Generated:
+
+    Post Reconstruction Particles (ProtPySegPostRecParticles) — User Manual
+        Overview
+
+        The Post Reconstruction Particles protocol is designed to refine
+        already reconstructed subtomograms before advanced structural
+        analysis. In cryo-electron tomography workflows, reconstructed
+        particles frequently contain surrounding membrane signal,
+        heterogeneous background densities, and orientation-dependent
+        artifacts that can interfere with alignment accuracy and reduce
+        the interpretability of averages. This protocol provides a
+        biologically oriented preprocessing stage intended to suppress
+        unwanted membrane contributions while preserving the molecular
+        information of interest.
+
+        The protocol is particularly useful in membrane-associated
+        systems, including vesicles, organelles, viral envelopes, and
+        membrane protein assemblies. In these contexts, the membrane may
+        dominate the density distribution and bias subsequent alignment
+        or classification procedures. By attenuating membrane signal,
+        the protocol improves the visibility of embedded or associated
+        macromolecular complexes and facilitates more reliable downstream
+        processing.
+
+        Inputs and Biological Context
+
+        The protocol requires a set of reconstructed subtomograms and a
+        primary mask defining the region of interest to preserve during
+        processing. The subtomograms are assumed to represent particles
+        already extracted and reconstructed from tomographic data. The
+        mask should encompass the biologically relevant density while
+        minimizing unrelated solvent or neighboring structures.
+
+        An optional membrane suppression mask can also be provided. This
+        mask identifies membrane regions whose signal should be reduced
+        or attenuated. Such suppression is especially valuable when the
+        membrane itself is not the target of analysis and would otherwise
+        dominate rotational alignment or classification procedures.
+
+        For biological applications, careful mask design is essential.
+        The primary mask should include the structural core of the
+        particle while excluding irrelevant densities. The membrane
+        suppression mask should focus only on membrane regions whose
+        contribution is considered undesirable for the intended analysis.
+        Excessively aggressive masking may remove biologically meaningful
+        information, whereas insufficient masking may leave strong
+        membrane artifacts unresolved.
+
+        Membrane Suppression Strategy
+
+        The membrane suppression stage attenuates density contributions
+        associated with membrane regions. Instead of completely removing
+        membrane information in all cases, the protocol allows gradual
+        attenuation, enabling users to balance structural preservation
+        with background reduction.
+
+        From a biological perspective, this flexibility is important
+        because membranes can contain meaningful contextual information.
+        In some studies, complete suppression may be desirable when the
+        goal is to focus exclusively on soluble or protruding domains.
+        In other situations, partial attenuation preserves orientation
+        cues or local structural relationships while still reducing
+        alignment bias.
+
+        Lower suppression factors produce stronger attenuation and are
+        typically preferred when membrane density overwhelms the particle
+        signal. Higher factors preserve more membrane information and may
+        be advantageous when membrane geometry contributes to biological
+        interpretation.
+
+        Data Consistency and Sampling Considerations
+
+        Accurate processing requires consistency between subtomograms and
+        masks. All input volumes should share the same sampling rate and
+        spatial scaling to ensure biologically meaningful results.
+        Mismatched voxel sizes can introduce distortions, incorrect mask
+        placement, or inconsistent attenuation effects.
+
+        In practical cryo-ET workflows, masks are often generated from
+        segmentation procedures or external processing pipelines. Before
+        running this protocol, users should verify that masks align
+        correctly with the subtomogram coordinate system and preserve the
+        intended structural regions.
+
+        Outputs and Interpretation
+
+        The protocol produces a new set of processed subtomograms ready
+        for downstream structural analysis. The resulting particles
+        preserve the original biological identity of the dataset while
+        incorporating the requested suppression and conditioning
+        operations.
+
+        Biologically, the processed particles are generally better suited
+        for subtomogram averaging, classification, and alignment because
+        distracting membrane signal is reduced. This often improves the
+        interpretability of structural heterogeneity and enhances the
+        recovery of molecular features that may otherwise remain obscured.
+
+        The protocol also preserves processing metadata describing the
+        operations applied during post reconstruction conditioning. This
+        information is useful for reproducibility and for comparing
+        alternative preprocessing strategies during iterative refinement
+        workflows.
+
+        Practical Recommendations
+
+        In most membrane-associated cryo-ET studies, it is advisable to
+        begin with moderate membrane suppression rather than complete
+        elimination. Excessive suppression may remove biologically
+        relevant densities or introduce artificial discontinuities near
+        membrane-contact regions.
+
+        Users should visually inspect representative processed particles
+        after execution to confirm that the molecular region of interest
+        remains intact and that membrane attenuation behaves as expected.
+        Iterative optimization of masks and suppression factors is often
+        beneficial in challenging datasets with crowded environments or
+        highly curved membranes.
+
+        For datasets involving membrane proteins or assemblies tightly
+        associated with lipid bilayers, preserving partial membrane
+        information may improve biological interpretation and maintain
+        meaningful structural context.
+
+        Final Perspective
+
+        In subtomogram analysis workflows, post reconstruction
+        conditioning is an important preparatory step that can strongly
+        influence downstream structural interpretation. Careful control
+        of membrane suppression and mask definition allows researchers to
+        enhance particle quality while preserving the biologically
+        relevant information needed for accurate alignment, averaging,
+        and classification.
+    """
 
     _label = 'posrec'
     inStarName = 'input_particles.star'

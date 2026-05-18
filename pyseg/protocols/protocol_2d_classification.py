@@ -76,7 +76,204 @@ class outputObjects(Enum):
 
 
 class ProtPySegPlaneAlignClassification(EMProtocol, ProtTomoBase):
-    """Unsupervised and deterministic classification of membrane-bound particles"""
+    """
+    Performs unsupervised classification of membrane-bound subtomograms
+    by comparing their structural organization through plane-aligned
+    particle representations. The protocol is designed to identify
+    biologically meaningful particle groups in cryo-electron tomography
+    datasets while reducing user bias and preserving structural diversity.
+
+    AI Generated:
+
+    Plane Align Classification (ProtPySegPlaneAlignClassification) - User Manual
+        Overview
+
+        The Plane Align Classification protocol performs unsupervised
+        classification of membrane-associated subtomograms using
+        rotationally aligned particle representations and similarity-based
+        clustering strategies. Its main purpose is to separate heterogeneous
+        particle populations into structurally related classes that can be
+        interpreted biologically or used in downstream subtomogram averaging
+        workflows.
+
+        In cryo-electron tomography studies, membrane-bound complexes often
+        display substantial variability in orientation, conformation,
+        composition, or local membrane context. This protocol addresses
+        these challenges by generating normalized particle representations
+        that emphasize structural similarities while reducing irrelevant
+        variability. The resulting classes can reveal distinct molecular
+        states, assembly intermediates, or spatially organized membrane
+        populations.
+
+        Inputs and Biological Context
+
+        The protocol requires a set of subtomograms together with a 3D mask.
+        The subtomograms correspond to extracted particles from tomographic
+        volumes, while the mask defines the region of interest that should
+        contribute to the classification process. In most biological
+        applications, the mask should encompass the structurally relevant
+        region while excluding unnecessary solvent or noisy membrane areas.
+
+        Careful preparation of the input data is important for meaningful
+        classification. The subtomograms and mask should share the same box
+        dimensions and voxel size so that particle features are represented
+        consistently. Significant mismatches between masks and particles may
+        lead to unstable classifications or biologically misleading groups.
+
+        In practical cryo-ET workflows, this protocol is commonly applied
+        after particle extraction and membrane orientation assignment. It is
+        especially useful for studying membrane protein assemblies,
+        vesicular transport systems, cytoskeletal interactions, or crowded
+        membrane environments where structural heterogeneity is expected.
+
+        Particle Pre-processing
+
+        Before classification, the protocol performs several preprocessing
+        operations intended to improve the robustness of similarity
+        estimation. Filtering helps suppress high-frequency noise while
+        preserving the dominant structural features of the particles. This
+        is particularly important in cryo-electron tomography datasets,
+        where the signal-to-noise ratio is often low.
+
+        The filter size determines the level of smoothing applied to the
+        particle representations. Small filter values preserve fine details
+        but may remain sensitive to noise, whereas larger values emphasize
+        global structural organization at the expense of local features.
+        Biological users should adapt this parameter according to the size
+        and expected flexibility of the target complex.
+
+        The protocol also supports optional radial compensation during
+        similarity estimation. This operation attempts to compensate for
+        intensity biases associated with radial averaging and can improve
+        comparisons between particles that exhibit strong three-dimensional
+        structural variation. In many membrane-associated systems, enabling
+        this option improves classification stability, especially for
+        complexes extending away from the membrane surface.
+
+        Similarity Metrics and Structural Comparison
+
+        A key aspect of the protocol is the calculation of similarity
+        relationships between particles. Different cross-correlation metrics
+        are available depending on the biological problem and the desired
+        balance between robustness and computational cost.
+
+        Cross-correlation within the mask focuses the comparison on the
+        masked structural region and is generally suitable for most
+        membrane-associated particles. This approach minimizes the influence
+        of solvent and unrelated densities. Full cross-correlation provides
+        greater tolerance to small particle misalignments but may increase
+        computational complexity. The similarity metric based on normalized
+        distances can be useful when emphasizing overall structural
+        resemblance rather than precise density overlap.
+
+        From a biological perspective, the selected metric influences which
+        structural features dominate the classification. Metrics focused on
+        local density agreement tend to separate subtle conformational
+        differences, whereas broader similarity measures may emphasize
+        large-scale organizational patterns.
+
+        Clustering Algorithms
+
+        The protocol provides multiple clustering strategies suitable for
+        different levels of heterogeneity and dataset complexity.
+
+        Affinity propagation automatically determines representative classes
+        from the particle similarity relationships. This method is
+        particularly attractive for exploratory analyses because it does not
+        require the user to define the number of classes in advance.
+        Biologically, it is useful when the diversity of conformational or
+        compositional states is unknown.
+
+        Agglomerative clustering progressively groups particles according to
+        structural similarity. This approach is often suitable when the user
+        expects hierarchical relationships between classes or wishes to
+        impose a predefined number of groups.
+
+        K-means clustering partitions particles into a fixed number of
+        classes defined by the user. It is computationally efficient and can
+        perform well when the approximate heterogeneity level is already
+        known from prior biological knowledge or exploratory analyses.
+
+        Dimensionality Reduction
+
+        For clustering methods based on feature vectors, the protocol can
+        perform dimensionality reduction using principal component analysis.
+        This operation compresses the structural information into a reduced
+        set of components while preserving the dominant variability present
+        in the dataset.
+
+        Dimensionality reduction becomes particularly important for large
+        subtomogram datasets because it improves computational efficiency
+        and reduces sensitivity to noise. In biological applications, using
+        too few components may oversimplify structural variability, whereas
+        too many components may reintroduce noise and unstable features.
+
+        Post-processing and Class Filtering
+
+        The protocol includes optional post-processing operations that help
+        improve the interpretability of the final classification results.
+        Small classes containing very few particles can be removed to reduce
+        the impact of poorly supported structural groups. This is often
+        useful when analyzing noisy or highly heterogeneous cryo-ET data.
+
+        Additional filtering based on similarity against representative
+        class references can also be applied. This step helps eliminate weak
+        or poorly defined classes that may arise from unstable clustering.
+        Biologically, these filters should be used carefully because overly
+        aggressive thresholds may discard rare but meaningful particle
+        states.
+
+        Outputs and Biological Interpretation
+
+        After execution, the protocol produces a classified set of
+        subtomograms together with the corresponding classes and
+        representative reference images. Each particle is assigned to a
+        structural class, allowing users to inspect particle organization,
+        compare class populations, and identify biologically meaningful
+        patterns.
+
+        The representative images associated with each class summarize the
+        dominant structural features of that particle population. These
+        representatives can be used for visual inspection, downstream
+        subtomogram averaging, or further structural refinement.
+
+        In biological studies, the resulting classes may correspond to
+        distinct conformational states, oligomeric assemblies, interaction
+        partners, or membrane-associated functional states. However,
+        interpretation should always consider the possibility of continuous
+        heterogeneity, missing-wedge artifacts, and limited particle counts.
+
+        Practical Recommendations
+
+        For exploratory analyses, affinity propagation is often a good
+        starting point because it adapts naturally to unknown heterogeneity.
+        When the approximate number of structural states is known,
+        agglomerative clustering or K-means may provide more controlled and
+        reproducible partitions.
+
+        Appropriate masking is one of the most important factors for
+        successful classification. The mask should isolate the biologically
+        relevant region while minimizing unrelated membrane or solvent
+        signal. Poor masking frequently produces unstable or biologically
+        ambiguous classes.
+
+        Moderate filtering is usually beneficial for noisy cryo-ET data, but
+        excessive smoothing may obscure subtle conformational differences.
+        Users are encouraged to visually inspect representative classes and
+        compare multiple parameter combinations when studying highly dynamic
+        systems.
+
+        Final Perspective
+
+        Classification of membrane-bound subtomograms is not merely a
+        computational grouping procedure but a biologically meaningful
+        strategy for exploring molecular diversity inside native cellular
+        environments. Reliable results depend on thoughtful preprocessing,
+        biologically informed masking, and careful interpretation of class
+        heterogeneity. When applied appropriately, this protocol provides a
+        powerful framework for discovering structural organization and
+        functional variability in cryo-electron tomography datasets.
+    """
 
     _label = '2D classification'
     inStarName = 'input_particles.star'

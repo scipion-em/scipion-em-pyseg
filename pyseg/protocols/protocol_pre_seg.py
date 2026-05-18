@@ -51,7 +51,153 @@ class outputObjects(Enum):
 
 
 class ProtPySegPreSegParticles(EMProtocol):
-    """Segment membranes into membranes, inner surroundings and outer surroundings"""
+    """
+    Segments membrane regions from tomographic masks into membrane cores,
+    inner membrane surroundings, and outer membrane surroundings for
+    downstream structural and spatial analysis in cryo-electron tomography.
+
+    AI Generated:
+
+    Pre-Segmentation of Membrane Particles (ProtPySegPreSegParticles) - User Manual
+        Overview
+
+        The Pre-Segmentation of Membrane Particles protocol prepares
+        membrane-associated regions extracted from tomographic data for
+        subsequent analysis with PySeg and related subtomogram analysis
+        workflows. Its main purpose is to identify and isolate membrane
+        structures together with their neighboring environments so that
+        biologically meaningful membrane regions can be studied in a
+        consistent and organized manner.
+
+        In cryo-electron tomography, membrane systems such as vesicles,
+        organelles, viral envelopes, and intracellular compartments often
+        contain structurally important protein assemblies embedded within
+        or attached to lipid bilayers. Accurate segmentation of these
+        membrane regions is essential before performing particle picking,
+        membrane tracing, spatial organization analysis, or structural
+        averaging.
+
+        Biological Context and Applications
+
+        This protocol is particularly useful when working with annotated
+        membrane segmentations generated from tomograms. It enables the
+        extraction of membrane-centered subvolumes while preserving the
+        surrounding contextual information that may contain associated
+        macromolecular complexes or membrane curvature features.
+
+        Typical biological applications include the analysis of vesicle
+        architecture, membrane remodeling systems, viral budding events,
+        organelle contact sites, and membrane-bound protein assemblies.
+        The protocol is designed to support workflows where membranes are
+        used as structural references for downstream geometric or spatial
+        analysis.
+
+        Inputs and Data Preparation
+
+        The protocol requires segmented tomographic masks that contain
+        annotated membrane regions associated with tomograms already
+        imported into the workflow. Each segmentation is expected to
+        contain labels or material annotations describing the membrane
+        entities to be processed.
+
+        During preparation, the protocol standardizes the data into a
+        format compatible with PySeg processing utilities. This ensures
+        that all tomograms and membrane segmentations can be interpreted
+        consistently during membrane extraction and refinement.
+
+        The workflow also preserves the relationship between segmented
+        membranes and their original tomograms, which is important for
+        maintaining spatial context throughout later analyses.
+
+        Membrane Segmentation Strategy
+
+        The protocol separates membrane structures into several biologically
+        relevant regions. The membrane core represents the segmented lipid
+        bilayer itself, while additional surrounding regions capture the
+        local environment on both sides of the membrane.
+
+        Including neighboring regions is often important because many
+        membrane-associated proteins extend partially outside the membrane
+        plane or interact asymmetrically with one membrane leaflet. By
+        preserving these surroundings, the protocol improves compatibility
+        with analyses focused on membrane topology, protein localization,
+        or spatial organization.
+
+        Density and Size Thresholds
+
+        Advanced users may define density and size thresholds to control
+        membrane detection sensitivity. Density thresholds determine which
+        voxels are considered part of a membrane region, while size
+        thresholds help suppress small disconnected components that are
+        unlikely to represent biologically meaningful membranes.
+
+        In practical cryo-ET workflows, careful threshold selection is
+        important because tomographic reconstructions frequently contain
+        heterogeneous contrast levels and noise. Conservative thresholds
+        are generally preferred when membranes are weakly resolved, while
+        stricter thresholds can improve robustness for cleaner datasets.
+
+        Membrane Thickness and Neighborhood Definition
+
+        The protocol allows users to specify the expected membrane
+        thickness together with the surrounding neighborhood region to be
+        included around the segmented membrane.
+
+        Biologically, these parameters should reflect the approximate size
+        of the membrane bilayer and the spatial range required to capture
+        associated molecular complexes. Larger neighborhood regions may be
+        useful when studying peripheral proteins or extended assemblies,
+        whereas smaller neighborhoods are often preferable for compact
+        membrane systems.
+
+        Vesicle Centering and Refinement
+
+        An important feature of the workflow is the estimation and
+        refinement of membrane or vesicle centers before final
+        segmentation. Centering improves the spatial consistency of the
+        extracted membrane regions and facilitates downstream analyses
+        requiring normalized coordinate systems.
+
+        This step is particularly valuable when comparing multiple vesicles
+        or membrane compartments because it reduces positional variability
+        and improves the interpretability of subsequent structural
+        measurements.
+
+        Outputs and Interpretation
+
+        After processing, the protocol produces segmented membrane masks
+        together with membrane-centered subtomograms representing the
+        extracted vesicle or membrane regions. These outputs preserve the
+        sampling information and tomographic relationships necessary for
+        downstream cryo-ET workflows.
+
+        The resulting segmentations can be used for membrane visualization,
+        geometric analysis, particle extraction, membrane graph analysis,
+        or integration with PySeg-based structural studies.
+
+        Practical Recommendations
+
+        For most biological datasets, it is advisable to begin with
+        moderate membrane thickness and neighborhood values that reflect
+        the expected bilayer dimensions in the specimen. Excessively large
+        neighborhoods may incorporate unrelated densities, while overly
+        restrictive regions may exclude biologically relevant complexes.
+
+        Careful inspection of segmentation quality is strongly recommended,
+        especially in crowded cellular tomograms where neighboring
+        structures may overlap. Validation of membrane continuity and
+        centering accuracy is important before continuing to downstream
+        particle analysis or spatial interpretation.
+
+        Final Perspective
+
+        Membrane pre-segmentation is not only a technical preprocessing
+        step but also a biologically important stage that determines how
+        membrane-associated information will be interpreted throughout the
+        remainder of the workflow. Proper membrane isolation, contextual
+        preservation, and spatial centering are essential for reliable
+        structural and organizational analysis in cryo-electron tomography.
+    """
 
     _label = 'preseg membranes'
     _starFile = None
